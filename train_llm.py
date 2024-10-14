@@ -122,8 +122,12 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
                                 pruning_mask=None)
     target_loss = output["loss"]
 
+    
     # b) if current_epoch >= args.start_epoch_regularization:
     # **Group Lasso Sparsity Regularization is performed on the masked weights.
+    # ** we dont use such gl_loss as backward() to update the grouplasso regularization
+    # ** we only use it as a value inspector, thus no_grad_fn would be applied here
+    # ** GroupLasso is implemented via direct WeightProjection
     if epoch >= args.start_epoch_regularization:
         with torch.autocast(device_type="cuda"):
             gl_loss = gl_module(target_llm = llm_model.module, pruning_masks = masks, epoch=epoch)
@@ -137,10 +141,10 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else: 
         gl_tensity = 1
 
-    llm_loss = target_loss # + gl_tensity * gl_loss
+    llm_loss = target_loss  #+ gl_tensity * gl_loss
 
     scaler.scale(llm_loss).backward()
-    
+
     return llm_loss, target_loss, gl_loss
 #-----------------------------------------------------------------#
 
@@ -263,6 +267,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     for i, text_input in enumerate(nlp_dataloader):
         # step2： llm param domain-specific tuning with [pruning_MASK] (temporary static)
         optimizer_llm.zero_grad()
+        current_lr = optimizer_llm.param_groups[0]['lr']
         llm_loss, target_loss, gl_loss = target_llm_step(llm_model=target_llm, input_ids=text_input["input_ids"], masks=masks, attn_mask=text_input["attention_mask"], epoch=epoch, args=args, gl_module=grouplasso_module, scaler=scaler)
         scaler.step(optimizer_llm)
         scaler.update()
@@ -275,6 +280,13 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         llm_loss_ave.update(reduced_llm_loss.item(), text_input["input_ids"].size(0))
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
+
+        ### 
+        ### weight_project for grouplasso starting here
+        projection_status = grouplasso_module.project_weight(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch, lr=current_lr)
+        if projection_status != True:
+            print("weight_projection failed, check the code.")
+        ###
 
         # step3: mask_generator(hypernet()) param tuning if epoch >= args.start_epoch_hyper
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
