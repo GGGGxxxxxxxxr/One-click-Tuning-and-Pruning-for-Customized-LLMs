@@ -1,0 +1,180 @@
+from __future__ import absolute_import
+import math
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from scipy.stats import truncnorm
+from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
+from torch.nn.utils import weight_norm
+from torch.utils.data import Dataset
+
+def sample_gumbel(shape, eps=1e-20):
+    U = torch.rand(shape)
+    #U = U.cuda()
+    return -torch.log(-torch.log(U + eps) + eps)
+
+
+def gumbel_softmax_sample(logits, T, offset=0):
+    gumbel_sample = sample_gumbel(logits.size())
+    if logits.is_cuda:
+        gumbel_sample = gumbel_sample.cuda()
+
+    y = logits + gumbel_sample + offset
+    return torch.sigmoid(y / T)
+
+
+def hard_concrete(out):
+    out_hard = torch.zeros(out.size())
+    out_hard[out>=0.5]=1
+    if out.is_cuda:
+        out_hard = out_hard.cuda()
+    # Set gradients w.r.t. y_hard gradients w.r.t. y
+    out_hard = (out_hard - out).detach() + out
+    return out_hard
+
+def truncate_normal_(size, a=-1, b=1):
+    values = truncnorm.rvs(a,b,size=size)
+    values = torch.from_numpy(values).float()
+    return values
+
+class custom_grad_weight(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, grad_w=1):
+        """
+        In the forward pass we receive a Tensor containing the input and return
+        a Tensor containing the output. ctx is a context object that can be used
+        to stash information for backward computation. You can cache arbitrary
+        objects for use in the backward pass using the ctx.save_for_backward method.
+        """
+        #train = train
+        ctx.grad_w = grad_w
+
+        input_clone = input.clone()
+        return input_clone.float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """
+        In the backward pass we receive a Tensor containing the gradient of the loss
+        with respect to the output, and we need to compute the gradient of the loss
+        with respect to the input.
+        """
+        grad_input = grad_output.clone()
+
+        gw = ctx.grad_w
+        # print(gw)
+        if grad_input.is_cuda and type(gw) is not int:
+            gw = gw.cuda()
+
+        return grad_input * gw, None, None
+
+#-----------------------------------------------------------------#
+# Mask Controller Network Design
+# >>>>> ---------------------------------------------------- <<<<<#
+# version 1.0:
+# modified based on ATO's HyperStructure
+# we forked input [len(p_structure), 1, 64] into [len(p_structure), LAYERS, 64] where bsz is increased from 1 to LAYERS, thus we could have parallel processing for layer-wise pruning mask.
+# so that each layer in LLMs would have it individual input mask params
+# the forked input would share a List[] of LinearProjection into Layer-wise weight mask
+# >>>>> ---------------------------------------------------- <<<<<#
+class LLM_HyperStructure(nn.Module):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None):
+        super(LLM_HyperStructure, self).__init__()
+        # >>>>> ---------------------------------------------------- <<<<<#
+        self.num_layers   = p_structure[0]
+        self.lw_structure = p_structure[1]
+        # >>>>> ---------------------------------------------------- <<<<<#
+
+        # >>>>> ---------------------------------------------------- <<<<<#
+        # network core
+        self.T       = T  
+        self.base    = base                                                 # decay
+        
+        self.ln      = nn.LayerNorm([256])                                  # layernorm
+
+        self.Bi_GRU  = nn.GRU(64, 128, bidirectional=True)                  # [input dim, output_dim]
+        self.h0      = torch.zeros(2, self.num_layers, 128)                 # [bidirect, LAYERS, output_dim]
+
+        self.inputs  = nn.Parameter(torch.Tensor(len(self.lw_structure), self.num_layers, 64))     # [sequence_len, LAYERS, input_dim]
+        nn.init.orthogonal_(self.inputs)
+        self.inputs.requires_grad=False                                     # 'input' itself is a untrainable nn.param
+        
+        self.linear_list = [nn.Linear(256, self.lw_structure[i], bias=False) 
+                            for i in range(len(self.lw_structure))]         # project to linear_outputDim for prunable LinearWeight in each LLM layer
+        self.mh_fc = torch.nn.ModuleList(self.linear_list)
+
+        # Initialize parameters
+        #self.initialize_parameters()
+    # >>>>> ---------------------------------------------------- <<<<<#
+
+    # >>>>> ---------------------------------------------------- <<<<<#
+    def initialize_parameters(self):
+        # Initialize Linear layers
+        for linear_layer in self.mh_fc:
+            nn.init.constant_(linear_layer.weight, 1.0)
+        
+        # Initialize GRU
+        for name, param in self.Bi_GRU.named_parameters():
+            if 'weight' in name:
+                nn.init.constant_(param, 1.0)
+            elif 'bias' in name:
+                nn.init.constant_(param, 0.0)
+        
+        # Initialize LayerNorm
+        nn.init.constant_(self.ln.weight, 1.0)
+        nn.init.constant_(self.ln.bias, 0.0)
+    # >>>>> ---------------------------------------------------- <<<<<#
+
+    # >>>>> ---------------------------------------------------- <<<<<#
+    # modified forward() for LLM-layerwise mask
+    def forward(self):
+        # device uniform
+        if self.ln.weight.is_cuda:
+            self.inputs = self.inputs.cuda()
+            self.h0     = self.h0.cuda()
+        # Bi-GRU
+        outputs, hn = self.Bi_GRU(self.inputs, self.h0)                     # [sequence_len, LAYERS, output_dim * 2]
+        # layer-wise mask projection
+        outputs = [F.relu(self.ln(outputs[i,:]))  for i in  range(len(self.lw_structure))]
+        outputs = [self.mh_fc[i](outputs[i])      for i in  range(len(self.mh_fc))]         # List[] of [ ... [LAYERS, output_dim *2] ... ]
+
+        # logits formulation
+        out = torch.cat(outputs, dim=1)                                     # sum channel size [LAYERS, total_prunable_dim_in_one_LLM_layer] for Gumble_Softmax(sigmoid)
+        out = gumbel_softmax_sample(out, T=self.T, offset=self.base)        # transform into Gumble_sampled logits 
+
+        if not self.training:
+            out = hard_concrete(out)                                        # binary_mask generation
+        
+        return out                                                          # [LAYERS, total_prunable_dim_in_one_LLM_layer] {.squeeze() has been removed cuz we have multi layers serving as individual bsz.}
+    # >>>>> ---------------------------------------------------- <<<<<#
+
+    # >>>>> ---------------------------------------------------- <<<<<#
+    # transform [LAYERS, total_prunable_dim_in_one_LLM_layer] into List[] of seperate prunable structures
+    # e.g, [..[LAYERS, Q_head_1], ... , [LAYERS, V_head_1], ... , [LAYERS, Output], ...]
+    def transform_output(self, inputs):
+        arch_vector = []
+        start = 0
+        for i in range(len(self.lw_structure)):
+            end = start + self.lw_structure[i]
+            arch_vector.append(inputs[:, start:end])
+            start = end
+
+        return arch_vector
+    # >>>>> ---------------------------------------------------- <<<<<#
+    
+    # >>>>> ---------------------------------------------------- <<<<<#
+    # transform dim_mask into applicable mask
+    # as LinearProjection output is [bsz, linear_out] (very simple)
+    # thus we just need to direct * [layer_idx, binary_dim_mask] with LProj output
+    # this function is depreciated in ATO's LLM application
+    def vector2mask(self, inputs):
+        return None
+    # >>>>> ---------------------------------------------------- <<<<<#
+    
+
+
+if __name__ == '__main__':
+    net = LLM_HyperStructure()
+    y = net()
+    print(y)
