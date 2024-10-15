@@ -141,12 +141,15 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else:
         gl_loss = torch.tensor(0.0).to(target_loss.device)
     
+    '''
+    ** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
     if epoch >= (args.epochs - 9):
         gl_tensity = 1000           # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
+    '''
 
     llm_loss = target_loss  #+ gl_tensity * gl_loss
 
@@ -175,13 +178,14 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 
     # c) masked_llm forward() with 'pruning_mask = mask'
     seq_len = val_ids.shape[1]
-    output      = llm_model(input_ids=val_ids, 
-                            labels=val_ids, 
-                            return_dict=True, 
-                            use_cache=False,
-                            num_logits_to_keep=seq_len, 
-                            attention_mask=attn_mask,
-                            pruning_mask=mask)
+    with torch.autocast(device_type="cuda"):
+        output      = llm_model(input_ids=val_ids, 
+                                labels=val_ids, 
+                                return_dict=True, 
+                                use_cache=False,
+                                num_logits_to_keep=seq_len, 
+                                attention_mask=attn_mask,
+                                pruning_mask=mask)
     target_loss = output["loss"]
 
     # d) mask constrain: total pruning ratio + head-wise dimensional alignment
@@ -192,13 +196,13 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     mask_sum    = torch.sum(mask_vec)
     total_count = mask_vec.numel()
     '''
-    total_count = k_ratio * torch.cat(mask[:num_key_value]).numel() \
+    total_count =   k_ratio   * torch.cat(mask[:num_key_value]).numel() \
                     + v_ratio * torch.cat(mask[num_key_value : 2 * num_key_value]).numel() \
                     + o_ratio * mask[-2].numel() \
                     + u_ratio * mask[-1].numel()
     
-    mask_sum    = k_ratio * torch.sum(torch.cat(mask[:num_key_value])) \
-                    + v_ratio * torch.sum(torch.cat(mask[:num_key_value])) \
+    mask_sum    =   k_ratio   * torch.sum(torch.cat(mask[:num_key_value])) \
+                    + v_ratio * torch.sum(torch.cat(mask[num_key_value : 2 * num_key_value])) \
                     + o_ratio * torch.sum(mask[-2]) \
                     + u_ratio * torch.sum(mask[-1]) 
     
@@ -217,12 +221,12 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     '''
     alignment_loss = 0
     mask_k = mask[:num_key_value]
-    mask_v = mask[num_key_value: 2*num_key_value]
+    mask_v = mask[num_key_value: 2 * num_key_value]
     alignment_loss += process_tensor_list(mask_k)
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = 2 * target_loss + 5 * ratio_loss + 0.01 * alignment_loss
+    hyper_loss = target_loss + 5 * ratio_loss + 0.005 * alignment_loss
 
     hyper_loss.backward()
 
@@ -297,12 +301,12 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
 
-        ### 
+        ###############################################
         ### weight_project for grouplasso starting here
         projection_status = grouplasso_module.project_weight(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch, lr=current_lr)
         if projection_status != True:
             print("weight_projection failed, check the code.")
-        ###
+        ###############################################
 
         # step3: mask_generator(hypernet()) param tuning if epoch >= args.start_epoch_hyper
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
@@ -312,8 +316,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 # hypernet() param tuning
                 optimizer_hyper.zero_grad()
                 hyper_loss, valid_loss, ratio_loss, alignment_loss, masks = hypernet_step(hypernet=hyper_net, llm_model=target_llm, val_ids=val_inputs["input_ids"], attn_mask=val_inputs["attention_mask"],pruning_ratio_target=pruning_ratio_target, num_key_value=num_key_value, pruning_contribution=pruning_contribution)
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
                 optimizer_hyper.step()
 
+                # update loss into training progress holder
                 reduced_hyper_loss = reduce_loss(hyper_loss)
                 reduced_valid_loss = reduce_loss(valid_loss)
                 reduced_ratio_loss = reduce_loss(ratio_loss)
