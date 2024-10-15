@@ -110,7 +110,7 @@ parser.add_argument('--pruning-ratio-target', default=0.5, type=float,
                     help='Pruning Rate')
 parser.add_argument('--start-epoch-control', default=0, type=int,
                     help='which epoch to start the training of controller_network')
-parser.add_argument('--control-epochs', default=3, type=int,
+parser.add_argument('--control-epochs', default=6, type=int,
                     help='how many epochs for controller_network_training')
 parser.add_argument('--control-step', default=1, type=int,
                     help='HyperNet() param update gap, default = 1')
@@ -252,9 +252,6 @@ def main():
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
         model.resize_token_embeddings(len(tokenizer))
-
-
-
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()

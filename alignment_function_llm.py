@@ -33,7 +33,7 @@ class Group_Lasso_regularization(nn.Module):
     def __init__(self, args, target_llm_cfg, prunable_structure, fsdp_scaler):
         super().__init__()
         self.grad_mul    = args.grad_mul
-        self.lam         = 100 #args.gl_lam
+        self.lam         = 10 #args.gl_lam
         self.p_structure = prunable_structure
         self.model       = None
         self.cfg         = target_llm_cfg
@@ -111,10 +111,6 @@ class Group_Lasso_regularization(nn.Module):
     def forward(self, target_llm, pruning_masks, epoch):
         self.model = target_llm
         gl_list = []
-
-        # adjust regularization tensity
-        if epoch >= 1:
-            self.lam = 1000 * self.lam
 
         # layer_iterative GroupLasso processing
         for layer_idx in range(self.cfg.num_hidden_layers):
@@ -203,8 +199,13 @@ class Group_Lasso_regularization(nn.Module):
         self.model = target_llm
 
         # adjust regularization tensity
-        if epoch >= 1:
-            self.lam = 10 * self.lam
+        if epoch >= 6:
+            self.lam = 1000 * 10
+
+        '''
+        if epoch >= 10:
+            self.lam = 100 * self.lam
+        '''
 
         # ratio
         N_t = 0

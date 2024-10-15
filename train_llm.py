@@ -70,6 +70,13 @@ def match_loss(x, y, epsilon=1e-8):
     return loss
 #-----------------------------------------------------------------#
 
+def process_tensor_list(tensor_list):
+    concatenated = torch.stack([torch.sum(tensor, dim=1) for tensor in tensor_list], dim=1)
+    max_values, max_indices = torch.max(concatenated, dim=1)
+    mean_of_max_values = torch.mean(max_values)
+
+    return mean_of_max_values
+
 #-----------------------------------------------------------------#
 # loss function for intra-head dimensional alignment 
 # ** for maintaining parallel processing ability of GPU, MHA or GA shall be aligned within K, V dimension.
@@ -199,14 +206,23 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     ratio_loss  = match_loss(mask_ratio, pruning_ratio_target)
 
     # ii) the intra-head dimensional alignment (specifically, for mask_K & mask_V)
+    # the first version of implementation is too harsh sometimes, so that the Hypernet() would tend to never prune any of the attention part.
+    # we turn to penalize the max() remaining dimension of K, V within the same layer to formulate a softer restriction
+    '''
     alignment_loss = 0
     mask_k = mask[:num_key_value]
     alignment_loss += dim_alignment_loss(mask_k, num_key_value, match_loss)
     mask_v = mask[num_key_value: 2*num_key_value]
     alignment_loss += dim_alignment_loss(mask_v, num_key_value, match_loss)
+    '''
+    alignment_loss = 0
+    mask_k = mask[:num_key_value]
+    mask_v = mask[num_key_value: 2*num_key_value]
+    alignment_loss += process_tensor_list(mask_k)
+    alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss + 2 * alignment_loss
+    hyper_loss = 2 * target_loss + 5 * ratio_loss + 0.01 * alignment_loss
 
     hyper_loss.backward()
 
