@@ -48,7 +48,7 @@ def format_example(example):
     # Return the new dictionary with formatted text
     return {'text': formatted_text}
 
-def formatted_MedNLI_dataset(train_data_file='/home/user1/workspace/leilu/AutoTrainOnce/nlp_dataset_collections/medNLI/mli_train_v1.jsonl', val_data_file='/home/user1/workspace/leilu/AutoTrainOnce/nlp_dataset_collections/medNLI/mli_dev_v1.jsonl'):
+def formatted_MedNLI_dataset(train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl', val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl'):
     # Load the dataset and remove unnecessary columns
     train_set = load_dataset("json", data_files=train_data_file).remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
