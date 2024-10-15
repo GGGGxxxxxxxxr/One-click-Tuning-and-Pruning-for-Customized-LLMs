@@ -174,6 +174,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
     mask_vec = hypernet.module()
+    assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(mask_vec)
 
     # c) masked_llm forward() with 'pruning_mask = mask'
@@ -226,7 +227,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss + 0.005 * alignment_loss
+    hyper_loss = target_loss + 20 * ratio_loss + 0.0005 * alignment_loss
 
     hyper_loss.backward()
 
@@ -289,6 +290,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         optimizer_llm.zero_grad()
         current_lr = optimizer_llm.param_groups[0]['lr']
         llm_loss, target_loss, gl_loss = target_llm_step(llm_model=target_llm, input_ids=text_input["input_ids"], masks=masks, attn_mask=text_input["attention_mask"], epoch=epoch, args=args, gl_module=grouplasso_module, scaler=scaler)
+        scaler.unscale_(optimizer_llm) 
+        torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
         scaler.step(optimizer_llm)
         scaler.update()
         #optimizer_llm.step()

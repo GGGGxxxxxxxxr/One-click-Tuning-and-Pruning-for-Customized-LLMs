@@ -181,6 +181,8 @@ def save_checkpoint(epoch, model, hyper_net, optimizer_llm, optimizer_hyper, cur
     if torch.distributed.get_rank() == 0:
         torch.save(state, filename)
         print(f"Checkpoint saved at epoch {epoch} to {filename}\n")
+    
+    dist.barrier()
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#

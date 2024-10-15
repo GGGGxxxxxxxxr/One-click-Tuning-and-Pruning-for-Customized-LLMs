@@ -9,7 +9,7 @@ from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 from torch.nn.utils import weight_norm
 from torch.utils.data import Dataset
 
-def sample_gumbel(shape, eps=1e-20):
+def sample_gumbel(shape, eps=1e-10):
     U = torch.rand(shape)
     #U = U.cuda()
     return -torch.log(-torch.log(U + eps) + eps)

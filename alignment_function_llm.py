@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from torch.utils.data.sampler import SubsetRandomSampler
 from math import sqrt, floor
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+import torch.distributed as dist
+
 #-----------------------------------------------------------------#
 # custom weight forward() & backward() with configurable scale
 class custom_grad_weight(torch.autograd.Function):
@@ -211,7 +213,7 @@ class Group_Lasso_regularization(nn.Module):
         N_t = 0
         for msk in pruning_masks:
             N_t += (1-msk).sum()
-
+        
         with torch.no_grad():
             # layer_iterative GroupLasso processing
             for layer_idx in range(self.cfg.num_hidden_layers):
@@ -243,7 +245,7 @@ class Group_Lasso_regularization(nn.Module):
                         mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] / w_norm.unsqueeze(1)
                         mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] / w_norm.unsqueeze(0)
 
-                        tmp = - self.lam * lr * ratio + w_norm
+                        tmp = - self.lam * lr + w_norm #* ratio + w_norm
                         tmp[tmp<0] = 0
                         mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] * tmp.unsqueeze(1)
                         mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] * tmp.unsqueeze(1)
@@ -252,6 +254,13 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
+
+                        '''
+                        ** test for weight_copy within FSDP.summon_full_params()
+                        down_proj_size = cur_layer.mlp.down_proj.weight.size()
+                        zero_weight = torch.zeros(down_proj_size).to(cur_layer.mlp.down_proj.weight.device)
+                        cur_layer.mlp.down_proj.weight.copy_(zero_weight)
+                        '''
 
                     # process attn_out_mask （weight_projection for attn_out_mask)
                     ratio = (1 - m_out).sum() / N_t
@@ -271,7 +280,7 @@ class Group_Lasso_regularization(nn.Module):
                         mlp_u_weight[:,m_out] = mlp_u_weight[:,m_out] / w_norm.unsqueeze(0)
                         attn_out_weight[m_out,:] = attn_out_weight[m_out,:] / w_norm.unsqueeze(1)
 
-                        tmp = -self.lam * lr * ratio + w_norm
+                        tmp = -self.lam * lr + w_norm #* ratio + w_norm
                         tmp[tmp<0] = 0
 
                         mlp_g_weight[:,m_out] = mlp_g_weight[:,m_out] * tmp.unsqueeze(0)
@@ -303,7 +312,7 @@ class Group_Lasso_regularization(nn.Module):
                             attn_v_weight[V_mask,:] = attn_v_weight[V_mask,:] / w_norm.unsqueeze(1)
                             attn_out_weight[:, V_mask_repeated] = attn_out_weight[:, V_mask_repeated] / w_norm.unsqueeze(0)
 
-                            tmp = -self.lam * lr * ratio + w_norm
+                            tmp = -self.lam * lr + w_norm#* ratio + w_norm
                             tmp[tmp<0] = 0
 
                             attn_v_weight[V_mask, :] = attn_v_weight[V_mask,:] * tmp.unsqueeze(1)
@@ -342,7 +351,7 @@ class Group_Lasso_regularization(nn.Module):
                             attn_q_weight[m_Q_out, :] = attn_q_weight[m_Q_out, :] / w_norm.unsqueeze(1)
 
                             # Apply scaling factor
-                            tmp = -self.lam * lr * ratio + w_norm
+                            tmp = -self.lam * lr + w_norm #* ratio + w_norm
                             tmp = tmp.clamp(min=0)  # Equivalent to tmp[tmp < 0] = 0
 
                             attn_k_weight[m_K_out, :] = attn_k_weight[m_K_out, :] * tmp.unsqueeze(1)
