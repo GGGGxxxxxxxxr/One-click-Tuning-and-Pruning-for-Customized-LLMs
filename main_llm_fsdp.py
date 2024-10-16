@@ -32,6 +32,7 @@ mixed_precision_policy = MixedPrecision(
 
 from torch.distributed.fsdp.wrap import (
     transformer_auto_wrap_policy,
+    _module_wrap_policy,
     enable_wrap,
     wrap,
 )
@@ -54,12 +55,23 @@ from custom_llms.llama import LlamaForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 from custom_llms.llama import LlamaDecoderLayer
 
+''''
 llama_auto_wrap_policy = partial(
         transformer_auto_wrap_policy,
         transformer_layer_cls={
             LlamaDecoderLayer,
         },
     )
+'''
+
+llama_auto_wrap_policy = partial(
+            _module_wrap_policy,
+            module_classes ={
+                LlamaDecoderLayer,
+                nn.Embedding,
+                nn.Linear
+            }
+        )
 
 parser = argparse.ArgumentParser(description='PyTorch Implementation for ATO on LLM LoRA & Structure Pruning')
 #-----------------------------------------------------------------#
