@@ -230,6 +230,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss = 0
     mask_k = mask[:num_key_value]
     mask_v = mask[num_key_value: 2 * num_key_value]
+    assert len(mask_v) + len(mask_k) + 2 == len(mask), "error for extracting binary mask, please check."
     alignment_loss += process_tensor_list(mask_k)
     alignment_loss += process_tensor_list(mask_v)
 

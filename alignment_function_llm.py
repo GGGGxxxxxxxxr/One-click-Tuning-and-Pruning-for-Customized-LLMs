@@ -35,7 +35,7 @@ class Group_Lasso_regularization(nn.Module):
     def __init__(self, args, target_llm_cfg, prunable_structure, fsdp_scaler):
         super().__init__()
         self.grad_mul    = 1 #args.grad_mul
-        self.lam         = 10 #args.gl_lam
+        self.lam         = 100000 #args.gl_lam
         self.p_structure = prunable_structure
         self.model       = None
         self.cfg         = target_llm_cfg
@@ -203,7 +203,7 @@ class Group_Lasso_regularization(nn.Module):
 
         # adjust regularization tensity
         if epoch >= 15:
-            self.lam = 1000 * 1000
+            self.lam = 1000 * 100000
 
         '''
         if epoch >= 10:
@@ -259,6 +259,7 @@ class Group_Lasso_regularization(nn.Module):
 
                         "DEBUG PURPOSE print(w_norm and tmp for Layer0)"
                         if layer_idx == 0:
+                            print(f"current mask pattern: {w_norm.size()}")
                             print(f"w_norm_for_mlpU_layer{layer_idx}: {w_norm}")
                             print(f"tmp_for_mlpU_layer{layer_idx}:    {tmp}\n")
                         '''
