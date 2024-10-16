@@ -371,8 +371,98 @@ class Group_Lasso_regularization(nn.Module):
                                             + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
 
         return True
+    
 
-              
+
+    def debug_purpose_compute(self, target_llm, pruning_masks, epoch):
+        self.model = target_llm
+        gl_list = []
+
+        # layer_iterative GroupLasso processing
+        for layer_idx in range(self.cfg.num_hidden_layers):
+            
+            print(f"cur_layer: {layer_idx}")
+
+            # extract corrsponding LLM_DecoderLayer & Masks for this layer
+            cur_layer = self.model.model.layers[layer_idx]              # CasualLM.model -> LMmodel.layer -> DecoderLayer
+            
+            layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_masks]
+            m_umlp = layer_wise_masks[-1]
+            m_out  = layer_wise_masks[-2]
+            m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
+            m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
+
+            # process MLP_up_mask
+            mlp_g_weight = cur_layer.mlp.gate_proj.weight
+            mlp_u_weight = cur_layer.mlp.up_proj.weight
+            mlp_d_weight = cur_layer.mlp.down_proj.weight
+            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                            + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                            + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            
+            print(gl_loss)
+
+            gl_list.append(torch.tensor(gl_loss.item()).cuda())
+            del gl_loss
+
+            # process attn_out_mask
+            attn_out_weight = cur_layer.self_attn.o_proj.weight
+            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                            + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
+                            + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            
+            print(gl_loss)
+
+            gl_list.append(torch.tensor(gl_loss.item()).cuda())
+            del gl_loss
+
+            # process attn_V_mask
+            V_mask = torch.cat(m_V)
+            V_mask_repeated = torch.cat([t.repeat(self.num_groups) for t in m_V])
+            attn_v_weight = cur_layer.self_attn.v_proj.weight
+            
+            # 如果 attention_bias 存在并且 == False，则跳过 bias 的 regularization
+            if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
+                gl_loss = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                            + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            else:
+                attn_v_bias   = cur_layer.self_attn.v_proj.bias
+                gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            
+            print(gl_loss)
+
+            gl_list.append(torch.tensor(gl_loss.item()).cuda())
+            del gl_loss
+
+            # process attn_K_mask (Q_mask)
+            K_mask = torch.cat(m_K)
+            Q_mask = torch.cat([t.repeat(self.num_groups) for t in m_K])
+            attn_k_weight = cur_layer.self_attn.k_proj.weight
+            attn_q_weight = cur_layer.self_attn.q_proj.weight
+
+            if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
+                gl_loss = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                            + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
+            else:
+                attn_k_bias   = cur_layer.self_attn.k_proj.bias
+                attn_q_bias   = cur_layer.self_attn.q_proj.bias
+                gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
+                
+            print(gl_loss)
+            gl_list.append(torch.tensor(gl_loss.item()).cuda())
+            del gl_loss
+        
+        # sum gl_loss (for value tracing only)
+        #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
+        sum_loss = sum(gl_list) / len(gl_list)
+        return sum_loss    
+
+        
 
 
 

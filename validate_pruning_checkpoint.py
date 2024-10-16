@@ -1,10 +1,13 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
 from custom_llms.qwen2 import Qwen2ForCausalLM
+from custom_llms.llama import LlamaForCausalLM
 from datasets import load_dataset
+from alignment_function_llm import Group_Lasso_regularization
+
 
 def transform_output(inputs):
-        lw_structure = [64, 64, 64, 64, 896,4864]
+        lw_structure = [128] * 64 + [4096] + [11008]
         arch_vector = []
         start = 0
         for i in range(len(lw_structure)):
@@ -14,16 +17,36 @@ def transform_output(inputs):
 
         return arch_vector
 
+'''
 checkpoint = torch.load("/home/user1/workspace/leilu/AutoTrainOnce/checkpoint.pth.tar", map_location=torch.device('cpu'))  # adjust map_location as needed
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B")
 model     = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B").cuda()
 model.load_state_dict(checkpoint["model_state_dict"], strict=True)
 model.eval()
-
 layer0 = model.model.layers[0]
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 mask = transform_output(cur_mask_vec)
+'''
 
+checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
+api_token = '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'
+model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token= api_token)
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
+model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token).cuda()
+model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+model.eval()
+
+cur_mask_vec = checkpoint["mask_vec"].to("cuda")
+masks = transform_output(cur_mask_vec)
+
+### option1: debugging for GroupLasso WeightProjection
+print("validate grouplasso regularization")
+gl_loss_module = Group_Lasso_regularization(args = None, target_llm_cfg = model_cfg, prunable_structure = None, fsdp_scaler=None)
+gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
+
+
+
+'''
 # build test/validation dataset
 val_set = load_dataset("json", data_files="/home/user1/workspace/leilu/AutoTrainOnce/nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
@@ -84,3 +107,4 @@ for i in range(len(val_set)):
     #print(f"expected: {gold_label}, predicted: {prediction}")
 
 print(acc_count)
+'''
