@@ -36,7 +36,6 @@ from torch.distributed.fsdp.wrap import (
     wrap,
 )
 
-
 # 8bit optimizer for memory efficent training
 import bitsandbytes as bnb
 
@@ -448,7 +447,7 @@ def main():
         scheduler_hyper.step()
 
         #save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
-        save_fsdp_checkpoint(model=llm_ddp, cur_mask_vec=cur_maskVec)
+        save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
 
     print("=====> Training Done. <=====\n")
 
