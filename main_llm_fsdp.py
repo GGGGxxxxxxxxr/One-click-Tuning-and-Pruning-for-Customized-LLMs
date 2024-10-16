@@ -271,7 +271,7 @@ def main():
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token= api_token)
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
+        model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
     else:

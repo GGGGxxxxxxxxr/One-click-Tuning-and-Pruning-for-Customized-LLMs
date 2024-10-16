@@ -34,12 +34,15 @@ print("llama2-7b model initialization.")
 api_token = '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'
 model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token= api_token)
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
+tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token).cuda()
+model.resize_token_embeddings(len(tokenizer))
 
 print("load state dict from ckpt.")
 model.load_state_dict(checkpoint["model_state_dict"], strict=True)
 model.eval()
 
+print("get cur_mask_vec")
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 masks = transform_output(cur_mask_vec)
 
