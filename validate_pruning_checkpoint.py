@@ -28,7 +28,7 @@ cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 mask = transform_output(cur_mask_vec)
 '''
 print("loading checkpoint.")
-checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
+checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'), weights_only=True)
 
 print("llama2-7b model initialization.")
 api_token = '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'
