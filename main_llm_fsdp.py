@@ -124,7 +124,7 @@ parser.add_argument('--pruning-ratio-target', default=0.5, type=float,
                     help='Pruning Rate')
 parser.add_argument('--start-epoch-control', default=0, type=int,
                     help='which epoch to start the training of controller_network')
-parser.add_argument('--control-epochs', default=10, type=int,
+parser.add_argument('--control-epochs', default=20, type=int,
                     help='how many epochs for controller_network_training')
 parser.add_argument('--control-step', default=1, type=int,
                     help='HyperNet() param update gap, default = 1')
@@ -463,7 +463,7 @@ def main():
 
         torch.cuda.empty_cache()
         print(f"cuda cache cleaned for epoch {epoch}")
-        
+
     print("=====> Training Done. <=====\n")
 
 if __name__ == '__main__':
