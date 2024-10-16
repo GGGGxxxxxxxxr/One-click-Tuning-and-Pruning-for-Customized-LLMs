@@ -176,9 +176,10 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # acquire trainable mask for masked_llm inference
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
     mask_vec = hypernet.module()
+    binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
-    mask = hypernet.module.transform_output(mask_vec)
-
+    mask = hypernet.module.transform_output(binary_mask_vec)
+    
     # c) masked_llm forward() with 'pruning_mask = mask'
     seq_len = val_ids.shape[1]
     with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
