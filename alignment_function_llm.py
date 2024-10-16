@@ -247,7 +247,9 @@ class Group_Lasso_regularization(nn.Module):
                         mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] / w_norm.unsqueeze(0)
 
                         tmp = - self.lam * lr + w_norm #* ratio + w_norm
-                        tmp[tmp<0] = 0
+                        #tmp[tmp<0] = 0
+                        tmp = tmp * 0.0001
+
                         mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] * tmp.unsqueeze(1)
                         mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] * tmp.unsqueeze(1)
                         mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] * tmp.unsqueeze(0)
