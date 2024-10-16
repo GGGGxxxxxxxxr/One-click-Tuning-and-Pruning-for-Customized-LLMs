@@ -16,6 +16,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # original DP is swapped into DDP for efficient and more organzied training logic
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp import StateDictType
+from torch.distributed.fsdp import FullStateDictConfig
+
 # Initialize FSDP with mixed precision
 from torch.distributed.fsdp import MixedPrecision
 from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
@@ -181,6 +184,23 @@ def save_checkpoint(epoch, model, hyper_net, optimizer_llm, optimizer_hyper, cur
     if torch.distributed.get_rank() == 0:
         torch.save(state, filename)
         print(f"Checkpoint saved at epoch {epoch} to {filename}\n")
+    
+    dist.barrier()
+
+def save_fsdp_checkpoint(epoch, model, cur_mask_vec, filename="/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"):
+    
+    save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+    with FSDP.state_dict_type(model, StateDictType.FULL_STATE_DICT, save_policy):
+            cpu_state = model.state_dict()
+            state = {
+                'model_state_dict': cpu_state,
+                'mask_vec': cur_mask_vec,
+            }
+
+            # Save only on the main process to avoid multiple processes writing the file
+            if torch.distributed.get_rank() == 0:
+                torch.save(state, filename)
+                print(f"Checkpoint saved at epoch {epoch} to {filename}\n")
     
     dist.barrier()
 #-----------------------------------------------------------------#
