@@ -47,10 +47,17 @@ cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 masks = transform_output(cur_mask_vec)
 
 ### option1: debugging for GroupLasso WeightProjection
+print("view pruning pattern.")
+for layer_idx in range(32):
+      layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in masks]
+      mlp_up_mask = layer_wise_masks[-1]
+      print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
+      mlp_up_mask_ratio = (1-mlp_up_mask).sum() / mlp_up_mask.numel()
+      print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
+
 print("validate grouplasso regularization")
 gl_loss_module = Group_Lasso_regularization(args = None, target_llm_cfg = model_cfg, prunable_structure = None, fsdp_scaler=None)
 gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
-
 
 
 '''
