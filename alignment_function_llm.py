@@ -247,8 +247,7 @@ class Group_Lasso_regularization(nn.Module):
                         mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] / w_norm.unsqueeze(0)
 
                         tmp = - self.lam * lr + w_norm #* ratio + w_norm
-                        #tmp[tmp<0] = 0
-                        tmp = tmp * 0.0001
+                        tmp[tmp<0] = 0
 
                         mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] * tmp.unsqueeze(1)
                         mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] * tmp.unsqueeze(1)
@@ -256,7 +255,7 @@ class Group_Lasso_regularization(nn.Module):
 
                         cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
-                        cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
+                        cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight * 0.0001)
 
                         '''
                         ** test for weight_copy within FSDP.summon_full_params()
