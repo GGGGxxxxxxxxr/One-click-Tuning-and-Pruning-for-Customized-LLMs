@@ -447,7 +447,8 @@ def main():
         scheduler_llm.step()
         scheduler_hyper.step()
 
-        save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
+        #save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
+        save_fsdp_checkpoint(model=llm_ddp, cur_mask_vec=cur_maskVec)
 
     print("=====> Training Done. <=====\n")
 
