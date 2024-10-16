@@ -257,9 +257,10 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
 
-                        "DEBUG PURPOSE"
-                        print(f"w_norm_for_mlp_up_mask: {w_norm}")
-                        print(f"tmp_for_mlp_up_mask:    {tmp}")
+                        "DEBUG PURPOSE print(w_norm and tmp for Layer0)"
+                        if layer_idx == 0:
+                            print(f"w_norm_for_mlpU_layer{layer_idx}: {w_norm}")
+                            print(f"tmp_for_mlpU_layer{layer_idx}:    {tmp}\n")
                         '''
                         ** test for weight_copy within FSDP.summon_full_params()
                         down_proj_size = cur_layer.mlp.down_proj.weight.size()
