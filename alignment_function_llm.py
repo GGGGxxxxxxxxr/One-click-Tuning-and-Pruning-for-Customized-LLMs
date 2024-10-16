@@ -34,7 +34,7 @@ class custom_grad_weight(torch.autograd.Function):
 class Group_Lasso_regularization(nn.Module):
     def __init__(self, args, target_llm_cfg, prunable_structure, fsdp_scaler):
         super().__init__()
-        self.grad_mul    = args.grad_mul
+        self.grad_mul    = 1 #args.grad_mul
         self.lam         = 10 #args.gl_lam
         self.p_structure = prunable_structure
         self.model       = None
@@ -380,7 +380,7 @@ class Group_Lasso_regularization(nn.Module):
 
         # layer_iterative GroupLasso processing
         for layer_idx in range(self.cfg.num_hidden_layers):
-            
+
             print(f"cur_layer: {layer_idx}")
 
             # extract corrsponding LLM_DecoderLayer & Masks for this layer
