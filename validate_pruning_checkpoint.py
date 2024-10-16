@@ -27,12 +27,16 @@ layer0 = model.model.layers[0]
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 mask = transform_output(cur_mask_vec)
 '''
-
+print("loading checkpoint.")
 checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
+
+print("llama2-7b model initialization.")
 api_token = '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'
 model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token= api_token)
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
 model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token).cuda()
+
+print("load state dict from ckpt.")
 model.load_state_dict(checkpoint["model_state_dict"], strict=True)
 model.eval()
 
