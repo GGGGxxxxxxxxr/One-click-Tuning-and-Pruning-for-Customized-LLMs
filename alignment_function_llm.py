@@ -203,7 +203,7 @@ class Group_Lasso_regularization(nn.Module):
 
         # adjust regularization tensity
         if epoch >= 15:
-            self.lam = 1000 * 10
+            self.lam = 1000 * 1000
 
         '''
         if epoch >= 10:
@@ -248,7 +248,6 @@ class Group_Lasso_regularization(nn.Module):
 
                         tmp = - self.lam * lr + w_norm #* ratio + w_norm
                         tmp[tmp<0] = 0
-                        tmp *= 0.01
 
                         mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] * tmp.unsqueeze(1)
                         mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] * tmp.unsqueeze(1)
@@ -258,6 +257,9 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
 
+                        "DEBUG PURPOSE"
+                        print(f"w_norm_for_mlp_up_mask: {w_norm}")
+                        print(f"tmp_for_mlp_up_mask:    {tmp}")
                         '''
                         ** test for weight_copy within FSDP.summon_full_params()
                         down_proj_size = cur_layer.mlp.down_proj.weight.size()
@@ -285,7 +287,6 @@ class Group_Lasso_regularization(nn.Module):
 
                         tmp = -self.lam * lr + w_norm #* ratio + w_norm
                         tmp[tmp<0] = 0
-                        tmp *= 0.01
 
                         mlp_g_weight[:,m_out] = mlp_g_weight[:,m_out] * tmp.unsqueeze(0)
                         mlp_u_weight[:,m_out] = mlp_u_weight[:,m_out] * tmp.unsqueeze(0)
@@ -318,7 +319,6 @@ class Group_Lasso_regularization(nn.Module):
 
                             tmp = -self.lam * lr + w_norm#* ratio + w_norm
                             tmp[tmp<0] = 0
-                            tmp *= 0.01
 
                             attn_v_weight[V_mask, :] = attn_v_weight[V_mask,:] * tmp.unsqueeze(1)
                             attn_out_weight[:, V_mask_repeated] = attn_out_weight[:, V_mask_repeated] * tmp.unsqueeze(0)
@@ -359,7 +359,7 @@ class Group_Lasso_regularization(nn.Module):
                             tmp = -self.lam * lr + w_norm #* ratio + w_norm
                             tmp = tmp.clamp(min=0)  # Equivalent to tmp[tmp < 0] = 0
                             tmp *= 0.01
-                            
+
                             attn_k_weight[m_K_out, :] = attn_k_weight[m_K_out, :] * tmp.unsqueeze(1)
                             attn_q_weight[m_Q_out, :] = attn_q_weight[m_Q_out, :] * tmp.unsqueeze(1)
 

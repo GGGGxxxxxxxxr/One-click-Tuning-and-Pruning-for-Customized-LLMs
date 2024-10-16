@@ -280,7 +280,7 @@ def main():
     # ** llama tokenizer does not have a specific PAD token, so a special pad token is appended here for string length alignment
     elif args.model == 'llama2-7b':
         api_token = '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'
-        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token= api_token)
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token = api_token)
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
@@ -461,6 +461,9 @@ def main():
         #save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
         save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
 
+        torch.cuda.empty_cache()
+        print(f"cuda cache cleaned for epoch {epoch}")
+        
     print("=====> Training Done. <=====\n")
 
 if __name__ == '__main__':

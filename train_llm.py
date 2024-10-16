@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.distributed as dist
 from alignment_function_llm import Group_Lasso_regularization
 import itertools
+from hypernet_llm import hard_concrete
 
 #-----------------------------------------------------------------#
 # average computation for loss
@@ -173,6 +174,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
+    # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
     mask_vec = hypernet.module()
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(mask_vec)
@@ -188,15 +190,20 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
                                 attention_mask=attn_mask,
                                 pruning_mask=mask)
     target_loss = output["loss"]
-
+    
+    # ** constrain the pruning target
     # d) mask constrain: total pruning ratio + head-wise dimensional alignment
     # i) the total mask ratio is close to 0.5
     # ** modified logic for the real pruning ratio into 0.5, each (0/1) within the maskVec would contribute differently to the total p
+    # ** we use hard_concrete here to acquire more accurate way of real_pruning simulation
     '''
     **deprecated naive mask ratio constrain
     mask_sum    = torch.sum(mask_vec)
     total_count = mask_vec.numel()
     '''
+    binary_mask_vec = hard_concrete(mask_vec)
+    mask = hypernet.module.transform_output(binary_mask_vec)
+
     total_count =   k_ratio   * torch.cat(mask[:num_key_value]).numel() \
                     + v_ratio * torch.cat(mask[num_key_value : 2 * num_key_value]).numel() \
                     + o_ratio * mask[-2].numel() \
@@ -227,17 +234,19 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = target_loss + 10 * ratio_loss + 0.002 * alignment_loss
+    hyper_loss = target_loss + 2 * ratio_loss + 0.002 * alignment_loss
 
     hyper_loss.backward()
 
+    '''
     with torch.no_grad():
         hypernet.eval()
         mask_vec    = hypernet.module()  
         return_mask = copy.deepcopy(mask_vec)
         masks       = hypernet.module.transform_output(mask_vec)
+    '''
 
-    return hyper_loss, target_loss, ratio_loss, alignment_loss, masks
+    return hyper_loss, target_loss, ratio_loss, alignment_loss #, mask
 #-----------------------------------------------------------------# 
 
 #-----------------------------------------------------------------#
@@ -318,9 +327,16 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 val_inputs = next(nlp_hypernet_iter)
                 # hypernet() param tuning
                 optimizer_hyper.zero_grad()
-                hyper_loss, valid_loss, ratio_loss, alignment_loss, masks = hypernet_step(hypernet=hyper_net, llm_model=target_llm, val_ids=val_inputs["input_ids"], attn_mask=val_inputs["attention_mask"],pruning_ratio_target=pruning_ratio_target, num_key_value=num_key_value, pruning_contribution=pruning_contribution)
+                hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(hypernet=hyper_net, llm_model=target_llm, val_ids=val_inputs["input_ids"], attn_mask=val_inputs["attention_mask"],pruning_ratio_target=pruning_ratio_target, num_key_value=num_key_value, pruning_contribution=pruning_contribution)
                 torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
                 optimizer_hyper.step()
+
+                # generate new masks for next iteration's group lasso optimization
+                with torch.no_grad():
+                    hyper_net.eval()
+                    mask_vec    = hyper_net.module()  
+                    return_mask = copy.deepcopy(mask_vec)
+                    masks       = hyper_net.module.transform_output(mask_vec)
 
                 # update loss into training progress holder
                 reduced_hyper_loss = reduce_loss(hyper_loss)
