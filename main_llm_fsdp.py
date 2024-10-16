@@ -254,6 +254,7 @@ def main():
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
         model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = model_cfg.num_key_value_heads
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
