@@ -51,8 +51,8 @@ masks = transform_output(cur_mask_vec)
 attn_k_mask = masks[:32]
 attn_v_mask = masks[32:64]
 attn_out_mask = masks[-2]
-attn_k_pruning_dim = [(1-inv_mask).sum() for inv_mask in attn_k_mask]
-attn_v_pruning_dim = [(1-inv_mask).sum() for inv_mask in attn_v_mask]
+attn_k_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
+attn_v_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
 print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
 print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
 
