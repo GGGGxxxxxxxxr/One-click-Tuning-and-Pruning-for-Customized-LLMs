@@ -154,7 +154,7 @@ def setup_for_distributed(is_master):
 
 #-----------------------------------------------------------------#
 # checkpoint saving for each epoch
-def save_checkpoint(epoch, model, hyper_net, optimizer_llm, optimizer_hyper, cur_mask_vec, filename="checkpoint.pth.tar"):
+def save_checkpoint(epoch, model, hyper_net, optimizer_llm, optimizer_hyper, cur_mask_vec, filename="/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
     
