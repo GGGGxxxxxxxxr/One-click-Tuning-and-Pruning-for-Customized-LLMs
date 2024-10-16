@@ -46,6 +46,17 @@ print("get cur_mask_vec")
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 masks = transform_output(cur_mask_vec)
 
+### default: view current pruning pattern
+## attention pruning pattern
+attn_k_mask = masks[:32]
+attn_v_mask = masks[32:64]
+attn_out_mask = masks[-2]
+attn_k_pruning_dim = [(1-inv_mask).sum() for inv_mask in attn_k_mask]
+attn_v_pruning_dim = [(1-inv_mask).sum() for inv_mask in attn_v_mask]
+print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
+print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
+
+
 ### option1: debugging for GroupLasso WeightProjection
 print("view pruning pattern.")
 for layer_idx in range(32):
