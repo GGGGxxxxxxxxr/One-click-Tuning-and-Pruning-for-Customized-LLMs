@@ -119,7 +119,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     seq_len = input_ids.shape[1]
 
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
-    with torch.autocast(device_type="cuda"):
+    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
         output      = llm_model(input_ids=input_ids, 
                                 attention_mask=attn_mask,
                                 labels=input_ids, 
@@ -136,7 +136,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     # ** we only use it as a value inspector, thus no_grad_fn would be applied here
     # ** GroupLasso is implemented via direct WeightProjection
     if epoch >= args.start_epoch_regularization:
-        with torch.autocast(device_type="cuda"):
+        with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
             gl_loss = gl_module(target_llm = llm_model.module, pruning_masks = masks, epoch=epoch)
     else:
         gl_loss = torch.tensor(0.0).to(target_loss.device)
@@ -179,7 +179,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 
     # c) masked_llm forward() with 'pruning_mask = mask'
     seq_len = val_ids.shape[1]
-    with torch.autocast(device_type="cuda"):
+    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
         output      = llm_model(input_ids=val_ids, 
                                 labels=val_ids, 
                                 return_dict=True, 

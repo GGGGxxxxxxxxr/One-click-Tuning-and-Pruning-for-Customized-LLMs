@@ -22,9 +22,9 @@ from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 from functools import partial
 
 mixed_precision_policy = MixedPrecision(
-    param_dtype=torch.float16,
-    reduce_dtype=torch.float16,
-    buffer_dtype=torch.float16
+    param_dtype=torch.bfloat16,
+    reduce_dtype=torch.bfloat16,
+    buffer_dtype=torch.bfloat16
 )
 
 from torch.distributed.fsdp.wrap import (
