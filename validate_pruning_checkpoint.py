@@ -128,7 +128,7 @@ for i in range(len(val_set)):
 
     ### judge
     print(f"next_token: {t_next_token}")
-    if 'entail' in t_next_token:
+    if 'ent' in t_next_token:
         prediction = 'entailment'
     elif 'neutral' in t_next_token:
          prediction = 'neutral'
