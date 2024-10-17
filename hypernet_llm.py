@@ -132,7 +132,7 @@ class LLM_HyperStructure(nn.Module):
 
     # >>>>> ---------------------------------------------------- <<<<<#
     # modified forward() for LLM-layerwise mask
-    def forward(self):
+    def forward(self, dummy):
         # device uniform
         if self.ln.weight.is_cuda:
             self.inputs = self.inputs.cuda()
