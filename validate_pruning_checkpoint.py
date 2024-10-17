@@ -72,6 +72,9 @@ for layer_idx in range(32):
 print("validate grouplasso regularization")
 gl_loss_module = Group_Lasso_regularization(args = None, target_llm_cfg = model_cfg, prunable_structure = None, fsdp_scaler=None)
 gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
+status = gl_loss_module.debug_purpose_nofsdp_project_weight(target_llm=model, pruning_masks=masks,epoch=2,lr=1e-4)
+print("After local grouplasso projection:")
+gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
 
 
 '''

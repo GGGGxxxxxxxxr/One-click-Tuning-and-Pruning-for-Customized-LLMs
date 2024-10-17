@@ -469,7 +469,7 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
                 
-            print(f"gl_loss_for_attn_V_mask:{gl_loss}")
+            print(f"gl_loss_for_attn_k_mask:{gl_loss}")
 
             gl_list.append(torch.tensor(gl_loss.item()).cuda())
             del gl_loss
