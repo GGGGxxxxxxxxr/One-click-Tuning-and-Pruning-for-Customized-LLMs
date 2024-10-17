@@ -96,11 +96,13 @@ class LLM_HyperStructure(nn.Module):
         self.Bi_GRU  = nn.GRU(64, 128, bidirectional=True)                  # [input dim, output_dim]
         self.h0      = torch.zeros(2, self.num_layers, 128)                 # [bidirect, LAYERS, output_dim]
 
-        self.inputs  = nn.Parameter(torch.Tensor(len(self.lw_structure), self.num_layers, 64))     # [sequence_len, LAYERS, input_dim]
-        nn.init.orthogonal_(self.inputs)   # 使用 orthogonal 初始化
-        self.inputs = self.inputs.to(dtype=torch.bfloat16)
-
-        self.inputs = self.inputs.detach()                                   # 'input' itself is a untrainable nn.param
+        inputs = torch.empty(len(self.lw_structure), self.num_layers, 64, dtype=torch.float32)
+        # Step 2: Apply orthogonal initialization in float32
+        nn.init.orthogonal_(inputs)
+        # Step 3: Convert to bfloat16 after initialization
+        inputs = inputs.to(dtype=torch.bfloat16)
+        # Step 4: Detach the tensor to ensure no gradient tracking
+        self.inputs = inputs.detach()                              # 'input' itself is a untrainable nn.param
         
         self.linear_list = [nn.Linear(256, self.lw_structure[i], bias=False) 
                             for i in range(len(self.lw_structure))]         # project to linear_outputDim for prunable LinearWeight in each LLM layer
