@@ -416,7 +416,7 @@ class Group_Lasso_regularization(nn.Module):
                             + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                             + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             
-            print(gl_loss)
+            print(f"gl_loss_for_mlp_up_mask:{gl_loss}")
 
             gl_list.append(torch.tensor(gl_loss.item()).cuda())
             del gl_loss
@@ -427,7 +427,7 @@ class Group_Lasso_regularization(nn.Module):
                             + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
                             + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             
-            print(gl_loss)
+            print(f"gl_loss_for_attn_out_mask:{gl_loss}")
 
             gl_list.append(torch.tensor(gl_loss.item()).cuda())
             del gl_loss
@@ -447,7 +447,7 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             
-            print(gl_loss)
+            print(f"gl_loss_for_attn_v_mask:{gl_loss}")
 
             gl_list.append(torch.tensor(gl_loss.item()).cuda())
             del gl_loss
@@ -469,7 +469,8 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
                 
-            print(gl_loss)
+            print(f"gl_loss_for_attn_V_mask:{gl_loss}")
+
             gl_list.append(torch.tensor(gl_loss.item()).cuda())
             del gl_loss
         
