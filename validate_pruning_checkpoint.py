@@ -98,6 +98,8 @@ for i in range(len(val_set)):
     generated_text = input_text
     target_text    = input_text
 
+    prediction = None
+
     for _ in range(1):
         model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
         target_inputs = tokenizer([target_text], return_tensors="pt").to("cuda")
@@ -125,6 +127,7 @@ for i in range(len(val_set)):
         target_text += t_next_token
 
     ### judge
+    print(f"next_token: {t_next_token}")
     if 'entail' in t_next_token:
         prediction = 'entailment'
     elif 'neutral' in t_next_token:
