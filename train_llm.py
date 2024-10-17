@@ -325,7 +325,15 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 # 生成新掩码供 LLM 训练使用
                 with torch.no_grad():
                     hyper_net.eval()
-                    mask_vec = hyper_net(dummy=0)   #.module()  
+                    #mask_vec = hyper_net(dummy=0)   #.module()  
+                    # 只在 rank 0 生成 mask_vec
+                    if dist.get_rank() == 0:
+                        mask_vec = hyper_net(dummy=0)
+                    else:
+                        # 在其他 rank 处创建一个相同形状的 tensor 占位
+                        mask_vec = torch.empty_like(hyper_net(dummy=0))
+                    #广播 mask_vec 从 rank 0 到所有其他 GPU
+                    dist.broadcast(mask_vec, src=0)
                     return_mask = copy.deepcopy(mask_vec)
                     masks = hyper_net.module.transform_output(mask_vec)
 
