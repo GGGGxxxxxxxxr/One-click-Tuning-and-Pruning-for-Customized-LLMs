@@ -173,7 +173,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     u_ratio = pruning_contribution["u_ratio"]
 
     # a) freeze llm & unfreeze hypernet()
-    #llm_model.eval()
+    llm_model.eval()
     hypernet.train()
 
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
@@ -206,8 +206,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     mask_sum    = torch.sum(mask_vec)
     total_count = mask_vec.numel()
     '''
-    binary_mask_vec = hard_concrete(mask_vec)
-    mask = hypernet.module.transform_output(binary_mask_vec)
+    #binary_mask_vec = hard_concrete(mask_vec)
+    #mask = hypernet.module.transform_output(binary_mask_vec)
 
     total_count =   k_ratio   * torch.cat(mask[:num_key_value]).numel() \
                     + v_ratio * torch.cat(mask[num_key_value : 2 * num_key_value]).numel() \
@@ -374,6 +374,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         )
         if projection_status != True:
             print("weight_projection failed, check the code.")
+        gl_loss = grouplasso_module(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch)
+        print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
 
         # Step 3: 打印训练日志（仅限主进程）
