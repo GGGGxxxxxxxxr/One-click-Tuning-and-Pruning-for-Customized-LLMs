@@ -201,108 +201,89 @@ class Group_Lasso_regularization(nn.Module):
     def project_weight(self, target_llm, pruning_masks, epoch, lr):
         self.model = target_llm
 
-        # adjust regularization tensity
+        # Adjust regularization intensity
         if epoch >= 20:
             self.lam = 200000000
 
-        '''
-        if epoch >= 10:
-            self.lam = 100 * self.lam
-        '''
-
-        # ratio
+        # Calculate ratio
         N_t = 0
         for msk in pruning_masks:
-            N_t += (1-msk).sum()
-        
-        with torch.no_grad():
-            # layer_iterative GroupLasso processing
+            N_t += (1 - msk).sum()
+
+        with torch.no_grad():  # Ensure no gradients are recorded
+            # Iterate over each layer for Group Lasso processing
             for layer_idx in range(self.cfg.num_hidden_layers):
-                # extract corrsponding LLM_DecoderLayer & Masks for this layer
-                cur_layer = self.model.model.layers[layer_idx]              # CasualLM.model -> LMmodel.layer -> DecoderLayer
-                # fsdp capatibility
+                # Extract corresponding LLM decoder layer & masks
+                cur_layer = self.model.model.layers[layer_idx]
+
                 with FSDP.summon_full_params(cur_layer):
-                    layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_masks]
+                    # Extract masks for the current layer
+                    layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
                     m_umlp = layer_wise_masks[-1]
-                    m_out  = layer_wise_masks[-2]
-                    m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
-                    m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
+                    m_out = layer_wise_masks[-2]
+                    m_K = layer_wise_masks[:self.cfg.num_key_value_heads]
+                    m_V = layer_wise_masks[self.cfg.num_key_value_heads: 2 * self.cfg.num_key_value_heads]
 
-                    # process MLP_up_mask (weight_projection for Gate/Up/DownProj)
+                    # Process MLP mask (Gate/Up/DownProj)
                     ratio = (1 - m_umlp).sum() / N_t
-
                     if ratio > 0:
                         mlp_g_weight = cur_layer.mlp.gate_proj.weight.data
                         mlp_u_weight = cur_layer.mlp.up_proj.weight.data
                         mlp_d_weight = cur_layer.mlp.down_proj.weight.data
 
                         m_umlp_out = (m_umlp == 0)
-                        w_norm =  mlp_g_weight[m_umlp_out,:].pow(2).sum((1))
-                        w_norm += mlp_u_weight[m_umlp_out,:].pow(2).sum((1))
-                        w_norm += mlp_d_weight[:,m_umlp_out].pow(2).sum((0))
-                        w_norm = w_norm.add(1e-8).pow(1/2.)
+                        w_norm = mlp_g_weight[m_umlp_out, :].pow(2).sum(1) + \
+                                mlp_u_weight[m_umlp_out, :].pow(2).sum(1) + \
+                                mlp_d_weight[:, m_umlp_out].pow(2).sum(0)
+                        w_norm = w_norm.add(1e-8).pow(0.5)
 
-                        mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] / w_norm.unsqueeze(1)
-                        mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] / w_norm.unsqueeze(1)
-                        mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] / w_norm.unsqueeze(0)
+                        mlp_g_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
+                        mlp_u_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
+                        mlp_d_weight[:, m_umlp_out] /= w_norm.unsqueeze(0)
 
-                        tmp = - self.lam * lr + w_norm #* ratio + w_norm
-                        tmp[tmp<0] = 0
+                        tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0  # Apply mask scaling factor
 
-                        tmp *= 0
-
-                        mlp_g_weight[m_umlp_out,:] = mlp_g_weight[m_umlp_out,:] * tmp.unsqueeze(1)
-                        mlp_u_weight[m_umlp_out,:] = mlp_u_weight[m_umlp_out,:] * tmp.unsqueeze(1)
-                        mlp_d_weight[:,m_umlp_out] = mlp_d_weight[:,m_umlp_out] * tmp.unsqueeze(0)
+                        mlp_g_weight[m_umlp_out, :] *= tmp.unsqueeze(1)
+                        mlp_u_weight[m_umlp_out, :] *= tmp.unsqueeze(1)
+                        mlp_d_weight[:, m_umlp_out] *= tmp.unsqueeze(0)
 
                         cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
 
-                        "DEBUG PURPOSE print(w_norm and tmp for Layer0)"
-                        #if layer_idx == 0:
-                            #print(f"current mask pattern: {w_norm.size()}")
-                            #print(f"w_norm_for_mlpU_layer{layer_idx}: {w_norm}")
-                            #print(f"tmp_for_mlpU_layer{layer_idx}:    {tmp}\n")
                         '''
-                        ** test for weight_copy within FSDP.summon_full_params()
-                        down_proj_size = cur_layer.mlp.down_proj.weight.size()
-                        zero_weight = torch.zeros(down_proj_size).to(cur_layer.mlp.down_proj.weight.device)
-                        cur_layer.mlp.down_proj.weight.copy_(zero_weight)
+                        test purpose
                         '''
+                        cur_layer.mlp.down_proj.weight.zero_()
 
-                    # process attn_out_mask （weight_projection for attn_out_mask)
+                    # Process attention out mask
                     ratio = (1 - m_out).sum() / N_t
-
                     if ratio > 0:
                         attn_out_weight = cur_layer.self_attn.o_proj.weight.data
                         mlp_g_weight = cur_layer.mlp.gate_proj.weight.data
                         mlp_u_weight = cur_layer.mlp.up_proj.weight.data
 
                         m_out = (m_out == 0)
-                        w_norm =  mlp_g_weight[:,m_out].pow(2).sum((0))
-                        w_norm += mlp_u_weight[:,m_out].pow(2).sum((0))
-                        w_norm += attn_out_weight[m_out, :].pow(2).sum((1))
-                        w_norm =  w_norm.add(1e-8).pow(1/2.)
+                        w_norm = mlp_g_weight[:, m_out].pow(2).sum(0) + \
+                                mlp_u_weight[:, m_out].pow(2).sum(0) + \
+                                attn_out_weight[m_out, :].pow(2).sum(1)
+                        w_norm = w_norm.add(1e-8).pow(0.5)
 
-                        mlp_g_weight[:,m_out] = mlp_g_weight[:,m_out] / w_norm.unsqueeze(0)
-                        mlp_u_weight[:,m_out] = mlp_u_weight[:,m_out] / w_norm.unsqueeze(0)
-                        attn_out_weight[m_out,:] = attn_out_weight[m_out,:] / w_norm.unsqueeze(1)
+                        mlp_g_weight[:, m_out] /= w_norm.unsqueeze(0)
+                        mlp_u_weight[:, m_out] /= w_norm.unsqueeze(0)
+                        attn_out_weight[m_out, :] /= w_norm.unsqueeze(1)
 
-                        tmp = -self.lam * lr + w_norm #* ratio + w_norm
-                        tmp[tmp<0] = 0
-                        tmp *= 0
+                        tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
 
-                        mlp_g_weight[:,m_out] = mlp_g_weight[:,m_out] * tmp.unsqueeze(0)
-                        mlp_u_weight[:,m_out] = mlp_u_weight[:,m_out] * tmp.unsqueeze(0)
-                        attn_out_weight[m_out,:] = attn_out_weight[m_out,:] * tmp.unsqueeze(1)
+                        mlp_g_weight[:, m_out] *= tmp.unsqueeze(0)
+                        mlp_u_weight[:, m_out] *= tmp.unsqueeze(0)
+                        attn_out_weight[m_out, :] *= tmp.unsqueeze(1)
 
                         cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.self_attn.o_proj.weight.copy_(attn_out_weight)
 
-
-                    # process attn_V_mask (weight_projection for attn_V_mask)
+                    # Process V mask
                     V_mask = torch.cat(m_V)
                     V_mask_repeated = torch.cat([t.repeat(self.num_groups) for t in m_V])
                     ratio = (1 - V_mask).sum() / N_t
@@ -314,74 +295,54 @@ class Group_Lasso_regularization(nn.Module):
                         attn_v_weight = cur_layer.self_attn.v_proj.weight.data
                         attn_out_weight = cur_layer.self_attn.o_proj.weight.data
 
-                        if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                            w_norm = attn_v_weight[V_mask, :].pow(2).sum((1))
-                            w_norm += attn_out_weight[:, V_mask_repeated].pow(2).sum((0))
-                            w_norm = w_norm.add(1e-8).pow(1/2.)
+                        w_norm = attn_v_weight[V_mask, :].pow(2).sum(1) + \
+                                attn_out_weight[:, V_mask_repeated].pow(2).sum(0)
+                        w_norm = w_norm.add(1e-8).pow(0.5)
 
-                            attn_v_weight[V_mask,:] = attn_v_weight[V_mask,:] / w_norm.unsqueeze(1)
-                            attn_out_weight[:, V_mask_repeated] = attn_out_weight[:, V_mask_repeated] / w_norm.unsqueeze(0)
+                        attn_v_weight[V_mask, :] /= w_norm.unsqueeze(1)
+                        attn_out_weight[:, V_mask_repeated] /= w_norm.unsqueeze(0)
 
-                            tmp = -self.lam * lr + w_norm#* ratio + w_norm
-                            tmp[tmp<0] = 0
-                            tmp *=0
+                        tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
 
-                            attn_v_weight[V_mask, :] = attn_v_weight[V_mask,:] * tmp.unsqueeze(1)
-                            attn_out_weight[:, V_mask_repeated] = attn_out_weight[:, V_mask_repeated] * tmp.unsqueeze(0)
-                            
-                            cur_layer.self_attn.v_proj.weight.copy_(attn_v_weight)
-                            cur_layer.self_attn.o_proj.weight.copy_(attn_out_weight)
+                        attn_v_weight[V_mask, :] *= tmp.unsqueeze(1)
+                        attn_out_weight[:, V_mask_repeated] *= tmp.unsqueeze(0)
 
-                        # not supported currently
-                        else:
-                            attn_v_bias   = cur_layer.self_attn.v_proj.bias
-                            gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                            + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                            + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
-                        
+                        cur_layer.self_attn.v_proj.weight.copy_(attn_v_weight)
+                        cur_layer.self_attn.o_proj.weight.copy_(attn_out_weight)
 
-                    # process attn_K_mask (Q_mask)
+                    # Process K mask (Q mask)
                     K_mask = torch.cat(m_K)
                     Q_mask = torch.cat([t.repeat(self.num_groups) for t in m_K])
                     ratio = (1 - K_mask).sum() / N_t
 
                     if ratio > 0:
+                        m_K_out = (K_mask == 0)
+                        m_Q_out = (Q_mask == 0)
+
                         attn_k_weight = cur_layer.self_attn.k_proj.weight.data
                         attn_q_weight = cur_layer.self_attn.q_proj.weight.data
 
-                        if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                            m_K_out = (K_mask == 0)
-                            m_Q_out = (Q_mask == 0)
+                        w_norm = attn_k_weight[m_K_out, :].pow(2).sum(1) + \
+                                attn_q_weight[m_Q_out, :].pow(2).sum(1)
+                        w_norm = w_norm.add(1e-8).pow(0.5)
 
-                            # Normalize attn_k_weight and attn_q_weight
-                            w_norm = attn_k_weight[m_K_out, :].pow(2).sum(dim=1)
-                            w_norm += attn_q_weight[m_Q_out, :].pow(2).sum(dim=1)
-                            w_norm = w_norm.add(1e-8).pow(0.5)
+                        attn_k_weight[m_K_out, :] /= w_norm.unsqueeze(1)
+                        attn_q_weight[m_Q_out, :] /= w_norm.unsqueeze(1)
 
-                            attn_k_weight[m_K_out, :] = attn_k_weight[m_K_out, :] / w_norm.unsqueeze(1)
-                            attn_q_weight[m_Q_out, :] = attn_q_weight[m_Q_out, :] / w_norm.unsqueeze(1)
+                        tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
 
-                            # Apply scaling factor
-                            tmp = -self.lam * lr + w_norm #* ratio + w_norm
-                            tmp = tmp.clamp(min=0)  # Equivalent to tmp[tmp < 0] = 0
-                            tmp *= 0
+                        attn_k_weight[m_K_out, :] *= tmp.unsqueeze(1)
+                        attn_q_weight[m_Q_out, :] *= tmp.unsqueeze(1)
 
-                            attn_k_weight[m_K_out, :] = attn_k_weight[m_K_out, :] * tmp.unsqueeze(1)
-                            attn_q_weight[m_Q_out, :] = attn_q_weight[m_Q_out, :] * tmp.unsqueeze(1)
-
-                            # Update weights
-                            cur_layer.self_attn.k_proj.weight.copy_(attn_k_weight)
-                            cur_layer.self_attn.q_proj.weight.copy_(attn_q_weight)
-
-                        # not supported currently
-                        else:
-                            attn_k_bias   = cur_layer.self_attn.k_proj.bias
-                            attn_q_bias   = cur_layer.self_attn.q_proj.bias
-                            gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                            + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                            + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                            + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
-
+                        cur_layer.self_attn.k_proj.weight.copy_(attn_k_weight)
+                        cur_layer.self_attn.q_proj.weight.copy_(attn_q_weight)
+                
+                with FSDP.summon_full_params(cur_layer):
+                    if torch.all(cur_layer.mlp.down_proj.weight == 0):
+                        print("All down_proj weights are correctly set to zero.")
+                    else:
+                        print("Error: Some down_proj weights are not zero!")
+            
         return True
     
 
