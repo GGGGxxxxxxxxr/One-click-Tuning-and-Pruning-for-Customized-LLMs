@@ -159,7 +159,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     '''
     test purpose
     '''
-    #print(f"group lasso loss before projection: {gl_loss}")
+    print(f"group lasso loss before projection: {gl_loss}")
 
     return llm_loss, target_loss, gl_loss
 #-----------------------------------------------------------------#
@@ -241,7 +241,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss + 0.001 * alignment_loss
+    hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
 
     hyper_loss.backward()
 
@@ -376,6 +376,11 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
+        if epoch >= (args.start_epoch_control + args.control_epochs):
+            grouplasso_module.lam = 1000
+        else:
+            grouplasso_module.lam = 10
+
         projection_status = grouplasso_module.project_weight(
             target_llm=target_llm.module, 
             pruning_masks=masks, 

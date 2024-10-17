@@ -126,7 +126,7 @@ parser.add_argument('--start-epoch-control', default=0, type=int,
                     help='which epoch to start the training of controller_network')
 parser.add_argument('--control-epochs', default=4, type=int,
                     help='how many epochs for controller_network_training')
-parser.add_argument('--control-step', default=1, type=int,
+parser.add_argument('--control-step', default=4, type=int,
                     help='HyperNet() param update gap, default = 1')
 parser.add_argument('--start-epoch-regularization', default=0, type=int,
                     help='which epoch to start the loss of group-sparsity-related constratins')
