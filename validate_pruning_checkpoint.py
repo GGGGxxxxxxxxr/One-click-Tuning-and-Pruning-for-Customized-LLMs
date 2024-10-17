@@ -48,6 +48,7 @@ masks = transform_output(cur_mask_vec)
 
 ### default: view current pruning pattern
 ## attention pruning pattern
+'''
 attn_k_mask = masks[:32]
 attn_v_mask = masks[32:64]
 attn_out_mask = masks[-2]
@@ -55,8 +56,9 @@ attn_k_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
 attn_v_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
 print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
 print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
+'''
 
-
+'''
 ### option1: debugging for GroupLasso WeightProjection
 print("view pruning pattern.")
 for layer_idx in range(32):
@@ -65,6 +67,7 @@ for layer_idx in range(32):
       print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
       mlp_up_mask_ratio = (1-mlp_up_mask).sum() / mlp_up_mask.numel()
       print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
+'''
 
 print("validate grouplasso regularization")
 gl_loss_module = Group_Lasso_regularization(args = None, target_llm_cfg = model_cfg, prunable_structure = None, fsdp_scaler=None)

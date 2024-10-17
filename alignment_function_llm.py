@@ -386,6 +386,9 @@ class Group_Lasso_regularization(nn.Module):
     
 
 
+    '''
+    the following functions are all for debugging
+    '''
     def debug_purpose_compute(self, target_llm, pruning_masks, epoch):
         self.model = target_llm
         gl_list = []
@@ -474,6 +477,143 @@ class Group_Lasso_regularization(nn.Module):
         #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
         sum_loss = sum(gl_list) / len(gl_list)
         return sum_loss    
+    
+
+
+    def debug_purpose_nofsdp_project_weight(self, target_llm, pruning_masks, epoch, lr):
+        self.model = target_llm
+
+        # Adjust regularization intensity
+        if epoch >= 20:
+            self.lam = 200000000
+
+        # Calculate ratio
+        N_t = 0
+        for msk in pruning_masks:
+            N_t += (1 - msk).sum()
+
+        with torch.no_grad():  # Ensure no gradients are recorded
+            # Iterate over each layer for Group Lasso processing
+            for layer_idx in range(self.cfg.num_hidden_layers):
+                # Extract corresponding LLM decoder layer & masks
+                cur_layer = self.model.model.layers[layer_idx]
+
+                # Extract masks for the current layer
+                layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
+                m_umlp = layer_wise_masks[-1]
+                m_out = layer_wise_masks[-2]
+                m_K = layer_wise_masks[:self.cfg.num_key_value_heads]
+                m_V = layer_wise_masks[self.cfg.num_key_value_heads: 2 * self.cfg.num_key_value_heads]
+
+                # Process MLP mask (Gate/Up/DownProj)
+                ratio = (1 - m_umlp).sum() / N_t
+                if ratio > 0:
+                    mlp_g_weight = cur_layer.mlp.gate_proj.weight.data
+                    mlp_u_weight = cur_layer.mlp.up_proj.weight.data
+                    mlp_d_weight = cur_layer.mlp.down_proj.weight.data
+
+                    m_umlp_out = (m_umlp == 0)
+                    w_norm = mlp_g_weight[m_umlp_out, :].pow(2).sum(1) + \
+                            mlp_u_weight[m_umlp_out, :].pow(2).sum(1) + \
+                            mlp_d_weight[:, m_umlp_out].pow(2).sum(0)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    mlp_g_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
+                    mlp_u_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
+                    mlp_d_weight[:, m_umlp_out] /= w_norm.unsqueeze(0)
+
+                    tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0  # Apply mask scaling factor
+
+                    mlp_g_weight[m_umlp_out, :] *= tmp.unsqueeze(1)
+                    mlp_u_weight[m_umlp_out, :] *= tmp.unsqueeze(1)
+                    mlp_d_weight[:, m_umlp_out] *= tmp.unsqueeze(0)
+
+                    cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
+                    cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
+                    cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
+
+                # Process attention out mask
+                ratio = (1 - m_out).sum() / N_t
+                if ratio > 0:
+                    attn_out_weight = cur_layer.self_attn.o_proj.weight.data
+                    mlp_g_weight = cur_layer.mlp.gate_proj.weight.data
+                    mlp_u_weight = cur_layer.mlp.up_proj.weight.data
+
+                    m_out = (m_out == 0)
+                    w_norm = mlp_g_weight[:, m_out].pow(2).sum(0) + \
+                            mlp_u_weight[:, m_out].pow(2).sum(0) + \
+                            attn_out_weight[m_out, :].pow(2).sum(1)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    mlp_g_weight[:, m_out] /= w_norm.unsqueeze(0)
+                    mlp_u_weight[:, m_out] /= w_norm.unsqueeze(0)
+                    attn_out_weight[m_out, :] /= w_norm.unsqueeze(1)
+
+                    tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
+
+                    mlp_g_weight[:, m_out] *= tmp.unsqueeze(0)
+                    mlp_u_weight[:, m_out] *= tmp.unsqueeze(0)
+                    attn_out_weight[m_out, :] *= tmp.unsqueeze(1)
+
+                    cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
+                    cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
+                    cur_layer.self_attn.o_proj.weight.copy_(attn_out_weight)
+
+                # Process V mask
+                V_mask = torch.cat(m_V)
+                V_mask_repeated = torch.cat([t.repeat(self.num_groups) for t in m_V])
+                ratio = (1 - V_mask).sum() / N_t
+
+                if ratio > 0:
+                    V_mask = (V_mask == 0)
+                    V_mask_repeated = (V_mask_repeated == 0)
+
+                    attn_v_weight = cur_layer.self_attn.v_proj.weight.data
+                    attn_out_weight = cur_layer.self_attn.o_proj.weight.data
+
+                    w_norm = attn_v_weight[V_mask, :].pow(2).sum(1) + \
+                            attn_out_weight[:, V_mask_repeated].pow(2).sum(0)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    attn_v_weight[V_mask, :] /= w_norm.unsqueeze(1)
+                    attn_out_weight[:, V_mask_repeated] /= w_norm.unsqueeze(0)
+
+                    tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
+
+                    attn_v_weight[V_mask, :] *= tmp.unsqueeze(1)
+                    attn_out_weight[:, V_mask_repeated] *= tmp.unsqueeze(0)
+
+                    cur_layer.self_attn.v_proj.weight.copy_(attn_v_weight)
+                    cur_layer.self_attn.o_proj.weight.copy_(attn_out_weight)
+
+                # Process K mask (Q mask)
+                K_mask = torch.cat(m_K)
+                Q_mask = torch.cat([t.repeat(self.num_groups) for t in m_K])
+                ratio = (1 - K_mask).sum() / N_t
+
+                if ratio > 0:
+                    m_K_out = (K_mask == 0)
+                    m_Q_out = (Q_mask == 0)
+
+                    attn_k_weight = cur_layer.self_attn.k_proj.weight.data
+                    attn_q_weight = cur_layer.self_attn.q_proj.weight.data
+
+                    w_norm = attn_k_weight[m_K_out, :].pow(2).sum(1) + \
+                            attn_q_weight[m_Q_out, :].pow(2).sum(1)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    attn_k_weight[m_K_out, :] /= w_norm.unsqueeze(1)
+                    attn_q_weight[m_Q_out, :] /= w_norm.unsqueeze(1)
+
+                    tmp = (-self.lam * lr + w_norm).clamp(min=0) * 0
+
+                    attn_k_weight[m_K_out, :] *= tmp.unsqueeze(1)
+                    attn_q_weight[m_Q_out, :] *= tmp.unsqueeze(1)
+
+                    cur_layer.self_attn.k_proj.weight.copy_(attn_k_weight)
+                    cur_layer.self_attn.q_proj.weight.copy_(attn_q_weight)
+
+        return True
 
         
 
