@@ -253,9 +253,8 @@ class Group_Lasso_regularization(nn.Module):
 
                     '''
                     test purpose
-                    '''
                     cur_layer.mlp.down_proj.weight.zero_()
-                        
+                    '''    
                         
                     # Process attention out mask
                     ratio = (1 - m_out).sum() / N_t
@@ -338,11 +337,13 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.self_attn.k_proj.weight.copy_(attn_k_weight)
                         cur_layer.self_attn.q_proj.weight.copy_(attn_q_weight)
                 
+                '''
                 with FSDP.summon_full_params(cur_layer):
                     if torch.all(cur_layer.mlp.down_proj.weight == 0):
                         print("All down_proj weights are correctly set to zero.")
                     else:
                         print("Error: Some down_proj weights are not zero!")
+                '''
             
         return True
     

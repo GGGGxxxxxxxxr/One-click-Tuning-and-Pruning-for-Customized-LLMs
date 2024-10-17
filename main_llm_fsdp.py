@@ -405,6 +405,7 @@ def main():
 
     # b) optimzer for target LLM
     llm_ddp         = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
+    llm_ddp         = torch.compile(llm_ddp)
     llm_params      = llm_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_llm = bnb.optim.AdamW8bit(llm_params,lr=args.lr)
