@@ -365,6 +365,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
 
+        del gl_loss
+
         '''
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
@@ -380,7 +382,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
         '''
-        
+
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
