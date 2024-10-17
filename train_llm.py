@@ -142,7 +142,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else:
         gl_loss = torch.tensor(0.0).to(target_loss.device)
     
-    
+    '''
     #** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
@@ -150,9 +150,9 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
         gl_tensity = 1000           # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
-    
+    '''
 
-    llm_loss = target_loss + gl_tensity * gl_loss
+    llm_loss = target_loss #+ gl_tensity * gl_loss
 
     scaler.scale(llm_loss).backward()
 
@@ -319,7 +319,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     num_key_value=num_key_value, 
                     pruning_contribution=pruning_contribution
                 )
-                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 5.0)
                 optimizer_hyper.step()
 
                 # 生成新掩码供 LLM 训练使用
@@ -365,9 +365,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
 
-        del gl_loss
-
-        '''
+        
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
         projection_status = grouplasso_module.project_weight(
@@ -381,7 +379,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         gl_loss = grouplasso_module(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch)
         print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
-        '''
+        
 
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:

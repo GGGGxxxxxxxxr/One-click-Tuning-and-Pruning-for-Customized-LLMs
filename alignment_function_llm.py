@@ -135,9 +135,9 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
                 
-                gl_list.append(gl_loss)
-                #gl_list.append(torch.tensor(gl_loss.item()).cuda())
-                #del gl_loss
+                #gl_list.append(gl_loss)
+                gl_list.append(torch.tensor(gl_loss.item()).cuda())
+                del gl_loss
 
                 # process attn_out_mask
                 attn_out_weight = cur_layer.self_attn.o_proj.weight
@@ -145,9 +145,9 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
                                 + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
                 
-                gl_list.append(gl_loss)
-                #gl_list.append(torch.tensor(gl_loss.item()).cuda())
-                #del gl_loss
+                #gl_list.append(gl_loss)
+                gl_list.append(torch.tensor(gl_loss.item()).cuda())
+                del gl_loss
 
                 # process attn_V_mask
                 V_mask = torch.cat(m_V)
@@ -164,9 +164,9 @@ class Group_Lasso_regularization(nn.Module):
                                     + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
                                     + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
                
-                gl_list.append(gl_loss)
-                #gl_list.append(torch.tensor(gl_loss.item()).cuda())
-                #del gl_loss
+                #gl_list.append(gl_loss)
+                gl_list.append(torch.tensor(gl_loss.item()).cuda())
+                del gl_loss
 
                 # process attn_K_mask (Q_mask)
                 K_mask = torch.cat(m_K)
@@ -185,13 +185,13 @@ class Group_Lasso_regularization(nn.Module):
                                     + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                     + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
                     
-                gl_list.append(gl_loss)
-                #gl_list.append(torch.tensor(gl_loss.item()).cuda())
-                #del gl_loss
+                #gl_list.append(gl_loss)
+                gl_list.append(torch.tensor(gl_loss.item()).cuda())
+                del gl_loss
                 
         # sum gl_loss (for value tracing only)
-        sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
-        #sum_loss = sum(gl_list) / len(gl_list)
+        #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
+        sum_loss = sum(gl_list) / len(gl_list)
         return sum_loss              
 
     
