@@ -325,7 +325,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 # 生成新掩码供 LLM 训练使用
                 with torch.no_grad():
                     hyper_net.eval()
-                    mask_vec = hyper_net()   #.module()  
+                    mask_vec = hyper_net(dummy=0)   #.module()  
                     return_mask = copy.deepcopy(mask_vec)
                     masks = hyper_net.module.transform_output(mask_vec)
 
