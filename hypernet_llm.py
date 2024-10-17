@@ -100,9 +100,9 @@ class LLM_HyperStructure(nn.Module):
         temp = self.inputs.float()  # 转为 float32
         nn.init.orthogonal_(temp)   # 使用 orthogonal 初始化
         self.inputs.copy_(temp.to(torch.bfloat16))
-        
+
         #nn.init.orthogonal_(self.inputs)
-        self.inputs.requires_grad=False                                     # 'input' itself is a untrainable nn.param
+        self.inputs = self.input.detach()                                   # 'input' itself is a untrainable nn.param
         
         self.linear_list = [nn.Linear(256, self.lw_structure[i], bias=False) 
                             for i in range(len(self.lw_structure))]         # project to linear_outputDim for prunable LinearWeight in each LLM layer
