@@ -290,11 +290,13 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         masks       = hyper_net.module.transform_output(cur_mask_vec)
     else:
         print(f"[Pruning_MASK] is newly-generated, Hypernet() togetherwith target LLM weight would be updated in epoch: {epoch}")
+        '''
         with torch.no_grad():
             hyper_net.eval()
             mask_vec    = hyper_net(dummy=0)                                               #.module()  
             return_mask = copy.deepcopy(mask_vec)
             masks       = hyper_net.module.transform_output(mask_vec)
+        '''
 
     # Timer to measure elapsed time
     start_time = time.time()
@@ -377,9 +379,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
         if epoch >= (args.start_epoch_control + args.control_epochs):
-            grouplasso_module.lam = 1000
+            grouplasso_module.lam = 40000
         else:
-            grouplasso_module.lam = 10
+            grouplasso_module.lam = 1000
 
         projection_status = grouplasso_module.project_weight(
             target_llm=target_llm.module, 
