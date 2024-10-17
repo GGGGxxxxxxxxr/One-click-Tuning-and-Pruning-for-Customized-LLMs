@@ -250,10 +250,12 @@ class Group_Lasso_regularization(nn.Module):
                         mlp_u_weight[m_umlp_out, :] *= tmp.unsqueeze(1)
                         mlp_d_weight[:, m_umlp_out] *= tmp.unsqueeze(0)
 
+                        '''
                         cur_layer.mlp.gate_proj.weight.copy_(mlp_g_weight)
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
-
+                        '''
+                        
                     '''
                     test purpose
                     cur_layer.mlp.down_proj.weight.zero_()
