@@ -156,6 +156,10 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
 
     scaler.scale(llm_loss).backward()
 
+    '''
+    test purpose
+    '''
+    print(f"group lasso loss before projection: {gl_loss}")
     return llm_loss, target_loss, gl_loss
 #-----------------------------------------------------------------#
 
