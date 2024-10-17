@@ -477,6 +477,7 @@ class Group_Lasso_regularization(nn.Module):
         # sum gl_loss (for value tracing only)
         #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
         sum_loss = sum(gl_list) / len(gl_list)
+        print(f"group_lasso_loss: {sum_loss}")
         return sum_loss    
     
 
