@@ -255,7 +255,9 @@ class Group_Lasso_regularization(nn.Module):
                         test purpose
                         '''
                         cur_layer.mlp.down_proj.weight.zero_()
-
+                        
+                        dist.barrier()
+                        
                     # Process attention out mask
                     ratio = (1 - m_out).sum() / N_t
                     if ratio > 0:
