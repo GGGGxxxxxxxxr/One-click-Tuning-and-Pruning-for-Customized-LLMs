@@ -173,7 +173,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     u_ratio = pruning_contribution["u_ratio"]
 
     # a) freeze llm & unfreeze hypernet()
-    llm_model.eval()
+    #llm_model.eval()
     hypernet.train()
 
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
