@@ -180,7 +180,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
-    mask_vec = hypernet.module()
+    mask_vec = hypernet#.module()
     binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(binary_mask_vec)
@@ -292,7 +292,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         print(f"[Pruning_MASK] is newly-generated, Hypernet() togetherwith target LLM weight would be updated in epoch: {epoch}")
         with torch.no_grad():
             hyper_net.eval()
-            mask_vec    = hyper_net.module()  
+            mask_vec    = hyper_net#.module()  
             return_mask = copy.deepcopy(mask_vec)
             masks       = hyper_net.module.transform_output(mask_vec)
 
@@ -325,7 +325,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 # 生成新掩码供 LLM 训练使用
                 with torch.no_grad():
                     hyper_net.eval()
-                    mask_vec = hyper_net.module()  
+                    mask_vec = hyper_net#.module()  
                     return_mask = copy.deepcopy(mask_vec)
                     masks = hyper_net.module.transform_output(mask_vec)
 
@@ -368,7 +368,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
-        projection_status = grouplasso_module.project_weight(
+        projection_status = grouplasso_module.module.project_weight(
             target_llm=target_llm.module, 
             pruning_masks=masks, 
             epoch=epoch, 

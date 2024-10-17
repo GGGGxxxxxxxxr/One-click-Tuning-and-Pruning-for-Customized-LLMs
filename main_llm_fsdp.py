@@ -424,6 +424,7 @@ def main():
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
     grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler)
+    grouplasso_module = DDP(grouplasso_module, device_ids=[device])
     print("=====> Group_Lasso Sparsity Module Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
 
