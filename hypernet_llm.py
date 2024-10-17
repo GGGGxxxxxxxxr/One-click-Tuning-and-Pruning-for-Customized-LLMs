@@ -96,12 +96,10 @@ class LLM_HyperStructure(nn.Module):
         self.Bi_GRU  = nn.GRU(64, 128, bidirectional=True)                  # [input dim, output_dim]
         self.h0      = torch.zeros(2, self.num_layers, 128)                 # [bidirect, LAYERS, output_dim]
 
-        self.inputs  = nn.Parameter(torch.Tensor(len(self.lw_structure), self.num_layers, 64)).to(dtype=torch.bfloat16)     # [sequence_len, LAYERS, input_dim]
-        temp = self.inputs.float()  # 转为 float32
-        nn.init.orthogonal_(temp)   # 使用 orthogonal 初始化
-        self.inputs.copy_(temp.to(torch.bfloat16))
+        self.inputs  = nn.Parameter(torch.Tensor(len(self.lw_structure), self.num_layers, 64))     # [sequence_len, LAYERS, input_dim]
+        nn.init.orthogonal_(self.inputs)   # 使用 orthogonal 初始化
+        self.inputs = self.inputs.to(dtype=torch.bfloat16)
 
-        #nn.init.orthogonal_(self.inputs)
         self.inputs = self.inputs.detach()                                   # 'input' itself is a untrainable nn.param
         
         self.linear_list = [nn.Linear(256, self.lw_structure[i], bias=False) 
