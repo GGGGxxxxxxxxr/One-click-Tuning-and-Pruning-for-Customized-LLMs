@@ -292,7 +292,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         print(f"[Pruning_MASK] is newly-generated, Hypernet() togetherwith target LLM weight would be updated in epoch: {epoch}")
         with torch.no_grad():
             hyper_net.eval()
-            mask_vec    = hyper_net#.module()  
+            mask_vec    = hyper_net()                                               #.module()  
             return_mask = copy.deepcopy(mask_vec)
             masks       = hyper_net.module.transform_output(mask_vec)
 
