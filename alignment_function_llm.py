@@ -340,11 +340,12 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.self_attn.k_proj.weight.copy_(attn_k_weight)
                         cur_layer.self_attn.q_proj.weight.copy_(attn_q_weight)
 
-                    
+                    '''
                     dist.barrier()
                     for param in cur_layer.parameters():
                         dist.broadcast(param, src=0)
                     dist.barrier()
+                    '''
                 '''
                 with FSDP.summon_full_params(cur_layer):
                     if torch.all(cur_layer.mlp.down_proj.weight == 0):
