@@ -301,6 +301,115 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     assert len(nlp_hypernet_dataloader) != 0, "Error: The nlp_hypernet_dataloader is empty."
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
     for i, text_input in enumerate(nlp_dataloader):
+        # Step 1: Hypernet 训练及生成新 Mask
+        if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
+            if (i + 1) % args.control_step == 0:
+                # 从验证集获取数据用于 Hypernet 的训练
+                val_inputs = next(nlp_hypernet_iter)
+                optimizer_hyper.zero_grad()
+
+                # 调用 hypernet_step 进行超网训练
+                hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(
+                    hypernet=hyper_net, 
+                    llm_model=target_llm, 
+                    val_ids=val_inputs["input_ids"], 
+                    attn_mask=val_inputs["attention_mask"], 
+                    pruning_ratio_target=pruning_ratio_target, 
+                    num_key_value=num_key_value, 
+                    pruning_contribution=pruning_contribution
+                )
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
+                optimizer_hyper.step()
+
+                # 生成新掩码供 LLM 训练使用
+                with torch.no_grad():
+                    hyper_net.eval()
+                    mask_vec = hyper_net.module()  
+                    return_mask = copy.deepcopy(mask_vec)
+                    masks = hyper_net.module.transform_output(mask_vec)
+
+                # 更新超网损失到训练记录
+                reduced_hyper_loss = reduce_loss(hyper_loss)
+                reduced_valid_loss = reduce_loss(valid_loss)
+                reduced_ratio_loss = reduce_loss(ratio_loss)
+                reduced_align_loss = reduce_loss(alignment_loss)
+                hypernet_loss_ave.update(reduced_hyper_loss.item(), 1)
+                valid_loss_ave.update(reduced_valid_loss.item(), val_inputs["input_ids"].size(0))
+                ratio_loss_ave.update(reduced_ratio_loss.item(), 1)
+                alignment_loss_ave.update(reduced_align_loss.item(), 1)
+
+        # Step 2: LLM 权重更新
+        optimizer_llm.zero_grad()
+        current_lr = optimizer_llm.param_groups[0]['lr']
+        llm_loss, target_loss, gl_loss = target_llm_step(
+            llm_model=target_llm, 
+            input_ids=text_input["input_ids"], 
+            masks=masks, 
+            attn_mask=text_input["attention_mask"], 
+            epoch=epoch, 
+            args=args, 
+            gl_module=grouplasso_module, 
+            scaler=scaler
+        )
+        scaler.unscale_(optimizer_llm)
+        torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
+        scaler.step(optimizer_llm)
+        scaler.update()
+
+        # 更新 LLM 损失到训练记录
+        reduced_llm_loss = reduce_loss(llm_loss)
+        reduced_target_loss = reduce_loss(target_loss)
+        reduced_gl_loss = reduce_loss(gl_loss)
+        llm_loss_ave.update(reduced_llm_loss.item(), text_input["input_ids"].size(0))
+        target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
+        gl_loss_ave.update(reduced_gl_loss.item(), 1)
+
+        ###############################################
+        ### 在 LLM 训练后进行 Group Lasso 权重投影
+        projection_status = grouplasso_module.project_weight(
+            target_llm=target_llm.module, 
+            pruning_masks=masks, 
+            epoch=epoch, 
+            lr=current_lr
+        )
+        if projection_status != True:
+            print("weight_projection failed, check the code.")
+        ###############################################
+
+        # Step 3: 打印训练日志（仅限主进程）
+        if i % args.log_interval == 0:
+            if torch.distributed.get_rank() == 0:
+                elapsed_time = time.time() - start_time
+                print(
+                    f"Time: {elapsed_time:.2f}s | "
+                    f"Step: {i} | "
+                    f"LLM Loss: {llm_loss_ave.avg:.4f} | "
+                    f"Target Loss: {target_loss_ave.avg:.4f} | "
+                    f"Group Lasso Loss: {gl_loss_ave.avg:.4f} | "
+                    f"Hypernet Loss: {hypernet_loss_ave.avg:.4f} | "
+                    f"Valid Loss: {valid_loss_ave.avg:.4f} | "
+                    f"Ratio Loss: {ratio_loss_ave.avg:.4f} | "
+                    f"Alignment Loss: {alignment_loss_ave.avg:.4f}"
+                )
+                start_time = time.time()
+
+    # 打印 Epoch 结束时的总结（仅限主进程）
+    if torch.distributed.get_rank() == 0:
+        print(f"\n===== End of Epoch {epoch} =====")
+        print(
+            f"Epoch {epoch} Summary:\n"
+            f"LLM Loss (Avg): {llm_loss_ave.avg:.4f} | "
+            f"Target Loss (Avg): {target_loss_ave.avg:.4f} | "
+            f"Group Lasso Loss (Avg): {gl_loss_ave.avg:.4f} | "
+            f"Hypernet Loss (Avg): {hypernet_loss_ave.avg:.4f} | "
+            f"Ratio Loss (Avg): {ratio_loss_ave.avg:.4f} | "
+            f"Alignment Loss (Avg): {alignment_loss_ave.avg:.4f}\n"
+        )
+
+    return return_mask
+
+    '''
+    for i, text_input in enumerate(nlp_dataloader):
         # step2： llm param domain-specific tuning with [pruning_MASK] (temporary static)
         optimizer_llm.zero_grad()
         current_lr = optimizer_llm.param_groups[0]['lr']
@@ -383,3 +492,4 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             f"Alignment Loss (Avg): {alignment_loss_ave.avg:.4f}\n")
     
     return return_mask
+    '''
