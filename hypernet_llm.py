@@ -94,7 +94,7 @@ class LLM_HyperStructure(nn.Module):
         self.ln      = nn.LayerNorm([256])                                  # layernorm
 
         self.Bi_GRU  = nn.GRU(64, 128, bidirectional=True)                  # [input dim, output_dim]
-        self.h0      = torch.zeros(2, self.num_layers, 128)                 # [bidirect, LAYERS, output_dim]
+        self.h0      = torch.zeros(2, self.num_layers, 128).to(dtype=torch.bfloat16)                 # [bidirect, LAYERS, output_dim]
 
         inputs = torch.empty(len(self.lw_structure), self.num_layers, 64, dtype=torch.float32)
         # Step 2: Apply orthogonal initialization in float32
