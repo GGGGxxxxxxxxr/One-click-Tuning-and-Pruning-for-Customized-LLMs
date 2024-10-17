@@ -27,6 +27,8 @@ layer0 = model.model.layers[0]
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 mask = transform_output(cur_mask_vec)
 '''
+
+
 print("loading checkpoint.")
 checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
 
@@ -48,7 +50,6 @@ masks = transform_output(cur_mask_vec)
 
 ### default: view current pruning pattern
 ## attention pruning pattern
-'''
 attn_k_mask = masks[:32]
 attn_v_mask = masks[32:64]
 attn_out_mask = masks[-2]
@@ -56,9 +57,9 @@ attn_k_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
 attn_v_pruning_dim = [(1-inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
 print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
 print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
-'''
 
-'''
+
+
 ### option1: debugging for GroupLasso WeightProjection
 print("view pruning pattern.")
 for layer_idx in range(32):
@@ -67,17 +68,18 @@ for layer_idx in range(32):
       print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
       mlp_up_mask_ratio = (1-mlp_up_mask).sum() / mlp_up_mask.numel()
       print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
-'''
 
 print("validate grouplasso regularization")
 gl_loss_module = Group_Lasso_regularization(args = None, target_llm_cfg = model_cfg, prunable_structure = None, fsdp_scaler=None)
 gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
-status = gl_loss_module.debug_purpose_nofsdp_project_weight(target_llm=model, pruning_masks=masks,epoch=2,lr=1e-4)
-print("After local grouplasso projection:")
-gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
+
+### option2: debugging for local weight projection
+#status = gl_loss_module.debug_purpose_nofsdp_project_weight(target_llm=model, pruning_masks=masks,epoch=2,lr=1e-4)
+#print("After local grouplasso projection:")
+#gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoch=None)
 
 
-'''
+### option3: debugging for real test on pruned model or masked model
 # build test/validation dataset
 val_set = load_dataset("json", data_files="/home/user1/workspace/leilu/AutoTrainOnce/nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
@@ -101,7 +103,7 @@ for i in range(len(val_set)):
         target_inputs = tokenizer([target_text], return_tensors="pt").to("cuda")
         with torch.autocast(device_type='cuda'):
             model_output = model(input_ids = model_inputs["input_ids"], attention_mask = model_inputs["attention_mask"], return_dict=True)
-            target_output = model(input_ids = target_inputs["input_ids"], attention_mask = target_inputs["attention_mask"], return_dict=True, pruning_mask=mask)
+            target_output = model(input_ids = target_inputs["input_ids"], attention_mask = target_inputs["attention_mask"], return_dict=True, pruning_mask=masks)
 
         logits = model_output.logits
         t_logits = target_output.logits
@@ -138,4 +140,3 @@ for i in range(len(val_set)):
     #print(f"expected: {gold_label}, predicted: {prediction}")
 
 print(acc_count)
-'''
