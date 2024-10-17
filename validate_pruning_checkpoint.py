@@ -81,7 +81,7 @@ gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoc
 
 ### option3: debugging for real test on pruned model or masked model
 # build test/validation dataset
-val_set = load_dataset("json", data_files="/home/user1/workspace/leilu/AutoTrainOnce/nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
+val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
     )
 val_set = val_set["train"]
