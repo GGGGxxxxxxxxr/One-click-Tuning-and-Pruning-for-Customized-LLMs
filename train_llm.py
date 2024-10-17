@@ -368,7 +368,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
-        projection_status = grouplasso_module.module.project_weight(
+        projection_status = grouplasso_module.project_weight(
             target_llm=target_llm.module, 
             pruning_masks=masks, 
             epoch=epoch, 
