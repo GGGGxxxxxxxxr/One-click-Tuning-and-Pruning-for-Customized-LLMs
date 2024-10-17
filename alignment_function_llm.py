@@ -113,7 +113,7 @@ class Group_Lasso_regularization(nn.Module):
     def forward(self, target_llm, pruning_masks, epoch):
         self.model = target_llm
         gl_list = []
-        pruning_masks = pruning_masks.cpu()
+        pruning_masks = pruning_masks.to("cpu")
         # layer_iterative GroupLasso processing
         for layer_idx in range(self.cfg.num_hidden_layers):
             # extract corrsponding LLM_DecoderLayer & Masks for this layer
