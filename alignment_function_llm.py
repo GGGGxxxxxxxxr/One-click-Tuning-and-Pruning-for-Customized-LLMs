@@ -121,7 +121,7 @@ class Group_Lasso_regularization(nn.Module):
             # fsdp capatibility
             with FSDP.summon_full_params(cur_layer):
                 layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_masks]
-                m_umlp = layer_wise_masks[-1].to("cpu")
+                m_umlp = layer_wise_masks[-1]
                 m_out  = layer_wise_masks[-2]
                 m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
                 m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
