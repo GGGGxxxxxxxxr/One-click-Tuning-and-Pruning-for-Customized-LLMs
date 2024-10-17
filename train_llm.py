@@ -142,24 +142,25 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else:
         gl_loss = torch.tensor(0.0).to(target_loss.device)
     
-    '''
-    ** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
+    
+    #** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
     if epoch >= (args.epochs - 9):
         gl_tensity = 1000           # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
-    '''
+    
 
-    llm_loss = target_loss  #+ gl_tensity * gl_loss
+    llm_loss = target_loss + gl_tensity * gl_loss
 
     scaler.scale(llm_loss).backward()
 
     '''
     test purpose
     '''
-    print(f"group lasso loss before projection: {gl_loss}")
+    #print(f"group lasso loss before projection: {gl_loss}")
+
     return llm_loss, target_loss, gl_loss
 #-----------------------------------------------------------------#
 
@@ -240,7 +241,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = 2 * target_loss + 5 * ratio_loss + 0.001 * alignment_loss
+    hyper_loss = target_loss + 5 * ratio_loss + 0.001 * alignment_loss
 
     hyper_loss.backward()
 
@@ -364,6 +365,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
 
+        '''
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
         projection_status = grouplasso_module.project_weight(
@@ -377,7 +379,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         gl_loss = grouplasso_module(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch)
         print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
-
+        '''
+        
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
