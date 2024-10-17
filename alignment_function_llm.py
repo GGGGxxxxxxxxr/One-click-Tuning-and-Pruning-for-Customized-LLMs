@@ -251,12 +251,11 @@ class Group_Lasso_regularization(nn.Module):
                         cur_layer.mlp.up_proj.weight.copy_(mlp_u_weight)
                         cur_layer.mlp.down_proj.weight.copy_(mlp_d_weight)
 
-                        '''
-                        test purpose
-                        '''
-                        cur_layer.mlp.down_proj.weight.zero_()
+                    '''
+                    test purpose
+                    '''
+                    cur_layer.mlp.down_proj.weight.zero_()
                         
-                        dist.barrier()
                         
                     # Process attention out mask
                     ratio = (1 - m_out).sum() / N_t
