@@ -328,7 +328,7 @@ def main():
     #-----------------------------------------------------------------#
     # build controllernetwork for mask generation
     print("=====> Initialize Mask ControllerNetwork (Hypernet) based on [prunable_structure, temperature, base]. <=====\n")
-    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args)#.to(dtype=torch.bfloat16).to(device)
+    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(dtype=torch.bfloat16).to(device)
     cur_maskVec = hyper_net()
     '''
     DEBUGGING:
@@ -390,7 +390,7 @@ def main():
     # Pre-training from scratch probably needs CosWarmRestart() but as we have a inital point from pre-trained, we could go for CosLR directly.
 
     # a) optimizer for Mask HyperNet()
-    hyper_net_ddp   = FSDP(hyper_net,device_id=device, use_orig_params=True, mixed_precision=mixed_precision_policy)
+    hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_hyper = bnb.optim.AdamW8bit(hyper_params, lr=args.lr)
