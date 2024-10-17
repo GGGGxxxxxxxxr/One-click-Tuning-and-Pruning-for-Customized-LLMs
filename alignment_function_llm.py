@@ -112,7 +112,7 @@ class Group_Lasso_regularization(nn.Module):
     # thus CUDAmem allocation would be larger and larger
     def forward(self, target_llm, pruning_masks, epoch):
         self.model = target_llm
-        gl_list = 0
+        gl_list = []
 
         # layer_iterative GroupLasso processing
         for layer_idx in range(self.cfg.num_hidden_layers):
