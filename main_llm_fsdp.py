@@ -328,7 +328,7 @@ def main():
     #-----------------------------------------------------------------#
     # build controllernetwork for mask generation
     print("=====> Initialize Mask ControllerNetwork (Hypernet) based on [prunable_structure, temperature, base]. <=====\n")
-    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(dtype=torch.bfloat16).to(device)
+    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args)#.to(dtype=torch.bfloat16).to(device)
     cur_maskVec = hyper_net()
     '''
     DEBUGGING:
