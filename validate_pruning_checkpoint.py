@@ -86,7 +86,8 @@ val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_te
     )
 val_set = val_set["train"]
 
-acc_count = 0
+acc_count_base   = 0
+acc_count_masked = 0
 
 for i in range(len(val_set)):
     sentence1 = val_set[i]["sentence1"]
@@ -127,7 +128,8 @@ for i in range(len(val_set)):
         target_text += t_next_token
 
     ### judge
-    print(f"next_token: {t_next_token}")
+    print(f"next_token_via_sparse_model: {next_token}")
+    print(f"next_token_via_mask: {t_next_token}")
     if 'ent' in t_next_token:
         prediction = 'entailment'
     elif 'neutral' in t_next_token:
@@ -135,11 +137,22 @@ for i in range(len(val_set)):
     elif 'contradiction' in t_next_token:
          prediction = 'contradiction'
     
+    if 'ent' in next_token:
+        prediction_b = 'entailment'
+    elif 'neutral' in next_token:
+         prediction_b = 'neutral'
+    elif 'contradiction' in next_token:
+         prediction_b = 'contradiction'
+
     if prediction == gold_label:
-        acc_count += 1
+        acc_count_masked += 1
         print("BINGO!")
     else:
         print("BOOM!")
+    
+    if prediction_b == gold_label:
+         acc_count_base += 1
     #print(f"expected: {gold_label}, predicted: {prediction}")
 
-print(acc_count)
+print(acc_count_base)
+print(acc_count_masked)
