@@ -137,7 +137,7 @@ def formatted_PubMedQA_dataset():
 def format_agnews_example(example):
     # Extract necessary fields
     sentence = example['text']
-    class_label = example['gold_label']
+    class_label = example['label']
     
     # Format the text based on the provided template
     formatted_text = (

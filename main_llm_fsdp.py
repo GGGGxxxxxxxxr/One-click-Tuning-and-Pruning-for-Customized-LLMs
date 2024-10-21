@@ -395,9 +395,9 @@ def main():
     hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
-        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params, lr=args.lr)
+        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params, lr= 10 * args.lr)
     else:
-        optimizer_hyper = torch.optim.AdamW(hyper_params, lr=1e-4)
+        optimizer_hyper = torch.optim.AdamW(hyper_params, lr= 10 * args.lr)
     scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-6)
     print("=====> Trainable parameters for HyperNet(): <=====")
     for name, param in hyper_net_ddp.named_parameters():
