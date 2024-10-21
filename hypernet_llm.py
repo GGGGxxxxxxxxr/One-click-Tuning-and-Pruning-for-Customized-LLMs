@@ -194,7 +194,7 @@ class LLM_HyperStructure(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Learnable Input Embeddings
-        inputs = torch.empty(self.num_layers, 64, dtype=torch.float32)
+        inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
         nn.init.orthogonal_(inputs)  # Orthogonal Initialization
         self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=True)
 
@@ -238,12 +238,17 @@ class LLM_HyperStructure(nn.Module):
     def gumbel_softmax_sample(self, logits):
         """Gumbel-softmax sampling with temperature."""
         gumbel_noise = -torch.log(-torch.log(torch.rand_like(logits) + 1e-8) + 1e-8)
-        y = logits + gumbel_noise
+        y = logits + gumbel_noise + self.base
         return F.softmax(y / self.T, dim=-1)
 
-    def hard_concrete(self, logits):
-        """Convert soft logits to binary mask."""
-        return (logits > 0.5).float()
+    def hard_concrete(out):
+        out_hard = torch.zeros(out.size())
+        out_hard[out>=0.5]=1
+        if out.is_cuda:
+            out_hard = out_hard.cuda()
+        # Set gradients w.r.t. y_hard gradients w.r.t. y
+        out_hard = (out_hard - out).detach() + out
+        return out_hard
 
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
