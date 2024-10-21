@@ -101,12 +101,16 @@ for i in range(len(val_set)):
     sentence = val_set[i]["text"]
     gold_label = val_set[i]["label"]
 
+    print(sentence)
+    print(gold_label)
+    
     #input_text = f"Predict the #gold_label# from 'entailment', 'contradiction' or 'neutral' based on the content of #sentence1# and #sentence2#. #sentence1#: '{sentence1}', #sentence2#: '{sentence2}'. Predicted #gold_label#:"
-    input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#:"
+    input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#: "
     generated_text = input_text
     target_text    = input_text
 
     prediction = None
+    prediction_b = None
 
     for _ in range(1):
         model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
@@ -137,6 +141,8 @@ for i in range(len(val_set)):
     ### judge
     print(f"next_token_via_sparse_model: {next_token}")
     print(f"next_token_via_mask: {t_next_token}")
+
+    '''
     if 'ent' in t_next_token:
         prediction = 'entailment'
     elif 'neutral' in t_next_token:
@@ -150,6 +156,7 @@ for i in range(len(val_set)):
          prediction_b = 'neutral'
     elif 'contradiction' in next_token:
          prediction_b = 'contradiction'
+    '''
 
     if prediction == gold_label:
         acc_count_masked += 1
