@@ -48,7 +48,7 @@ from util_llm import count_llm_p_structures
 from util_llm import pruning_ratio_contribution
 from hypernet_llm import LLM_HyperStructure
 from train_llm import llm_sp_train_one_epoch
-from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset
+from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from custom_llms.llama import LlamaForCausalLM
@@ -347,6 +347,8 @@ def main():
         nlp_dataset, val_dataset = formatted_wikitext_dataset()
     elif args.dataset == 'MedNLI':
         nlp_dataset, val_dataset = formatted_MedNLI_dataset()
+    elif args.dataset == 'AGNews':
+        nlp_dataset, val_dataset = formatted_AGNews_dataset()
 
     print("=====> Dataset Config & Sample Check: <=====\n")
     print(nlp_dataset)

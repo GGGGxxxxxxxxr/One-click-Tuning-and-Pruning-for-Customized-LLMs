@@ -128,6 +128,34 @@ def formatted_PubMedQA_dataset():
     return training_dataset, validation_dataset
 #-----------------------------------------------------------------#
 
+#-----------------------------------------------------------------#
 
+#-----------------------------------------------------------------#
+# MEDNLI
+# ** build MedNLI Dataset (medical content Classification)
+# ** data reordered with pre-fixed text template to make it more friendly to LLM understanding
+def format_agnews_example(example):
+    # Extract necessary fields
+    sentence = example['text']
+    class_label = example['gold_label']
+    
+    # Format the text based on the provided template
+    formatted_text = (
+        f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. "
+        f"#sentence#: '{sentence}'. Predicted #class_label#: {class_label}"
+    )
+    
+    # Return the new dictionary with formatted text
+    return {'text': formatted_text}
 
-datase = formatted_PubMedQA_dataset()
+# ** build AG NEWs dataset
+# ** it is a Classification dataset for News classification on Business, Science, Sports ...
+# ** a customized template is formulated for LLM to do the expected prediction behavior, similar to MedNLI
+def formatted_AGNews_dataset():
+    train_dataset      = load_dataset("fancyzhx/ag_news")["train"]
+    validation_dataset = load_dataset("fancyzhx/ag_news")["test"]
+    # apply the template for dataset mapping
+    train_dataset      = train_dataset.map(format_agnews_example)
+    validation_dataset = validation_dataset.map(format_agnews_example)
+
+    return train_dataset, validation_dataset
