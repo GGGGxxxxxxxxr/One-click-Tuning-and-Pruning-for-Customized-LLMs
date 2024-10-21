@@ -195,7 +195,6 @@ class LLM_HyperStructure(nn.Module):
 
         # Learnable Input Embeddings
         inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
-        nn.init.orthogonal_(inputs)  # Orthogonal Initialization
         self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=True)
 
         # Layer Normalization
@@ -227,28 +226,14 @@ class LLM_HyperStructure(nn.Module):
         out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
 
         # >>>>> Gumbel-Softmax Sampling <<<<<#
-        out = self.gumbel_softmax_sample(out)
+        out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
 
         # Convert to Binary Mask in Evaluation Mode
         if not self.training:
-            out = self.hard_concrete(out)
+            out = hard_concrete(out)
 
         return out
-    
-    def gumbel_softmax_sample(self, logits):
-        """Gumbel-softmax sampling with temperature."""
-        gumbel_noise = -torch.log(-torch.log(torch.rand_like(logits) + 1e-8) + 1e-8)
-        y = logits + gumbel_noise + self.base
-        return F.softmax(y / self.T, dim=-1)
 
-    def hard_concrete(out):
-        out_hard = torch.zeros(out.size())
-        out_hard[out>=0.5]=1
-        if out.is_cuda:
-            out_hard = out_hard.cuda()
-        # Set gradients w.r.t. y_hard gradients w.r.t. y
-        out_hard = (out_hard - out).detach() + out
-        return out_hard
 
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
