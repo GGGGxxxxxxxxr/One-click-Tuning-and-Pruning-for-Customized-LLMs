@@ -161,8 +161,14 @@ for i in range(len(val_set)):
          prediction_b = 'contradiction'
     '''
 
-    prediction = next_token
-    prediction_b = t_next_token
+    if '1' in next_token:
+         prediction = '1'
+    elif '2' in next_token:
+         prediction = '2' 
+    elif '3' in next_token:
+         prediction = '3'
+    elif '0' in next_token:
+         prediction = '0'
          
     if prediction == gold_label:
         acc_count_masked += 1
