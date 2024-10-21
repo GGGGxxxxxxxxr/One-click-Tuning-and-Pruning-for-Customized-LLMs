@@ -88,6 +88,9 @@ val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_te
 val_set = val_set["train"]
 '''
 
+print("dataset perf evaluation...")
+input("press ENTER to continue...")
+
 val_set = load_dataset("fancyzhx/ag_news")["test"]
 acc_count_base   = 0
 acc_count_masked = 0
@@ -160,7 +163,7 @@ for i in range(len(val_set)):
 
     prediction = next_token
     prediction_b = t_next_token
-    
+         
     if prediction == gold_label:
         acc_count_masked += 1
         print("BINGO!")
