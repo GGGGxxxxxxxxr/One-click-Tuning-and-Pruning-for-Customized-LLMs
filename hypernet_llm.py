@@ -78,7 +78,7 @@ class custom_grad_weight(torch.autograd.Function):
 # so that each layer in LLMs would have it individual input mask params
 # the forked input would share a List[] of LinearProjection into Layer-wise weight mask
 # >>>>> ---------------------------------------------------- <<<<<#
-class LLM_HyperStructure(nn.Module):
+class LLM_HyperStructure_old(nn.Module):
     def __init__(self, p_structure=None, T=0.4, base=3, args=None):
         super(LLM_HyperStructure, self).__init__()
         # >>>>> ---------------------------------------------------- <<<<<#
@@ -177,6 +177,87 @@ class LLM_HyperStructure(nn.Module):
     # >>>>> ---------------------------------------------------- <<<<<#
     
 
+class LLM_HyperStructure(nn.Module):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=8, num_heads=8):
+        super(LLM_HyperStructure, self).__init__()
+
+        # >>>>> Configuration Setup <<<<<#
+        self.num_layers = p_structure[0]  # Number of layers in the LLM
+        self.lw_structure = p_structure[1]  # Structure of each layer's mask
+        self.T = T  # Temperature for Gumbel-Softmax
+        self.base = base  # Offset for Gumbel-Softmax sampling
+
+        # >>>>> Transformer Encoder <<<<<#
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=64, nhead=num_heads, dim_feedforward=256, batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Learnable Input Embeddings
+        inputs = torch.empty(len(self.lw_structure), self.num_layers, 64, dtype=torch.float32)
+        nn.init.orthogonal_(inputs)  # Orthogonal Initialization
+        self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=True)
+
+        # Layer Normalization
+        self.ln = nn.LayerNorm(64)
+
+        # Layer-wise Mask Projection
+        self.mh_fc = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(64, 128),
+                nn.ReLU(),
+                nn.Linear(128, self.lw_structure[i])
+            )
+            for i in range(len(self.lw_structure))
+        ])
+
+    def forward(self, dummy=None):
+        # >>>>> Device Management <<<<<#
+        device = next(self.parameters()).device
+        self.inputs = self.inputs.to(device)
+
+        # >>>>> Transformer Encoder <<<<<#
+        transformer_out = self.transformer(self.inputs)  # Shape: (num_layers, 64)
+
+        # Apply Layer Normalization
+        norm_out = self.ln(transformer_out)
+
+        # >>>>> Layer-Wise Mask Projection <<<<<#
+        outputs = [fc(norm_out) for fc in self.mh_fc]
+        out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
+
+        # >>>>> Gumbel-Softmax Sampling <<<<<#
+        out = self.gumbel_softmax_sample(out)
+
+        # Convert to Binary Mask in Evaluation Mode
+        if not self.training:
+            out = self.hard_concrete(out)
+
+        return out
+    
+    def gumbel_softmax_sample(self, logits):
+        """Gumbel-softmax sampling with temperature."""
+        gumbel_noise = -torch.log(-torch.log(torch.rand_like(logits) + 1e-8) + 1e-8)
+        y = logits + gumbel_noise
+        return F.softmax(y / self.T, dim=-1)
+
+    def hard_concrete(self, logits):
+        """Convert soft logits to binary mask."""
+        return (logits > 0.5).float()
+
+    def transform_output(self, inputs):
+        """Transform concatenated mask vector into individual layer masks."""
+        arch_vector = []
+        start = 0
+        for size in self.lw_structure:
+            end = start + size
+            arch_vector.append(inputs[:, start:end])
+            start = end
+        return arch_vector
+
+    def vector2mask(self, inputs):
+        """(Deprecated) Transform vector to mask - not used in current ATO's application."""
+        return None
 
 if __name__ == '__main__':
     net = LLM_HyperStructure()
