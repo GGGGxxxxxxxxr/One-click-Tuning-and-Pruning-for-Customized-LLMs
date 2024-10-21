@@ -162,14 +162,14 @@ for i in range(len(val_set)):
     '''
 
     if '1' in next_token:
-         prediction = '1'
+         prediction = 1
     elif '2' in next_token:
-         prediction = '2' 
+         prediction = 2 
     elif '3' in next_token:
-         prediction = '3'
+         prediction = 3
     elif '0' in next_token:
-         prediction = '0'
-         
+         prediction = 0
+
     if prediction == gold_label:
         acc_count_masked += 1
         print("BINGO!")
