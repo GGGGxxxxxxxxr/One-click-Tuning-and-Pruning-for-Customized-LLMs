@@ -194,7 +194,7 @@ class LLM_HyperStructure(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Learnable Input Embeddings
-        inputs = torch.empty(len(self.lw_structure), self.num_layers, 64, dtype=torch.float32)
+        inputs = torch.empty(self.num_layers, 64, dtype=torch.float32)
         nn.init.orthogonal_(inputs)  # Orthogonal Initialization
         self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=True)
 
