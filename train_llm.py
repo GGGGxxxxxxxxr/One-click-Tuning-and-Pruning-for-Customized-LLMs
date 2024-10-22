@@ -321,7 +321,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     num_key_value=num_key_value, 
                     pruning_contribution=pruning_contribution
                 )
-                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 5.0)
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
                 optimizer_hyper.step()
 
                 # 生成新掩码供 LLM 训练使用
@@ -379,9 +379,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
         if epoch >= (args.start_epoch_control + args.control_epochs):
-            grouplasso_module.lam = 40000
+            grouplasso_module.lam = 2000
         else:
-            grouplasso_module.lam = 1000
+            grouplasso_module.lam = 50
 
         projection_status = grouplasso_module.project_weight(
             target_llm=target_llm.module, 

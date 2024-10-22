@@ -696,6 +696,7 @@ class LlamaDecoderLayer(nn.Module):
         # extract pruning mask for the corresponding DecoderLayer
         # in the reverse order of <UProj&GateProj, OutProj, V*head, K*head>
         if pruning_mask != None:
+            print(f"cur_layer_idx: {layer_idx}")
             layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_mask]
 
             m_umlp = layer_wise_masks[-1]
@@ -1002,6 +1003,10 @@ class LlamaModel(LlamaPreTrainedModel):
                 )
 
             hidden_states = layer_outputs[0]
+
+            # update layer_idx
+            # ** dont miss it, it would indicate which porpotion of masked layer would be used
+            layer_idx += 1 
 
             if use_cache:
                 next_decoder_cache = layer_outputs[2 if output_attentions else 1]

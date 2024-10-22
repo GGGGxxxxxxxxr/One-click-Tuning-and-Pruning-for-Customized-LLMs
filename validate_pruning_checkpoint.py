@@ -132,8 +132,14 @@ for i in range(len(val_set)):
         t_prob = torch.softmax(t_next_token_logits, dim=-1)
 
         # sample next token based on probability
+        '''
         next_token_id = torch.multinomial(probabilities, num_samples=1)
         t_next_token_id = torch.multinomial(t_prob, num_samples=1)
+        '''
+
+        next_token_id = torch.argmax(probabilities, dim=-1)
+        t_next_token_id = torch.argmax(t_prob, dim=-1)
+
         # token_id to readable texts
         next_token = tokenizer.decode(next_token_id[0])
         t_next_token = tokenizer.decode(t_next_token_id[0])
@@ -169,6 +175,15 @@ for i in range(len(val_set)):
          prediction = 3
     elif '0' in next_token:
          prediction = 0
+
+    if '1' in t_next_token:
+         prediction_b = 1
+    elif '2' in t_next_token:
+         prediction_b = 2 
+    elif '3' in t_next_token:
+         prediction_b = 3
+    elif '0' in t_next_token:
+         prediction_b = 0
 
     if prediction == gold_label:
         acc_count_masked += 1
