@@ -179,7 +179,7 @@ class LLM_HyperStructure_old(nn.Module):
     
 
 class LLM_HyperStructure(nn.Module):
-    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=8, num_heads=8):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=8, num_heads=4):
         super(LLM_HyperStructure, self).__init__()
 
         # >>>>> Configuration Setup <<<<<#
@@ -215,7 +215,7 @@ class LLM_HyperStructure(nn.Module):
 
         self.mh_fc_list = nn.ModuleList([
             nn.ModuleList([
-                nn.Linear(256, self.lw_structure[i], bias=False)  # Multiple linear layers for each mask projection
+                nn.Linear(64, self.lw_structure[i], bias=False)  # Multiple linear layers for each mask projection
                 for i in range(len(self.lw_structure))
             ]) for _ in range(self.num_layers)  # One list per layer
         ])
