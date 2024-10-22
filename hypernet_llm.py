@@ -107,6 +107,7 @@ class LLM_HyperStructure_old(nn.Module):
         self.linear_list = [nn.Linear(256, self.lw_structure[i], bias=False) 
                             for i in range(len(self.lw_structure))]         # project to linear_outputDim for prunable LinearWeight in each LLM layer
         self.mh_fc = torch.nn.ModuleList(self.linear_list)
+        
 
         # Initialize parameters
         #self.initialize_parameters()
@@ -201,6 +202,7 @@ class LLM_HyperStructure(nn.Module):
         self.ln = nn.LayerNorm(64)
 
         # Layer-wise Mask Projection
+        '''
         self.mh_fc = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(64, 128),
@@ -208,6 +210,14 @@ class LLM_HyperStructure(nn.Module):
                 nn.Linear(128, self.lw_structure[i])
             )
             for i in range(len(self.lw_structure))
+        ])
+        '''
+
+        self.mh_fc_list = nn.ModuleList([
+            nn.ModuleList([
+                nn.Linear(256, self.lw_structure[i], bias=False)  # Multiple linear layers for each mask projection
+                for i in range(len(self.lw_structure))
+            ]) for _ in range(self.num_layers)  # One list per layer
         ])
 
     def forward(self, dummy=None):
@@ -221,9 +231,22 @@ class LLM_HyperStructure(nn.Module):
         # Apply Layer Normalization
         norm_out = self.ln(transformer_out)
 
+        '''
         # >>>>> Layer-Wise Mask Projection <<<<<#
         outputs = [fc(norm_out) for fc in self.mh_fc]
         out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
+        '''
+        outputs = []
+        for layer_idx in range(self.num_layers):
+            layer_out = norm_out[layer_idx].unsqueeze(0)  # Shape: (1, 64)
+            layer_masks = [
+                linear(layer_out)  # Apply each linear projection for this layer
+                for linear in self.mh_fc_list[layer_idx]
+            ]
+            outputs.append(torch.cat(layer_masks, dim=-1))  # Concatenate masks for this layer
+
+        # Concatenate all layers' outputs
+        out = torch.cat(outputs, dim=0)  # Shape: (32, total_mask_dim)
 
         # >>>>> Gumbel-Softmax Sampling <<<<<#
         out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
