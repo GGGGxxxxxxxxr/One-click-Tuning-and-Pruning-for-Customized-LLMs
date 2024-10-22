@@ -196,7 +196,8 @@ class LLM_HyperStructure(nn.Module):
 
         # Learnable Input Embeddings
         inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
-        self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=True)
+        nn.init.orthogonal_(inputs)
+        self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
 
         # Layer Normalization
         self.ln = nn.LayerNorm(64)
