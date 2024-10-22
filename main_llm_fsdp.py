@@ -115,11 +115,11 @@ parser.add_argument('--log-interval', default=20, type=int,
 #-----------------------------------------------------------------#
 # methdology-related args
 parser.add_argument('--dataset', default='MedNLI', type=str,
-                    help='specify the domain-specifc dataset for LLM pararm tuning')
+                    help='specify the domain-specifc dataset for LLM pararm tuning, **build-in ready2use selections: wikitext, MedNLI, AGNews')
 parser.add_argument('--pruning-method', default='inner', type=str,
-                    help='head-wise MHA pruning or more fine-grained within attention-head pruning')
+                    help='head-wise MHA pruning **[head_wise], layer-aware-uniform head pruning **[layer_uniform_attn] or more fine-grained within attention-head pruning **[inner]')
 parser.add_argument('--tuning-method',  default='full', type=str,
-                    help='lora tuning or full param tuning')
+                    help='lora tuning **[lora] or full param tuning **[full]')
 parser.add_argument('--pruning-ratio-target', default=0.5, type=float,
                     help='Pruning Rate')
 parser.add_argument('--start-epoch-control', default=0, type=int,
@@ -293,11 +293,15 @@ def main():
 
     #-----------------------------------------------------------------#
     # counting prunable structures for LLMs
-    if args.pruning_method != 'head':
+    if args.pruning_method == 'inner':
         print("=====> Fine-grained pruning is ENABLED. Pruning would be conducted within MHA. <=====\n")
-        p_structures = count_llm_p_structures(model = model, model_config = model_cfg, head_wise = False)
+        p_structures = count_llm_p_structures(model = model, model_config = model_cfg, pruning_scheme = args.pruning_method)
+    elif args.pruning_method == 'layer_uniform_attn':
+        print("=====> Layer-uniform attn pruning is ENABLED. Pruning would be conducted within MHA but the layer-wise pruning pattern would be shared across all heads. <=====\n")
+        p_structures = count_llm_p_structures(model = model, model_config = model_cfg, pruning_scheme = args.pruning_method)
     else:
         print("=====> AttentionHead pruning is ENABLED. Pruning would be conducted head-wisely on Query. <=====")
+        print("CURRENTLY NOT SUPPORTED!")
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
@@ -330,6 +334,7 @@ def main():
     print("=====> Initialize Mask ControllerNetwork (Hypernet) based on [prunable_structure, temperature, base]. <=====\n")
     hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(dtype=torch.bfloat16).to(device)
     cur_maskVec = hyper_net(dummy=0)
+    cur_mask_init = hyper_net.transform_output(cur_maskVec)
     '''
     DEBUGGING:
     initialized maskVec
@@ -338,6 +343,7 @@ def main():
     print(f"initialized binary mask has {number_of_zeros} masked dimension within the vector.")
 
     print("random initialized Mask:\n", cur_maskVec, cur_maskVec.size())
+    print("random initialized Mask for LLM Inference:\n", cur_mask_init)
     print("=====> Mask ControllerNetwork Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
 

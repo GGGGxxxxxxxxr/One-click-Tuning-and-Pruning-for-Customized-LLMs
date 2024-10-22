@@ -183,10 +183,15 @@ class LLM_HyperStructure(nn.Module):
         super(LLM_HyperStructure, self).__init__()
 
         # >>>>> Configuration Setup <<<<<#
-        self.num_layers = p_structure[0]  # Number of layers in the LLM
-        self.lw_structure = p_structure[1]  # Structure of each layer's mask
-        self.T = T  # Temperature for Gumbel-Softmax
-        self.base = base  # Offset for Gumbel-Softmax sampling
+        self.pruning_scheme = args.pruning_method
+        self.num_layers     = p_structure[0]  # Number of layers in the LLM
+        self.lw_structure   = p_structure[1]  # Structure of each layer's mask
+        if self.pruning_scheme == 'layer_uniform_attn':
+            assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
+            self.num_kv_heads = p_structure[-1]
+
+        self.T              = T  # Temperature for Gumbel-Softmax
+        self.base           = base  # Offset for Gumbel-Softmax sampling
 
         # >>>>> Transformer Encoder <<<<<#
         encoder_layer = nn.TransformerEncoderLayer(
@@ -261,13 +266,32 @@ class LLM_HyperStructure(nn.Module):
 
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
-        arch_vector = []
-        start = 0
-        for size in self.lw_structure:
-            end = start + size
-            arch_vector.append(inputs[:, start:end])
-            start = end
-        return arch_vector
+        if self.pruning_scheme == 'inner':
+            arch_vector = []
+            start = 0
+            for size in self.lw_structure:
+                end = start + size
+                arch_vector.append(inputs[:, start:end])
+                start = end
+
+            return arch_vector
+        
+        elif self.pruning_scheme == 'layer_uniform_attn':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
+
+                if i < 2:  # we need to extend K_V_head_mask for the whole layer (multi-head)
+                    replicated_slices = [sliced_input_tensor] * self.num_kv_heads
+                    arch_vector.extend(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+
+            return arch_vector
+
 
     def vector2mask(self, inputs):
         """(Deprecated) Transform vector to mask - not used in current ATO's application."""

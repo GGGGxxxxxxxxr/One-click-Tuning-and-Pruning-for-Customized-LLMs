@@ -118,7 +118,7 @@ for i in range(len(val_set)):
     for _ in range(1):
         model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
         target_inputs = tokenizer([target_text], return_tensors="pt").to("cuda")
-        with torch.autocast(device_type='cuda'):
+        with torch.autocast(device_type='cuda', dtype=torch.bf):
             model_output = model(input_ids = model_inputs["input_ids"], attention_mask = model_inputs["attention_mask"], return_dict=True)
             target_output = model(input_ids = target_inputs["input_ids"], attention_mask = target_inputs["attention_mask"], return_dict=True, pruning_mask=masks)
 

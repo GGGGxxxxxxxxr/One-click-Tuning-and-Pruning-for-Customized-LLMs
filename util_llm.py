@@ -26,7 +26,11 @@ from transformers import AutoConfig
 # for 1-layer traditional MHA with Head = 2, head-dim = 64, MLPMultiplier = 4
 # p_structures = [64, 64, 64, 64, 64, 64*4] (indicating WK_1, WK_2, WV_1, WV_2, WOut, MLPUp) (with fine-grained pruning)
 # p_structures = [2, 64, 64*4]              (indicating Q-head-wise-prune, WOut, MLPUp)      (with head-wise pruning)
-def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, head_wise: bool = False) -> List[int]:
+# ****************************
+# ** modified function (10/22): 
+# ** add new feature of pruning_scheme selection as 'LAYER_UNIFORM_ATTN'!
+# ** a unified layer-specific K_head (or V_head) mask would be generated and all attn_heads within this layer would share this exact same mask to ensure the attention uniform shape 
+def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_scheme: str) -> List[int]:
     num_layers   = model_config.num_hidden_layers       # num_of_layers
     num_heads    = model_config.num_attention_heads     # num_of_Q_Splits
     num_kv_heads = model_config.num_key_value_heads     # num_of_KV_Splits 
@@ -51,7 +55,7 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, head_wise
     lw_structure = []
 
     # 2. counting prunable structures based on pruning methods within in a single layer
-    if not head_wise:
+    if pruning_scheme == 'inner':
         print("=====> Counting Fine-grained Prunable Structures. <=====")
         # a) [K_split_1, ..., K_split_n] 
         #    [V_split_1, ..., V_split_n] (n = self.config.num_key_value_heads)
@@ -64,11 +68,27 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, head_wise
         
         print("=====> Prunable Structure for One-Layer: <=====")
         print(lw_structure)
+    elif pruning_scheme == 'layer_uniform_attn':
+        print("=====> Counting Layer_Uniform_Attn Prunable Structures. <=====")
+        # a) [Unified K_split] [Unified V_split]
+        lw_structure.append(head_dim)
+        lw_structure.append(head_dim)
+        # b) attn_output
+        lw_structure.append(hidden_size)
+        # c) MLP_Up
+        lw_structure.append(intermediate_size)
+        print("=====> Prunable Structure for One-Layer: <=====")
+        print(lw_structure)
     else:
         print("=====> Not implemented yet!. <=====")
 
     # 3. combine as pruning indicator
     p_structure.append(lw_structure)
+
+    # 4. [Optional] if 'layer_uniform_attn', we attach the {num_of_kv_heads} at the tail for future access
+    if pruning_scheme == 'layer_uniform_attn':
+        p_structure.append(num_kv_heads)
+
     print("=====> LLM p_structure counting finished. <=====")
     print("Prunable Structure:", p_structure)
     
