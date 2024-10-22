@@ -17,6 +17,23 @@ def transform_output(inputs):
 
         return arch_vector
 
+def transform_output_layer_uniform(inputs):
+    lw_structure = [128] * 2 + [4096] + [11008]
+    num_kv_heads = 32
+    arch_vector = []
+    start = 0
+    for i, size in enumerate(lw_structure):
+        end                 = start + size
+        sliced_input_tensor = inputs[:, start : end]
+
+        if i < 2:  # we need to extend K_V_head_mask for the whole layer (multi-head)
+            replicated_slices = [sliced_input_tensor] * num_kv_heads
+            arch_vector.extend(replicated_slices)
+        else:
+            arch_vector.append(sliced_input_tensor)
+        start = end
+
+    return arch_vector
 '''
 checkpoint = torch.load("/home/user1/workspace/leilu/AutoTrainOnce/checkpoint.pth.tar", map_location=torch.device('cpu'))  # adjust map_location as needed
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B")
@@ -46,7 +63,8 @@ model.eval()
 
 print("get cur_mask_vec")
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
-masks = transform_output(cur_mask_vec)
+#masks = transform_output(cur_mask_vec)
+masks = transform_output_layer_uniform(cur_mask_vec)
 
 ### default: view current pruning pattern
 ## attention pruning pattern

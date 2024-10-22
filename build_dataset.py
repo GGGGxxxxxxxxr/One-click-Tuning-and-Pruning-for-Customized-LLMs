@@ -15,6 +15,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 # original DP is swapped into DDP for efficient and more organzied training logic
 from torch.utils.data import DataLoader, DistributedSampler
+import re
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
@@ -128,12 +129,9 @@ def formatted_PubMedQA_dataset():
     return training_dataset, validation_dataset
 #-----------------------------------------------------------------#
 
-#-----------------------------------------------------------------#
+
 
 #-----------------------------------------------------------------#
-# MEDNLI
-# ** build MedNLI Dataset (medical content Classification)
-# ** data reordered with pre-fixed text template to make it more friendly to LLM understanding
 def format_agnews_example(example):
     # Extract necessary fields
     sentence = example['text']
@@ -159,3 +157,46 @@ def formatted_AGNews_dataset():
     validation_dataset = validation_dataset.map(format_agnews_example)
 
     return train_dataset, validation_dataset
+#-----------------------------------------------------------------#
+
+#-----------------------------------------------------------------#
+def extract_message(text):
+    """
+    从文本中提取 'MESSAGE' 部分。
+    如果有 'MESSAGE:'，提取后面的内容。
+    如果没有，直接返回整个文本。
+    """
+    # 尝试提取 'MESSAGE:' 后的内容
+    match = re.search(r'MESSAGE:\s*(.*)', text)
+    if match:
+        return match.group(1)
+    else:
+        # 如果没有 'MESSAGE:'，直接返回文本（去掉多余的换行或标志）
+        return text.strip()
+
+def preprocess_HQS_dataset(examples):
+    """
+    预处理函数：提取并标准化 'message' 部分。
+    处理批量数据时，对每个文本应用 'extract_message' 函数。
+    """
+    # examples["CHQ"] 是一个包含文本字符串的列表
+    messages = [extract_message(text) for text in examples["CHQ"]]
+    # 将提取的消息添加到字典中
+    examples["message"] = messages
+    return examples
+
+def formatted_HQS_dataset():
+    # 加载数据集并移除不需要的列
+    train_dataset = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
+    # 使用批处理方式预处理数据集
+    processed_dataset = train_dataset.map(preprocess_HQS_dataset, batched=True)
+    return processed_dataset
+
+
+
+
+hqs_data = formatted_HQS_dataset()
+for i in range(5):
+    print(f"Original CHQ: {hqs_data[i]['CHQ']}")
+    print(f"Extracted Message: {hqs_data[i]['message']}\n")
+    

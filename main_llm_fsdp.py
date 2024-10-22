@@ -475,6 +475,7 @@ def main():
         print(f"cuda cache cleaned for epoch {epoch}")
 
     print("=====> Training Done. <=====\n")
-
+    training_cleanup()
+    
 if __name__ == '__main__':
     main()
