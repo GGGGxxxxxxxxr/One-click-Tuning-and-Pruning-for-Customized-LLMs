@@ -123,7 +123,7 @@ for i in range(len(val_set)):
     #gold_label = val_set[i]["label"]
 
     #print(sentence)
-    #print(gold_label)
+    print(gold_label)
 
     #input_text = f"Predict the #gold_label# from 'entailment', 'contradiction' or 'neutral' based on the content of #sentence1# and #sentence2#. #sentence1#: '{sentence1}', #sentence2#: '{sentence2}'. Predicted #gold_label#:"
     #input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#: "
