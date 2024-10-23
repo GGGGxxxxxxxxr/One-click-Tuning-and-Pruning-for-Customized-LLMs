@@ -141,7 +141,7 @@ def evaluate_pubmedqa(model, tokenizer, masks, dataset):
             f"The answer is '"
         )
 
-        prediction = generate_predictions(model, tokenizer, masks, input_text)
+        prediction = generate_predictions(model, tokenizer, input_text)
 
         # Map prediction to one of the labels
         prediction = prediction.lower()
