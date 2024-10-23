@@ -112,7 +112,7 @@ val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_te
 val_set = val_set["train"]
 '''
 
-val_set = load_dataset("json", data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl")
+val_set = load_dataset("json", data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl")["train"]
 print("dataset perf evaluation...")
 input("press ENTER to continue...")
 
