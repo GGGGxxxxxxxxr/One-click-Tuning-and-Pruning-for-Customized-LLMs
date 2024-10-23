@@ -19,7 +19,7 @@ import re
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures
 from util_llm import pruning_ratio_contribution
@@ -29,39 +29,193 @@ from train_llm import llm_sp_train_one_epoch
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 
-
+# ** MedicalDataset Collection ** #
 #-----------------------------------------------------------------#
 # MEDNLI
-# ** build MedNLI Dataset (medical content Classification)
-# ** data reordered with pre-fixed text template to make it more friendly to LLM understanding
-def format_example(example):
-    # Extract necessary fields
+# ** 构建具有指定文本模板和采样的 MedNLI 数据集
+def format_mednli_example(example):
+    # 提取必要字段
     sentence1 = example['sentence1']
     sentence2 = example['sentence2']
     gold_label = example['gold_label']
     
-    # Format the text based on the provided template
+    # 根据 gold_label 确定 trailing 文本
+    if gold_label == "entailment":
+        trailing = "the hypothesis is true given the premise."
+    elif gold_label == "contradiction":
+        trailing = "the hypothesis is false given the premise."
+    elif gold_label == "neutral":
+        trailing = "the hypothesis is undetermined given the premise."
+    else:
+        trailing = "the relationship is unknown."
+    
+    # 根据提供的模板格式化文本
     formatted_text = (
-        f"Predict the #gold_label# from 'entailment', 'contradiction' or 'neutral' based on the content of #sentence1# and #sentence2#. "
-        f"#sentence1#: '{sentence1}', #sentence2#: '{sentence2}'. Predicted #gold_label#: {gold_label}"
+        f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
+        f"Their relationship is '{gold_label}', and this means {trailing}"
     )
     
-    # Return the new dictionary with formatted text
+    # 返回包含新字段的字典
     return {'text': formatted_text}
 
-def formatted_MedNLI_dataset(train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl', val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl'):
-    # Load the dataset and remove unnecessary columns
-    train_set = load_dataset("json", data_files=train_data_file).remove_columns(
-        ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
+def formatted_MedNLI_dataset(
+    train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl',
+    val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl',
+    num_samples=None
+):
+    # 加载数据集
+    train_set = load_dataset("json", data_files=train_data_file)['train']
+    val_set   = load_dataset("json", data_files=val_data_file)['train']
+    
+    # 移除不必要的列
+    columns_to_remove = [
+        "pairID", "sentence1_parse", "sentence1_binary_parse",
+        "sentence2_parse", "sentence2_binary_parse"
+    ]
+    train_set = train_set.remove_columns(columns_to_remove)
+    val_set   = val_set.remove_columns(columns_to_remove)
+    
+    # 应用格式化函数并移除原始列
+    train_set = train_set.map(
+        format_mednli_example,
+        remove_columns=["sentence1", "sentence2", "gold_label"]
     )
-    val_set   = load_dataset("json", data_files=val_data_file).remove_columns(
-        ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
+    val_set   = val_set.map(
+        format_mednli_example,
+        remove_columns=["sentence1", "sentence2", "gold_label"]
     )
-    # Apply the formatting function and remove original columns
-    train_set = train_set.map(format_example).remove_columns(["sentence1", "sentence2", "gold_label"])
-    val_set   = val_set.map(format_example).remove_columns(["sentence1", "sentence2", "gold_label"])
-    return train_set['train'], val_set['train']
+    
+    # 如果指定了 num_samples，选择前 num_samples 条数据
+    if num_samples is not None:
+        num_samples = min(num_samples, len(train_set))
+        train_set = train_set.select(range(num_samples))
+    
+    return train_set, val_set
 #-----------------------------------------------------------------#
+
+#-----------------------------------------------------------------#
+# HealthQuestionSum 数据集
+def extract_question(text):
+    """
+    从文本中提取问题，处理不同的格式。
+    如果文本包含 'SUBJECT:' 和 'MESSAGE:'，则提取 'MESSAGE:' 后的内容。
+    否则，将整个文本视为问题。
+    """
+    # 检查文本是否包含 'SUBJECT:' 或 'MESSAGE:'
+    if 'SUBJECT:' in text or 'MESSAGE:' in text:
+        # 使用正则表达式提取 'MESSAGE:' 后的内容
+        match = re.search(r'MESSAGE:\s*(.*)', text, re.DOTALL)
+        if match:
+            question = match.group(1).strip()
+        else:
+            # 如果无法提取，返回原始文本
+            question = text.strip()
+    else:
+        # 将整个文本视为问题
+        question = text.strip()
+    return question
+
+def format_hqs_example(example):
+    # 提取问题
+    question = extract_question(example['CHQ'])
+    summary = example['Summary']
+    
+    # 根据模板格式化文本
+    formatted_text = (
+        f"A question posted by a patient is '{question}'. "
+        f"The summary of the question is '{summary}'."
+    )
+    
+    # 返回包含新字段的字典
+    return {'text': formatted_text}
+
+def formatted_HQS_dataset(num_samples=None):
+    # 加载数据集并移除不需要的列
+    training_dataset   = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
+    validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.json")['train'].remove_columns("q_id")
+    # 如果指定了 num_samples，选择前 num_samples 条数据
+    if num_samples is not None:
+        num_samples = min(num_samples, len(training_dataset))
+        training_dataset = training_dataset.select(range(num_samples))
+    
+    # 应用格式化函数
+    training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+    validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+    return training_dataset, validation_dataset
+#-----------------------------------------------------------------#
+
+#-----------------------------------------------------------------#
+# PubMedQA
+# ** 构建具有指定文本模板和采样的 PubMedQA 数据集
+def format_pubmedqa_example(example):
+    # 提取必要字段
+    context = example['context']
+    question = example['question']
+    final_decision = example['final_decision']
+    
+    # 根据 final_decision 确定 trailing 文本
+    if final_decision == "yes":
+        trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
+    elif final_decision == "no":
+        trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
+    elif final_decision == "maybe":
+        trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
+    else:
+        trailing = "the answer is unknown."
+    
+    # 根据提供的模板格式化文本
+    formatted_text = (
+        f"The abstract of a biomedical research article is '{context}'. "
+        f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
+        f"The answer is '{final_decision}', which indicates {trailing}"
+    )
+    
+    # 返回包含新字段的字典
+    return {'text': formatted_text}
+
+def formatted_PubMedQA_dataset(num_samples=None):
+    # 从 Hugging Face 加载医学领域的集合
+    # 修正数据集名称拼写错误，并分别加载训练集和验证集
+    training_dataset = load_dataset("qiaojin/PubMedQA", "pqa_artificial")['train'].remove_columns(["pubid", "long_answer"])
+    validation_dataset = load_dataset("qiaojin/PubMedQA", "pqa_labeled")['train'].remove_columns(["pubid", "long_answer"])
+    
+    # 如果指定了 num_samples，选择前 num_samples 条数据作为训练集
+    if num_samples is not None:
+        num_samples = min(num_samples, len(training_dataset))
+        training_dataset = training_dataset.select(range(num_samples))
+    
+    # 对训练集应用格式化函数并移除原始列
+    training_dataset = training_dataset.map(
+        format_pubmedqa_example,
+        remove_columns=["context", "question", "final_decision"]
+    )
+    
+    # 对验证集应用格式化函数并移除原始列
+    validation_dataset = validation_dataset.map(
+        format_pubmedqa_example,
+        remove_columns=["context", "question", "final_decision"]
+    )
+    
+    return training_dataset, validation_dataset
+
+
+
+#-------------------- 合并数据集 --------------------#
+def create_medical_dataset():
+    # 获取各个数据集的训练集和验证集
+    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=7000)
+    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
+    
+    # 合并训练集
+    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
+    
+    # 合并验证集
+    combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val])
+    
+    return combined_train, combined_val
+#-----------------------------------------------------------------#
+
 
 
 #-----------------------------------------------------------------#
@@ -112,22 +266,8 @@ def formatted_InterMed_dataset():
     return training_dataset, validation_dataset
 #-----------------------------------------------------------------#
 
-#-----------------------------------------------------------------#
-# ** build PubMedQA dataset
-# ** it is a Research Question in MedicialDomain where:
-# ** an ##answer## [Yes/NO] is decided given the ##Question## and ##context## (supporting details)
-# ** version0: reserve "question" "context" (several subattributes within) "final_decision" (predictable answer)
-def formatted_PubMedQA_dataset():
-    # load the medical-domain collections from huggingface source
-    dataset = load_dataset("qiaojin/PubMedQA", "pqa_labeled")['train'].remove_columns(["pubid","long_answer"])
 
-    # split into training_set for llm tuning & validation_set for hypernet() mask generation
-    split_dataset = dataset.train_test_split(test_size=0.15, shuffle=True, seed=42)
-    training_dataset = split_dataset['train']
-    validation_dataset = split_dataset['test']
 
-    return training_dataset, validation_dataset
-#-----------------------------------------------------------------#
 
 
 
@@ -159,44 +299,11 @@ def formatted_AGNews_dataset():
     return train_dataset, validation_dataset
 #-----------------------------------------------------------------#
 
-#-----------------------------------------------------------------#
-def extract_message(text):
-    """
-    从文本中提取 'MESSAGE' 部分。
-    如果有 'MESSAGE:'，提取后面的内容。
-    如果没有，直接返回整个文本。
-    """
-    # 尝试提取 'MESSAGE:' 后的内容
-    match = re.search(r'MESSAGE:\s*(.*)', text)
-    if match:
-        return match.group(1)
-    else:
-        # 如果没有 'MESSAGE:'，直接返回文本（去掉多余的换行或标志）
-        return text.strip()
-
-def preprocess_HQS_dataset(examples):
-    """
-    预处理函数：提取并标准化 'message' 部分。
-    处理批量数据时，对每个文本应用 'extract_message' 函数。
-    """
-    # examples["CHQ"] 是一个包含文本字符串的列表
-    messages = [extract_message(text) for text in examples["CHQ"]]
-    # 将提取的消息添加到字典中
-    examples["message"] = messages
-    return examples
-
-def formatted_HQS_dataset():
-    # 加载数据集并移除不需要的列
-    train_dataset = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
-    # 使用批处理方式预处理数据集
-    processed_dataset = train_dataset.map(preprocess_HQS_dataset, batched=True)
-    return processed_dataset
 
 
 
-
-hqs_data = formatted_HQS_dataset()
-for i in range(5):
-    print(f"Original CHQ: {hqs_data[i]['CHQ']}")
-    print(f"Extracted Message: {hqs_data[i]['message']}\n")
-    
+'''
+hqs_train, hqs_val = create_medical_dataset()
+for i in range(8000, 9000):
+    print(hqs_train[i])
+'''
