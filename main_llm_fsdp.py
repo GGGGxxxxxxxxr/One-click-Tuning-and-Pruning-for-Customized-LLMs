@@ -454,17 +454,16 @@ def main():
         print(f"=====> New Training Progress Launched. <=====\n")
         start_epoch = args.start_epoch
 
-
+    skip_hyper_training=False
     for epoch in range(start_epoch, args.epochs):
         # data shuffle epoch-wisely
         ddp_sampler.set_epoch(epoch)
         ddp_sampler1.set_epoch(epoch)
 
         # train for one epoch
-        cur_maskVec = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
+        cur_maskVec, skip_hyper_training = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
                                             hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
-                                            grouplasso_module=grouplasso_module, args=args, scaler=scaler, pruning_contribution=pruning_contribution)
-        # save latest checkpoint
+                                            grouplasso_module=grouplasso_module, args=args, scaler=scaler, pruning_contribution=pruning_contribution, skip_hyper_training=skip_hyper_training)
         
         # learing rate update
         scheduler_llm.step()

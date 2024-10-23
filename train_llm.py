@@ -270,7 +270,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 # ** GroupLasso is applied for WeightProjection (directly imported from ATO's raw implementation)
 # ** [Calibration_Dataset] for hypernet() training is a small portion of data from the NLP dataset['train']
 # ** Casual LLM takes shifted [input_ids] as the self-supervised training labels for NEXT_TOKEN_PREDICTION
-def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, pruning_contribution):
+def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, pruning_contribution, skip_hyper_training):
     print(f"Epoch {epoch} starting.............")
     # initialize training loss holder
     llm_loss_ave       = AverageMeter()
@@ -283,6 +283,13 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     pruning_ratio_target = args.pruning_ratio_target
     num_key_value        = args.num_key_values
+
+    # 添加计数器和标志
+    ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
+    ratio_loss_threshold = 0.0001
+    ratio_loss_consecutive_steps = 25
+    skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
+    print(f"skip_hypernet_training_status: {skip_hypernet_training}")
 
     # step1: [pruning_MASK] selection (pre-fixed or newly-generated)
     if epoch >= (args.start_epoch_control + args.control_epochs):
@@ -306,7 +313,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
     for i, text_input in enumerate(nlp_dataloader):
         # Step 1: Hypernet 训练及生成新 Mask
-        if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
+        if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs) and not skip_hypernet_training:
             if (i + 1) % args.control_step == 0:
                 # 从验证集获取数据用于 Hypernet 的训练
                 val_inputs = next(nlp_hypernet_iter)
@@ -350,6 +357,18 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 ratio_loss_ave.update(reduced_ratio_loss.item(), 1)
                 alignment_loss_ave.update(reduced_align_loss.item(), 1)
 
+                # ** automatic determination of stop hypernet() training
+                if reduced_ratio_loss.item() <= ratio_loss_threshold:
+                    ratio_loss_counter +=1
+                else:
+                    ratio_loss_counter = 0      #reset
+                
+                if ratio_loss_counter >= ratio_loss_consecutive_steps:
+                    skip_hypernet_training = True
+                    grouplasso_module.lam = 2000
+                    print(f"ratio_loss has been below {ratio_loss_threshold} for {ratio_loss_consecutive_steps} steps.")
+                    print("Skipping hypernet training, setting grouplasso.lam to 2000, and fixing mask_vec for future training.")
+
         # Step 2: LLM 权重更新
         optimizer_llm.zero_grad()
         current_lr = optimizer_llm.param_groups[0]['lr']
@@ -379,7 +398,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
-        if epoch >= (args.start_epoch_control + args.control_epochs):
+        if epoch >= (args.start_epoch_control + args.control_epochs) or skip_hypernet_training:
             grouplasso_module.lam = 2000
         else:
             grouplasso_module.lam = 50
@@ -435,7 +454,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             f"Alignment Loss (Avg): {alignment_loss_ave.avg:.4f}\n"
         )
 
-    return return_mask
+    return return_mask, skip_hypernet_training
 
     '''
     for i, text_input in enumerate(nlp_dataloader):

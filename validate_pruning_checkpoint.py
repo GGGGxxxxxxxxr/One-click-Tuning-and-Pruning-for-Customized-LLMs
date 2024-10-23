@@ -99,34 +99,39 @@ gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoc
 
 ### option3: debugging for real test on pruned model or masked model
 # build test/validation dataset
-'''
+
 val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
     )
 val_set = val_set["train"]
-'''
+
 
 print("dataset perf evaluation...")
 input("press ENTER to continue...")
 
-val_set = load_dataset("fancyzhx/ag_news")["test"]
+#val_set = load_dataset("fancyzhx/ag_news")["test"]
 acc_count_base   = 0
 acc_count_masked = 0
 
 for i in range(len(val_set)):
-    '''
+    
     sentence1 = val_set[i]["sentence1"]
     sentence2 = val_set[i]["sentence2"]
     gold_label = val_set[i]["gold_label"]
-    '''
-    sentence = val_set[i]["text"]
-    gold_label = val_set[i]["label"]
+    
+    #sentence = val_set[i]["text"]
+    #gold_label = val_set[i]["label"]
 
-    print(sentence)
-    print(gold_label)
+    #print(sentence)
+    #print(gold_label)
 
     #input_text = f"Predict the #gold_label# from 'entailment', 'contradiction' or 'neutral' based on the content of #sentence1# and #sentence2#. #sentence1#: '{sentence1}', #sentence2#: '{sentence2}'. Predicted #gold_label#:"
-    input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#: "
+    #input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#: "
+    input_text = (
+        f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
+        f"Their relationship is ' "
+    )
+
     generated_text = input_text
     target_text    = input_text
 
@@ -169,7 +174,7 @@ for i in range(len(val_set)):
     print(f"next_token_via_sparse_model: {next_token}")
     print(f"next_token_via_mask: {t_next_token}")
 
-    '''
+    
     if 'ent' in t_next_token:
         prediction = 'entailment'
     elif 'neutral' in t_next_token:
@@ -183,8 +188,8 @@ for i in range(len(val_set)):
          prediction_b = 'neutral'
     elif 'contradiction' in next_token:
          prediction_b = 'contradiction'
-    '''
 
+    '''
     if '1' in next_token:
          prediction = 1
     elif '2' in next_token:
@@ -202,6 +207,7 @@ for i in range(len(val_set)):
          prediction_b = 3
     elif '0' in t_next_token:
          prediction_b = 0
+    '''
 
     if prediction == gold_label:
         acc_count_masked += 1
