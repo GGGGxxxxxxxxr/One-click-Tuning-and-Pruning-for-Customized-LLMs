@@ -61,6 +61,11 @@ print("load state dict from ckpt.")
 model.load_state_dict(checkpoint["model_state_dict"], strict=True)
 model.eval()
 
+print("check weight")
+print(model.model.layers[0].mlp.gate_proj.weight)
+print(model.model.layers[0].mlp.up_proj.weight)
+print(model.model.layers[0].mlp.down_proj.weight)
+
 print("get cur_mask_vec")
 cur_mask_vec = checkpoint["mask_vec"].to("cuda")
 #masks = transform_output(cur_mask_vec)
