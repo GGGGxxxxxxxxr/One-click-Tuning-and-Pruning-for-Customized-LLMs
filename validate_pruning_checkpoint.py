@@ -105,11 +105,14 @@ gl_loss_module.debug_purpose_compute(target_llm=model, pruning_masks=masks, epoc
 ### option3: debugging for real test on pruned model or masked model
 # build test/validation dataset
 
+'''
 val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_test_v1.jsonl").remove_columns(
         ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
     )
 val_set = val_set["train"]
+'''
 
+val_set = load_dataset("json", data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl").remove_columns(["LABELS","MESHS","YEAR","reasoning_required_pred","reasoning_free_pred","LONG_ANSWER"])
 
 print("dataset perf evaluation...")
 input("press ENTER to continue...")
@@ -120,23 +123,33 @@ acc_count_masked = 0
 
 for i in range(len(val_set)):
     
-    sentence1 = val_set[i]["sentence1"]
-    sentence2 = val_set[i]["sentence2"]
-    gold_label = val_set[i]["gold_label"]
+    #sentence1 = val_set[i]["sentence1"]
+    #sentence2 = val_set[i]["sentence2"]
+    #gold_label = val_set[i]["gold_label"]
     
     #sentence = val_set[i]["text"]
     #gold_label = val_set[i]["label"]
 
     #print(sentence)
-    print(gold_label)
+    #print(gold_label)
 
     #input_text = f"Predict the #gold_label# from 'entailment', 'contradiction' or 'neutral' based on the content of #sentence1# and #sentence2#. #sentence1#: '{sentence1}', #sentence2#: '{sentence2}'. Predicted #gold_label#:"
     #input_text = f"Predict the #class_label# from '0', '1', '2' or '3' based on the content of #sentence#. #sentence#: '{sentence}'. Predicted #class_label#: "
-    input_text = (
-        f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
-        f"Their relationship is ' "
-    )
+    #input_text = (
+    #    f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
+    #    f"Their relationship is ' "
+    #)
+    context = val_set[i]['CONTEXTS']
+    question = val_set[i]['QUESTION']
+    final_decision = val_set[i]['final_decision']
 
+    print(final_decision)
+    
+    input_text = (
+        f"The abstract of a biomedical research article is '{context}'. "
+        f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
+        f"The answer is '"
+    )
     generated_text = input_text
     target_text    = input_text
 
