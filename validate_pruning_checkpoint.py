@@ -112,8 +112,7 @@ val_set = load_dataset("json", data_files="nlp_dataset_collections/medNLI/mli_te
 val_set = val_set["train"]
 '''
 
-val_set = load_dataset("json", data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl").remove_columns(["LABELS","MESHS","YEAR","reasoning_required_pred","reasoning_free_pred","LONG_ANSWER"])
-
+val_set = load_dataset("json", data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl")
 print("dataset perf evaluation...")
 input("press ENTER to continue...")
 
@@ -144,7 +143,7 @@ for i in range(len(val_set)):
     final_decision = val_set[i]['final_decision']
 
     print(final_decision)
-    
+
     input_text = (
         f"The abstract of a biomedical research article is '{context}'. "
         f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
