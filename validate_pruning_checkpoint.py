@@ -35,7 +35,7 @@ def transform_output_layer_uniform(inputs):
 
 def initialize_model_and_tokenizer():
     print("Loading checkpoint.")
-    checkpoint = torch.load("/path/to/your/checkpoint.pth.tar", map_location=torch.device('cpu'))
+    checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
 
     print("Initializing LLaMA 2-7B model.")
     api_token = 'your_hf_api_token'
