@@ -140,9 +140,9 @@ for i in range(len(val_set)):
     #)
     context = val_set[i]['CONTEXTS']
     question = val_set[i]['QUESTION']
-    final_decision = val_set[i]['final_decision']
+    gold_label = val_set[i]['final_decision']
 
-    print(final_decision)
+    print(gold_label)
 
     input_text = (
         f"The abstract of a biomedical research article is '{context}'. "
