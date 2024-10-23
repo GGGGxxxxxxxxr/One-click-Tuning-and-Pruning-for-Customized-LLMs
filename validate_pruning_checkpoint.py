@@ -177,16 +177,16 @@ for i in range(len(val_set)):
     
     if 'ent' in t_next_token:
         prediction = 'entailment'
-    elif 'neutral' in t_next_token:
+    elif 'neut' in t_next_token:
          prediction = 'neutral'
-    elif 'contradiction' in t_next_token:
+    elif 'contr' in t_next_token:
          prediction = 'contradiction'
     
     if 'ent' in next_token:
         prediction_b = 'entailment'
-    elif 'neutral' in next_token:
+    elif 'neut' in next_token:
          prediction_b = 'neutral'
-    elif 'contradiction' in next_token:
+    elif 'contr' in next_token:
          prediction_b = 'contradiction'
 
     '''
