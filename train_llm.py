@@ -287,12 +287,12 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
     ratio_loss_threshold = 0.001
-    ratio_loss_consecutive_steps = 25
+    ratio_loss_consecutive_steps = 10
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 
     gl_loss_counter = 0
     gl_loss_threshold = 1.57
-    gl_loss_consecutive_steps = 100
+    gl_loss_consecutive_steps = 10
     terminate_training = False
 
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
@@ -407,7 +407,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             gl_loss_counter = 0
         
         if gl_loss_counter >= gl_loss_consecutive_steps:
-            print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated after this epoch.")
             terminate_training = True
 
         ###############################################
@@ -454,6 +453,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                                 
                 start_time = time.time()
 
+        if terminate_training == True:
+            print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated rightnow.")
+            break
+        
     # 打印 Epoch 结束时的总结（仅限主进程）
     if torch.distributed.get_rank() == 0:
         print(f"\n===== End of Epoch {epoch} =====")
