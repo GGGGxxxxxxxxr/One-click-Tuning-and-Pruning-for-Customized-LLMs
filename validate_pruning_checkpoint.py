@@ -380,5 +380,5 @@ def compute_perplexity(model, tokenizer, dataset):
 
 if __name__ == "__main__":
     model, tokenizer, masks = initialize_model_and_tokenizer()
-    dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS): ")
+    dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison): ")
     evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
