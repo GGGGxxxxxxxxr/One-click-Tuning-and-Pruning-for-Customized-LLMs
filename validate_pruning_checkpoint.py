@@ -238,8 +238,8 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
     for i in range(len(dataset)):
-        original_question = dataset[i]['question']
-        reference_summary = dataset[i]['summary']
+        original_question = dataset[i]['CHQ']
+        reference_summary = dataset[i]['Summary']
 
         question = extract_message(original_question)
 
