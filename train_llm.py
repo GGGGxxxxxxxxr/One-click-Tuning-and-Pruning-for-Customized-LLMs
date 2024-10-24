@@ -286,9 +286,15 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
-    ratio_loss_threshold = 0.00075
+    ratio_loss_threshold = 0.001
     ratio_loss_consecutive_steps = 25
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
+
+    gl_loss_counter = 0
+    gl_loss_threshold = 1.57
+    gl_loss_consecutive_steps = 100
+    terminate_training = False
+
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
 
     # step1: [pruning_MASK] selection (pre-fixed or newly-generated)
@@ -394,8 +400,16 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         llm_loss_ave.update(reduced_llm_loss.item(), text_input["input_ids"].size(0))
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
-
         
+        if reduced_llm_loss <= gl_loss_threshold:
+            gl_loss_counter += 1
+        else:
+            gl_loss_counter = 0
+        
+        if gl_loss_counter >= gl_loss_consecutive_steps:
+            print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated after this epoch.")
+            terminate_training = True
+
         ###############################################
         ### 在 LLM 训练后进行 Group Lasso 权重投影
         if epoch >= (args.start_epoch_control + args.control_epochs) or skip_hypernet_training:
@@ -415,7 +429,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
         
-
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
@@ -454,7 +467,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             f"Alignment Loss (Avg): {alignment_loss_ave.avg:.4f}\n"
         )
 
-    return return_mask, skip_hypernet_training
+    return return_mask, skip_hypernet_training, terminate_training
 
     '''
     for i, text_input in enumerate(nlp_dataloader):
