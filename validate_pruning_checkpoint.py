@@ -42,7 +42,7 @@ def initialize_model_and_tokenizer():
     checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
 
     print("Initializing LLaMA 2-7B model.")
-    api_token = 'your_hf_api_token'
+    api_token = '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'
     model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
