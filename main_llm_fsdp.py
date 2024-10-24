@@ -90,7 +90,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--bsz', default=2, type=int,metavar='N',
                     help='training batchsize of a single process, DDP is utilized instead of DP in ATO implementation')
-parser.add_argument('--lr', metavar='LR', default=0.1, type=float,
+parser.add_argument('--lr', metavar='LR', default=1e-4, type=float,
                     help='basic initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
