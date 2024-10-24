@@ -359,7 +359,6 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
 
 def compute_perplexity(model, tokenizer, dataset):
     total_loss = 0.0
-    total_length = 0
 
     model.eval()
     for example in dataset:
@@ -378,10 +377,9 @@ def compute_perplexity(model, tokenizer, dataset):
             )
             loss = outputs.loss
             # 乘以标记数获取总损失
-            total_loss += loss.item() * inputs['input_ids'].size(1)
-            total_length += inputs['input_ids'].size(1)
+            total_loss += loss.item()
 
-    perplexity = math.exp(total_loss / total_length)
+    perplexity = math.exp(total_loss / len(dataset))
     return perplexity
 
 if __name__ == "__main__":
