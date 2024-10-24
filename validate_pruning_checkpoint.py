@@ -203,7 +203,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             f"Based on the premise, is the hypothesis 'entailment', 'contradiction', or 'neutral'? The answer is '"
         )
 
-        prediction_base, prediction_masked = generate_predictions(model, tokenizer, masks, input_text)
+        prediction_base, prediction_masked = generate_predictions(model, tokenizer, input_text)
 
         if prediction_base == gold_label:
             acc_count_base += 1

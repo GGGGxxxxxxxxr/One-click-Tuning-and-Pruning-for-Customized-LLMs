@@ -286,7 +286,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
-    ratio_loss_threshold = 0.00015
+    ratio_loss_threshold = 0.00075
     ratio_loss_consecutive_steps = 25
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
