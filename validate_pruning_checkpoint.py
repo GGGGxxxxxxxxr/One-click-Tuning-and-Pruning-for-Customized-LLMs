@@ -251,25 +251,47 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
-def generate_summary(model, tokenizer, input_text):
-    model_inputs = tokenizer(
-        input_text, return_tensors="pt"
-    ).to("cuda")
+def generate_text_custom(model, tokenizer, input_ids, max_length=50):
+    model.eval()
+    generated = input_ids
 
     with torch.no_grad():
-        with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-            generated_ids = model.generate(
-                input_ids=model_inputs["input_ids"],
-                attention_mask=model_inputs["attention_mask"],
-                max_length=30,  # Adjust max_length as needed
-                num_beams=5,     # Using beam search for better summaries
-                early_stopping=True
-            )
+        for _ in range(max_length):
+            outputs = model(input_ids=generated)
+            next_token_logits = outputs.logits[:, -1, :]
 
-    generated_summary = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+            # 使用贪心解码
+            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
 
-    # Remove the input prompt from the generated text
-    generated_summary = generated_summary[len(input_text):].strip()
+            # 添加下一个标记
+            generated = torch.cat((generated, next_token_id), dim=1)
+
+            # 检查结束标记
+            if next_token_id.item() == tokenizer.eos_token_id:
+                break
+
+    return generated
+
+def generate_summary(model, tokenizer, input_text):
+    input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
+
+    generated_ids = generate_text_custom(
+        model, tokenizer, input_ids, max_length=50  # 根据需要调整 max_length
+    )
+
+    generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+
+    # 提取摘要
+    if generated_text.startswith(input_text):
+        generated_summary = generated_text[len(input_text):].strip()
+    else:
+        generated_summary = generated_text.strip()
+
+    # 移除引号
+    if generated_summary.endswith("'"):
+        generated_summary = generated_summary[:-1].strip()
+    if generated_summary.startswith("'"):
+        generated_summary = generated_summary[1:].strip()
 
     return generated_summary
 
