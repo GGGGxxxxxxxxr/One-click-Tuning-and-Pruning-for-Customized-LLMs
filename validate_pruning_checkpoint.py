@@ -122,7 +122,7 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
             ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
         )["train"]
         evaluate_mednli(model, tokenizer, masks, dataset)
-    elif dataset_name.lower() == 'HQS':
+    elif dataset_name.lower() == 'hqs':
         dataset = load_dataset(
             "json",
             data_files="nlp_dataset_collections/HQS/HQS_test.json"
