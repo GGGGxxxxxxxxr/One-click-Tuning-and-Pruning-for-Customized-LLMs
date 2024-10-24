@@ -386,5 +386,12 @@ def compute_perplexity(model, tokenizer, dataset):
 
 if __name__ == "__main__":
     model, tokenizer, masks = initialize_model_and_tokenizer()
-    dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison): ")
-    evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
+    while True:
+        dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
+        
+        if dataset_name == 'exit':
+            print("Exiting the evaluation loop.")
+            break
+        else:
+            evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
+            print("-" * 50)  # 分隔线，便于阅读输出
