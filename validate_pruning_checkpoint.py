@@ -272,7 +272,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
-def generate_text_custom(model, tokenizer, input_ids, max_length=50):
+def generate_text_custom(model, tokenizer, input_ids, max_length=50, free=False):
     model.eval()
     generated = input_ids
 
@@ -288,9 +288,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50):
             generated = torch.cat((generated, next_token_id), dim=1)
 
             next_token = tokenizer.decode(next_token_id.squeeze())
-            # 检查是否生成了句号
-            if next_token == '?' or next_token.strip() == '.':
-                break
+
+            if not free:
+                # 检查是否生成了句号
+                if next_token == '?' or next_token.strip() == '.':
+                    break
 
             # 检查结束标记
             if next_token_id.item() == tokenizer.eos_token_id:
@@ -298,11 +300,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50):
 
     return generated
 
-def generate_summary(model, tokenizer, input_text):
+def generate_summary(model, tokenizer, input_text, free=False):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
-        model, tokenizer, input_ids, max_length=50  # 根据需要调整 max_length
+        model, tokenizer, input_ids, max_length=50, free=free  # 根据需要调整 max_length
     )
 
     generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
@@ -410,7 +412,7 @@ def general_text_completion(model, tokenizer):
             continue
         
         # 生成续写
-        generated_text = generate_summary(model, tokenizer, user_input)
+        generated_text = generate_summary(model, tokenizer, user_input, True)
         print(f"续写内容:\n{generated_text}\n")
 
 
