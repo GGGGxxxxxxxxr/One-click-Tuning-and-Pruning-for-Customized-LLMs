@@ -202,7 +202,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         )
 
         prediction_base = generate_predictions(model, tokenizer, input_text)
-
+        print(prediction_base)
         if "cont" in prediction_base:
             prediction_base = "contradiction"
         elif "ent" in prediction_base:
