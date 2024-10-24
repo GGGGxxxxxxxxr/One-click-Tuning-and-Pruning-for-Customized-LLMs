@@ -197,9 +197,8 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         gold_label = dataset[i]["gold_label"]
 
         input_text = (
-            f"Premise: '{sentence1}'\n"
-            f"Hypothesis: '{sentence2}'\n"
-            f"Based on the premise, is the hypothesis 'entailment', 'contradiction', or 'neutral'? The answer is '"
+            f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
+            f"Their relationship is '"
         )
 
         prediction_base = generate_predictions(model, tokenizer, input_text)
@@ -328,13 +327,12 @@ def generate_predictions(model, tokenizer, input_text):
 
     model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
 
-    with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-        # Base model prediction
-        model_output = model(
-            input_ids=model_inputs["input_ids"],
-            attention_mask=model_inputs["attention_mask"],
-            return_dict=True
-        )
+    # Base model prediction
+    model_output = model(
+        input_ids=model_inputs["input_ids"],
+        attention_mask=model_inputs["attention_mask"],
+        return_dict=True
+    )
 
     logits = model_output.logits
     next_token_logits = logits[:, -1, :]
