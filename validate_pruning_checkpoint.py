@@ -6,6 +6,7 @@ from custom_llms.llama import LlamaForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 from sklearn.metrics import precision_recall_fscore_support
 from rouge_score import rouge_scorer
+import re
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -211,6 +212,14 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
     print(f"Masked Model Accuracy: {acc_count_masked / len(dataset) * 100:.2f}%")
 
 
+def extract_message(text):
+    match = re.search(r'MESSAGE:(.*)', text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    else:
+        return text.strip()
+
+
 def evaluate_healthquestionsum(model, tokenizer, dataset):
     print("Evaluating on HealthQuestionSum dataset...")
     references = []
@@ -219,9 +228,11 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
     for i in range(len(dataset)):
-        question = dataset[i]['question']
+        original_question = dataset[i]['question']
         reference_summary = dataset[i]['summary']
 
+        question = extract_message(original_question)
+        
         input_text = (
             f"A question posted by a patient is '{question}'. "
             f"The summary of the question is '"
