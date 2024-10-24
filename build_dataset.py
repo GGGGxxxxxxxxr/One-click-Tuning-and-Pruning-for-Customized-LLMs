@@ -102,6 +102,11 @@ def extract_question(text):
     否则，将整个文本视为问题。
     """
     # 检查文本是否包含 'SUBJECT:' 或 'MESSAGE:'
+    # 1. 检查是否以 'Q. ' 开头
+    if text.startswith('Q. '):
+        question = text[3:].strip()
+        return question
+    
     if 'SUBJECT:' in text or 'MESSAGE:' in text:
         # 使用正则表达式提取 'MESSAGE:' 后的内容
         match = re.search(r'MESSAGE:\s*(.*)', text, re.DOTALL)
@@ -118,7 +123,7 @@ def extract_question(text):
 def format_hqs_example(example):
     # 提取问题
     question = extract_question(example['CHQ'])
-    summary = example['Summary']
+    summary =  extract_question(example['Summary'])
     
     # 根据模板格式化文本
     formatted_text = (
@@ -133,6 +138,22 @@ def formatted_HQS_dataset(num_samples=None):
     # 加载数据集并移除不需要的列
     training_dataset   = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
     validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.json")['train'].remove_columns("q_id")
+
+    ## more data pieces for HealthQuestionSum
+    extra_train_1 = load_dataset("lighteval/me_q_sum")
+    extra_train_1 = concatenate_datasets([extra_train_1['train'], extra_train_1['validation'], extra_train_1['test']])
+    extra_train_1 = extra_train_1.rename_columns({
+        'query': 'CHQ',
+        'answer': 'Summary'
+    })
+
+    extra_train_2 = load_dataset("ruslanmv/ai-medical-chatbot")["train"].remove_columns(["Doctor"])
+    extra_train_2 = extra_train_2.rename_columns({
+        'Description': 'Summary',
+        'Patient': 'CHQ'
+    })
+    training_dataset = concatenate_datasets([training_dataset, extra_train_1, extra_train_2])
+
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         num_samples = min(num_samples, len(training_dataset))
@@ -141,15 +162,18 @@ def formatted_HQS_dataset(num_samples=None):
     # 应用格式化函数
     training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
     validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+
+
     return training_dataset, validation_dataset
 #-----------------------------------------------------------------#
+
 
 #-----------------------------------------------------------------#
 # PubMedQA
 # ** 构建具有指定文本模板和采样的 PubMedQA 数据集
 def format_pubmedqa_example(example):
     # 提取必要字段
-    context = example['context']
+    context = example['context']['contexts']
     question = example['question']
     final_decision = example['final_decision']
     
@@ -198,20 +222,28 @@ def formatted_PubMedQA_dataset(num_samples=None):
     
     return training_dataset, validation_dataset
 
+def formatted_intermedMed_dataset(num_samples=None):
+    train_data_file='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
+    val_data_file='nlp_dataset_collections/internalMed/internalMed_test.jsonl'
+    train_dataset = load_dataset('json', data_files=train_data_file, split='train')
+    val_dataset = load_dataset('json', data_files=val_data_file, split='train')
+    if num_samples is not None:
+        num_samples = min(num_samples, len(train_dataset))
+        train_dataset = train_dataset.select(range(num_samples))
 
+    return train_dataset, val_dataset
 
 #-------------------- 合并数据集 --------------------#
 def create_medical_dataset():
     # 获取各个数据集的训练集和验证集
-    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
-    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=7000)
-    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
-    
+    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=4000)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=4000)
+    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=4000)
+    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=3000)
     # 合并训练集
-    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
-    
+    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train, inter_train])
     # 合并验证集
-    combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val])
+    combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
     
     return combined_train, combined_val
 #-----------------------------------------------------------------#
@@ -302,8 +334,7 @@ def formatted_AGNews_dataset():
 
 
 
-'''
+
 hqs_train, hqs_val = create_medical_dataset()
-for i in range(8000, 9000):
+for i in range(12000, 12010):
     print(hqs_train[i])
-'''
