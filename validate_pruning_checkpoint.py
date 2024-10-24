@@ -53,8 +53,8 @@ def initialize_model_and_tokenizer():
     ).cuda()
     model.resize_token_embeddings(len(tokenizer))
 
-    #print("Loading state dict from checkpoint.")
-    #model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    print("Loading state dict from checkpoint.")
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
     print("Getting current mask vector.")
