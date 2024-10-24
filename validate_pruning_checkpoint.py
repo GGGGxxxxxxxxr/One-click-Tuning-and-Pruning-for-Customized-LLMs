@@ -8,6 +8,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from rouge_score import rouge_scorer
 import re
 import math
+import os
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -342,10 +343,6 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
 
     # 直接从 harrison.jsonl 文件加载数据
     dataset_file = "nlp_dataset_collections/internalMed.jsonl"  # 请替换为实际路径
-
-    if not os.path.exists(dataset_file):
-        print(f"File '{dataset_file}' not found.")
-        return
 
     # 使用 datasets 库加载数据集
     dataset = load_dataset('json', data_files=dataset_file, split='train')
