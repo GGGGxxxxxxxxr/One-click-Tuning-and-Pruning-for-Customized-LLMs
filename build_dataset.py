@@ -334,7 +334,8 @@ def formatted_AGNews_dataset():
 
 
 
-
+'''
 hqs_train, hqs_val = create_medical_dataset()
 for i in range(12000, 12010):
     print(hqs_train[i])
+'''
