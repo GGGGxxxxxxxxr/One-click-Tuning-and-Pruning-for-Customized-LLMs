@@ -212,7 +212,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             prediction_base = "neutral"
         else:
             prediction_base = None
-            
+
         if prediction_base == gold_label:
             acc_count_base += 1
 
@@ -348,7 +348,7 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
     print("Evaluating perplexity on Harrison dataset...")
 
     # 直接从 harrison.jsonl 文件加载数据
-    dataset_file = "nlp_dataset_collections/internalMed.jsonl"  # 请替换为实际路径
+    dataset_file = "nlp_dataset_collections/internalMed/internalMed_test.jsonl"  # 请替换为实际路径
 
     # 使用 datasets 库加载数据集
     dataset = load_dataset('json', data_files=dataset_file, split='train')
