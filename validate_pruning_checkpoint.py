@@ -190,7 +190,6 @@ def evaluate_pubmedqa(model, tokenizer, masks, dataset):
 def evaluate_mednli(model, tokenizer, masks, dataset):
     print("Evaluating on MedNLI dataset...")
     acc_count_base = 0
-    acc_count_masked = 0
 
     for i in range(len(dataset)):
         sentence1 = dataset[i]["sentence1"]
@@ -203,17 +202,24 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             f"Based on the premise, is the hypothesis 'entailment', 'contradiction', or 'neutral'? The answer is '"
         )
 
-        prediction_base, prediction_masked = generate_predictions(model, tokenizer, input_text)
+        prediction_base = generate_predictions(model, tokenizer, input_text)
 
+        if "cont" in prediction_base:
+            prediction_base = "contradiction"
+        elif "ent" in prediction_base:
+            prediction_base = "entailment"
+        elif "neu" in prediction_base:
+            prediction_base = "neutral"
+        else:
+            prediction_base = None
+            
         if prediction_base == gold_label:
             acc_count_base += 1
-        if prediction_masked == gold_label:
-            acc_count_masked += 1
 
-        print(f"Sample {i+1}/{len(dataset)} | Gold: {gold_label} | Base Prediction: {prediction_base} | Masked Prediction: {prediction_masked}")
 
-    print(f"Base Model Accuracy: {acc_count_base / len(dataset) * 100:.2f}%")
-    print(f"Masked Model Accuracy: {acc_count_masked / len(dataset) * 100:.2f}%")
+        print(f"Sample {i+1}/{len(dataset)} | Gold: {gold_label} | Base Prediction: {prediction_base}")
+
+    print(f"Pruned Model Accuracy: {acc_count_base / len(dataset) * 100:.2f}%")
 
 
 def extract_message(text):
