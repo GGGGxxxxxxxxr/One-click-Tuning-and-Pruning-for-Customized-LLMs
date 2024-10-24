@@ -7,6 +7,7 @@ from alignment_function_llm import Group_Lasso_regularization
 from sklearn.metrics import precision_recall_fscore_support
 from rouge_score import rouge_scorer
 import re
+import math
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -129,6 +130,8 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
             data_files="nlp_dataset_collections/HQS/HQS_test.json"
         )["train"]
         evaluate_healthquestionsum(model, tokenizer, dataset)
+    elif dataset_name.lower() == 'harrison':
+        evaluate_perplexity_on_harrison(model, tokenizer, masks)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
@@ -232,7 +235,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
         reference_summary = dataset[i]['summary']
 
         question = extract_message(original_question)
-        
+
         input_text = (
             f"A question posted by a patient is '{question}'. "
             f"The summary of the question is '"
@@ -334,6 +337,49 @@ def generate_predictions(model, tokenizer, input_text):
 
     return next_token 
 
+def evaluate_perplexity_on_harrison(model, tokenizer, masks):
+    print("Evaluating perplexity on Harrison dataset...")
+
+    # 直接从 harrison.jsonl 文件加载数据
+    dataset_file = "nlp_dataset_collections/internalMed.jsonl"  # 请替换为实际路径
+
+    if not os.path.exists(dataset_file):
+        print(f"File '{dataset_file}' not found.")
+        return
+
+    # 使用 datasets 库加载数据集
+    dataset = load_dataset('json', data_files=dataset_file, split='train')
+
+    # 计算困惑度
+    perplexity = compute_perplexity(model, tokenizer, dataset)
+    print(f"Perplexity on Harrison dataset: {perplexity:.2f}")
+
+def compute_perplexity(model, tokenizer, dataset):
+    total_loss = 0.0
+    total_length = 0
+
+    model.eval()
+    for example in dataset:
+        with torch.no_grad():
+            inputs = tokenizer(
+                example['text'],
+                return_tensors='pt',
+                truncation=True,
+                max_length=512  # 根据需要调整 max_length
+            ).to('cuda')
+
+            outputs = model(
+                input_ids=inputs['input_ids'],
+                attention_mask=inputs['attention_mask'],
+                labels=inputs['input_ids']
+            )
+            loss = outputs.loss
+            # 乘以标记数获取总损失
+            total_loss += loss.item() * inputs['input_ids'].size(1)
+            total_length += inputs['input_ids'].size(1)
+
+    perplexity = math.exp(total_loss / total_length)
+    return perplexity
 
 if __name__ == "__main__":
     model, tokenizer, masks = initialize_model_and_tokenizer()
