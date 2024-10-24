@@ -53,8 +53,8 @@ def initialize_model_and_tokenizer():
     ).cuda()
     model.resize_token_embeddings(len(tokenizer))
 
-    print("Loading state dict from checkpoint.")
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    #print("Loading state dict from checkpoint.")
+    #model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
     print("Getting current mask vector.")
@@ -359,6 +359,7 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
 
 def compute_perplexity(model, tokenizer, dataset):
     total_loss = 0.0
+    total_length = 0
 
     model.eval()
     for example in dataset:
@@ -377,9 +378,10 @@ def compute_perplexity(model, tokenizer, dataset):
             )
             loss = outputs.loss
             # 乘以标记数获取总损失
-            total_loss += loss.item()
+            total_loss += loss.item() * inputs['input_ids'].size(1)
+            total_length += inputs['input_ids'].size(1)
 
-    perplexity = math.exp(total_loss / len(dataset))
+    perplexity = math.exp(total_loss / total_length)
     return perplexity
 
 if __name__ == "__main__":
