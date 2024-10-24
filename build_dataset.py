@@ -236,10 +236,10 @@ def formatted_intermedMed_dataset(num_samples=None):
 #-------------------- 合并数据集 --------------------#
 def create_medical_dataset():
     # 获取各个数据集的训练集和验证集
-    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=4000)
-    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=4000)
+    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=7000)
     hqs_train, hqs_val = formatted_HQS_dataset(num_samples=4000)
-    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=3000)
+    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=4000)
     # 合并训练集
     combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train, inter_train])
     # 合并验证集
