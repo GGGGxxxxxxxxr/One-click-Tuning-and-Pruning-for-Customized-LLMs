@@ -5,6 +5,7 @@ from custom_llms.qwen2 import Qwen2ForCausalLM  # Ensure this import is correct
 from custom_llms.llama import LlamaForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 from sklearn.metrics import precision_recall_fscore_support
+from rouge_score import rouge_scorer
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -121,6 +122,12 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
             ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
         )["train"]
         evaluate_mednli(model, tokenizer, masks, dataset)
+    elif dataset_name.lower() == 'HQS':
+        dataset = load_dataset(
+            "json",
+            data_files="nlp_dataset_collections/HQS/HQS_test.json"
+        )["train"]
+        evaluate_healthquestionsum(model, tokenizer, dataset)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
@@ -203,6 +210,69 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
     print(f"Base Model Accuracy: {acc_count_base / len(dataset) * 100:.2f}%")
     print(f"Masked Model Accuracy: {acc_count_masked / len(dataset) * 100:.2f}%")
 
+
+def evaluate_healthquestionsum(model, tokenizer, dataset):
+    print("Evaluating on HealthQuestionSum dataset...")
+    references = []
+    hypotheses = []
+
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+
+    for i in range(len(dataset)):
+        question = dataset[i]['question']
+        reference_summary = dataset[i]['summary']
+
+        input_text = (
+            f"A question posted by a patient is '{question}'. "
+            f"The summary of the question is '"
+        )
+
+        generated_summary = generate_summary(model, tokenizer, input_text)
+
+        references.append(reference_summary)
+        hypotheses.append(generated_summary)
+
+        print(f"Sample {i+1}/{len(dataset)}")
+        print(f"Question: {question}")
+        print(f"Reference Summary: {reference_summary}")
+        print(f"Generated Summary: {generated_summary}")
+        print("-" * 50)
+
+    # Calculate ROUGE scores
+    rouge_scores = {'rouge1': [], 'rouge2': [], 'rougeL': []}
+
+    for ref, hyp in zip(references, hypotheses):
+        scores = scorer.score(ref, hyp)
+        for key in rouge_scores:
+            rouge_scores[key].append(scores[key].fmeasure)
+
+    # Calculate average scores
+    for key in rouge_scores:
+        avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
+        print(f"Average {key} F1 Score: {avg_score:.2f}%")
+
+def generate_summary(model, tokenizer, input_text):
+    model_inputs = tokenizer(
+        input_text, return_tensors="pt"
+    ).to("cuda")
+
+    with torch.no_grad():
+        with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+            generated_ids = model.generate(
+                input_ids=model_inputs["input_ids"],
+                attention_mask=model_inputs["attention_mask"],
+                max_length=30,  # Adjust max_length as needed
+                num_beams=5,     # Using beam search for better summaries
+                early_stopping=True
+            )
+
+    generated_summary = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+
+    # Remove the input prompt from the generated text
+    generated_summary = generated_summary[len(input_text):].strip()
+
+    return generated_summary
+
 def generate_predictions(model, tokenizer, input_text):
     generated_text = input_text
 
@@ -229,5 +299,5 @@ def generate_predictions(model, tokenizer, input_text):
 
 if __name__ == "__main__":
     model, tokenizer, masks = initialize_model_and_tokenizer()
-    dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI): ")
+    dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS): ")
     evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
