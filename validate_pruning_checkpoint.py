@@ -362,7 +362,7 @@ def compute_perplexity(model, tokenizer, dataset):
                 example['text'],
                 return_tensors='pt',
                 truncation=True,
-                max_length=512  # 根据需要调整 max_length
+                max_length=2048  # 根据需要调整 max_length
             ).to('cuda')
 
             outputs = model(
