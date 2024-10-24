@@ -242,7 +242,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     alignment_loss += process_tensor_list(mask_v)
 
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
+    hyper_loss = target_loss + ratio_loss + 0.0005 * alignment_loss
 
     hyper_loss.backward()
 
