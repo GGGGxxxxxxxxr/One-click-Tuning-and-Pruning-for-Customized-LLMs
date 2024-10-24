@@ -266,6 +266,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50):
             # 添加下一个标记
             generated = torch.cat((generated, next_token_id), dim=1)
 
+            next_token = tokenizer.decode(next_token_id.squeeze())
+            # 检查是否生成了句号
+            if next_token == '?' or next_token.strip() == '.':
+                break
+
             # 检查结束标记
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
