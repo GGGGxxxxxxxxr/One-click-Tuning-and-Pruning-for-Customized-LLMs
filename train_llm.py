@@ -122,13 +122,23 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
 
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
     #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-    output      = llm_model(input_ids=input_ids, 
+    if args.tuning_method == "lora":
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            output      = llm_model(input_ids=input_ids, 
                             attention_mask=attn_mask,
                             labels=input_ids, 
                             return_dict=True, 
                             use_cache=False,
                             num_logits_to_keep=seq_len, 
                             pruning_mask=None)
+    else:
+        output      = llm_model(input_ids=input_ids, 
+                                attention_mask=attn_mask,
+                                labels=input_ids, 
+                                return_dict=True, 
+                                use_cache=False,
+                                num_logits_to_keep=seq_len, 
+                                pruning_mask=None)
     target_loss = output["loss"]
 
     

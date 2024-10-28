@@ -388,7 +388,13 @@ def main():
     # Pre-training from scratch probably needs CosWarmRestart() but as we have a inital point from pre-trained, we could go for CosLR directly.
 
     #llm_ddp        = DDP(model, device_ids=[device])
-    llm_ddp         = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
+    if args.tuning_method == 'lora':
+        print("DDP has been launched for LoRA tuning.")
+        llm_ddp        = DDP(model, device_ids=[device])
+    else:
+        print("FSDP has been launched for Full-param tuning in case of CUDA OOM issue.")
+        llm_ddp        = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
+
     llm_params      = llm_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_llm = bnb.optim.AdamW8bit(llm_params,lr = args.lr)
@@ -402,9 +408,12 @@ def main():
 
     print("=====> Training Optimizers and Schedulers Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
-    #scaler = torch.amp.GradScaler()
-    
-    scaler = ShardedGradScaler()
+    if args.tuning_method != "lora":
+        print("schardedGradScaler has been intialized for FSDP.")
+        scaler = ShardedGradScaler()
+    else:
+        print("AMP is initialized for LoRA Finetuning.")
+        scaler = torch.amp.GradScaler()
     #-----------------------------------------------------------------#
     # Training Process
     print("=====> Begin Training: <=====\n")
