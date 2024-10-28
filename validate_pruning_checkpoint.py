@@ -38,7 +38,7 @@ def transform_output_layer_uniform(inputs):
     return arch_vector
 
 def initialize_model_and_tokenizer(base=False):
-    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar'
+    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_trail.pth.tar'
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
@@ -132,7 +132,7 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
     elif dataset_name.lower() == 'hqs':
         dataset = load_dataset(
             "json",
-            data_files="nlp_dataset_collections/HQS/HQS_test.json"
+            data_files="nlp_dataset_collections/HQS/HQS_test.jsonl"
         )["train"]
         evaluate_healthquestionsum(model, tokenizer, dataset)
     elif dataset_name.lower() == 'harrison':
