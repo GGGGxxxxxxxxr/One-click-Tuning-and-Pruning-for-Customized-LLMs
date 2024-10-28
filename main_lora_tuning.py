@@ -216,7 +216,7 @@ def save_checkpoint(
     # Synchronize all processes to ensure consistency
     dist.barrier()
 
-def save_fsdp_checkpoint(epoch, model, filename="/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"):
+def save_fsdp_checkpoint(epoch, model, filename="/orange/yonghui.wu/sgao1/llm_base_tuning_trail.pth.tar"):
     
     save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
     with FSDP.state_dict_type(model, StateDictType.FULL_STATE_DICT, save_policy):
