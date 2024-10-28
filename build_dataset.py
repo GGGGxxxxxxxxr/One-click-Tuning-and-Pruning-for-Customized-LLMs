@@ -198,9 +198,40 @@ def format_pubmedqa_example(example):
     # 返回包含新字段的字典
     return {'text': formatted_text}
 
+def format_pubmedqa_example_raw(example):
+    # 提取必要字段
+    context = example['CONTEXTS']
+    question = example['QUESTION']
+    final_decision = example['final_decision']
+    
+    # 根据 final_decision 确定 trailing 文本
+    if final_decision == "yes":
+        trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
+    elif final_decision == "no":
+        trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
+    elif final_decision == "maybe":
+        trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
+    else:
+        trailing = "the answer is unknown."
+    
+    # 根据提供的模板格式化文本
+    formatted_text = (
+        f"The abstract of a biomedical research article is '{context}'. "
+        f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
+        f"The answer is '{final_decision}', which indicates {trailing}"
+    )
+    
+    # 返回包含新字段的字典
+    return {'text': formatted_text}
+
 def formatted_PubMedQA_dataset(num_samples=None):
     # 从 Hugging Face 加载医学领域的集合
     # 修正数据集名称拼写错误，并分别加载训练集和验证集
+    raw_training_path = 'nlp_dataset_collections/PubMedQA/pubMedQA_train.jsonl'
+    raw_training_dataset = load_dataset("json", data_files=raw_training_path, split='train')
+    raw_training_dataset = raw_training_dataset.remove_columns(
+        [col for col in raw_training_dataset.column_names if col not in ["QUESTION", "CONTEXTS", "final_decision"]])
+
     training_dataset = load_dataset("qiaojin/PubMedQA", "pqa_artificial")['train'].remove_columns(["pubid", "long_answer"])
     validation_dataset = load_dataset("qiaojin/PubMedQA", "pqa_labeled")['train'].remove_columns(["pubid", "long_answer"])
     
@@ -221,6 +252,13 @@ def formatted_PubMedQA_dataset(num_samples=None):
         remove_columns=["context", "question", "final_decision"]
     )
     
+    raw_training_dataset = raw_training_dataset.map(
+        formatted_PubMedQA_dataset,
+        remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
+    )
+
+    training_dataset = concatenate_datasets([training_dataset, raw_training_dataset])
+
     return training_dataset, validation_dataset
 
 def formatted_intermedMed_dataset(num_samples=None):
@@ -238,7 +276,7 @@ def formatted_intermedMed_dataset(num_samples=None):
 def create_medical_dataset():
     # 获取各个数据集的训练集和验证集
     mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
-    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=7000)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
     hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
     inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
     # 合并训练集
@@ -246,6 +284,7 @@ def create_medical_dataset():
     # 合并验证集
     combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
     
+    assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
     return combined_train, combined_val
 #-----------------------------------------------------------------#
 
