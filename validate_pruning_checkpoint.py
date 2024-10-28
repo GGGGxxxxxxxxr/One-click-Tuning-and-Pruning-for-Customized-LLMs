@@ -423,7 +423,7 @@ if __name__ == "__main__":
     if not base:
         model, tokenizer, masks = initialize_model_and_tokenizer(base=base)
     else:
-        model, tokenizer, None  = initialize_model_and_tokenizer(base=base)
+        model, tokenizer, masks = initialize_model_and_tokenizer(base=base)
     while True:
         dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
         
