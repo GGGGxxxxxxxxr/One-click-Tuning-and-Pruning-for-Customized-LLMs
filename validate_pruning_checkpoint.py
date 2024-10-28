@@ -37,7 +37,7 @@ def transform_output_layer_uniform(inputs):
         start = end
     return arch_vector
 
-def initialize_model_and_tokenizer():
+def initialize_model_and_tokenizer(base=False):
     ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar'
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
@@ -58,14 +58,17 @@ def initialize_model_and_tokenizer():
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
-    print("Getting current mask vector.")
-    cur_mask_vec = checkpoint["mask_vec"].to("cuda")
-    masks = transform_output_layer_uniform(cur_mask_vec)
+    if not base:
+        print("Getting current mask vector.")
+        cur_mask_vec = checkpoint["mask_vec"].to("cuda")
+        masks = transform_output_layer_uniform(cur_mask_vec)
 
-    # Include weight mask observation parts
-    observe_weight_masks(model, model_cfg, masks)
+        # Include weight mask observation parts
+        observe_weight_masks(model, model_cfg, masks)
 
-    return model, tokenizer, masks
+        return model, tokenizer, masks
+    
+    return model, tokenizer
 
 def observe_weight_masks(model, model_cfg, masks):
     # Check weights of the first layer's MLP
@@ -416,7 +419,7 @@ def general_text_completion(model, tokenizer):
 
 
 if __name__ == "__main__":
-    model, tokenizer, masks = initialize_model_and_tokenizer()
+    model, tokenizer, masks = initialize_model_and_tokenizer(True)
     while True:
         dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
         
