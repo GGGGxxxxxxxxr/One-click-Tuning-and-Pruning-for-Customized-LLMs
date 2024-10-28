@@ -38,8 +38,9 @@ def transform_output_layer_uniform(inputs):
     return arch_vector
 
 def initialize_model_and_tokenizer():
-    print("Loading checkpoint.")
-    checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar", map_location=torch.device('cpu'))
+    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar'
+    print(f"Loading checkpoint from {ckpt_path}.")
+    checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
     print("Initializing LLaMA 2-7B model.")
     api_token = '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'
@@ -53,8 +54,8 @@ def initialize_model_and_tokenizer():
     ).cuda()
     model.resize_token_embeddings(len(tokenizer))
 
-    #print("Loading state dict from checkpoint.")
-    #model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    print("Loading state dict from checkpoint.")
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
     print("Getting current mask vector.")
@@ -198,7 +199,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
 
         input_text = (
             f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
-            f"Their relationship from 'entailment', 'contradiction' or 'neutral' is '"
+            f"Their relationship is '"
         )
         
         prediction_base = generate_predictions(model, tokenizer, input_text)
