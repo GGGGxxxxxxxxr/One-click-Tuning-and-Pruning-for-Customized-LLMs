@@ -200,7 +200,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
             f"Their relationship from 'entailment', 'contradiction' or 'neutral' is '"
         )
-
+        
         prediction_base = generate_predictions(model, tokenizer, input_text)
         print(prediction_base)
         if "cont" in prediction_base:

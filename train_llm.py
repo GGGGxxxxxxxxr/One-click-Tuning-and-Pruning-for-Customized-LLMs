@@ -401,7 +401,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
         
-        if reduced_llm_loss <= gl_loss_threshold:
+        if reduced_gl_loss <= gl_loss_threshold:
             gl_loss_counter += 1
         else:
             gl_loss_counter = 0
@@ -456,7 +456,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         if terminate_training == True:
             print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated rightnow.")
             break
-        
+
     # 打印 Epoch 结束时的总结（仅限主进程）
     if torch.distributed.get_rank() == 0:
         print(f"\n===== End of Epoch {epoch} =====")
@@ -557,3 +557,70 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     
     return return_mask
     '''
+
+def llm_tuning_train_one_epoch(
+    nlp_dataloader, 
+    target_llm, 
+    optimizer_llm, 
+    epoch, 
+    args, 
+    scaler
+):
+    print(f"Epoch {epoch} starting.............")
+
+    # Initialize training loss holders
+    llm_loss_ave = AverageMeter()
+    target_loss_ave = AverageMeter()
+
+    # Timer to measure elapsed time
+    start_time = time.time()
+
+    for i, text_input in enumerate(nlp_dataloader):
+        # Step 1: LLM weight update
+        optimizer_llm.zero_grad()
+        current_lr = optimizer_llm.param_groups[0]['lr']
+
+        # Forward pass and loss computation for LLM
+        llm_loss, target_loss = target_llm_step(
+            llm_model=target_llm, 
+            input_ids=text_input["input_ids"], 
+            masks=None, 
+            attn_mask=text_input["attention_mask"], 
+            epoch=epoch, 
+            args=args, 
+            scaler=scaler
+        )
+
+        # Backward pass and optimizer step
+        scaler.unscale_(optimizer_llm)
+        torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
+        scaler.step(optimizer_llm)
+        scaler.update()
+
+        # Update loss metrics
+        reduced_llm_loss = reduce_loss(llm_loss)
+        reduced_target_loss = reduce_loss(target_loss)
+        llm_loss_ave.update(reduced_llm_loss.item(), text_input["input_ids"].size(0))
+        target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
+
+        # Step 2: Print training logs (only on main process)
+        if i % args.log_interval == 0 and torch.distributed.get_rank() == 0:
+            elapsed_time = time.time() - start_time
+            print(
+                f"Time: {elapsed_time:.2f}s | "
+                f"Step: {i} | "
+                f"LLM Loss: {llm_loss_ave.avg:.4f} | "
+                f"Target Loss: {target_loss_ave.avg:.4f}"
+            )
+            start_time = time.time()
+
+    # Print summary at the end of the epoch (only on main process)
+    if torch.distributed.get_rank() == 0:
+        print(f"\n===== End of Epoch {epoch} =====")
+        print(
+            f"Epoch {epoch} Summary:\n"
+            f"LLM Loss (Avg): {llm_loss_ave.avg:.4f} | "
+            f"Target Loss (Avg): {target_loss_ave.avg:.4f}\n"
+        )
+
+    return True
