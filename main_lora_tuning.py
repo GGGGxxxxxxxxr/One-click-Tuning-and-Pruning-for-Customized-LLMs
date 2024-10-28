@@ -175,7 +175,7 @@ def save_checkpoint(
     optimizer_llm=None, 
     optimizer_hyper=None, 
     cur_mask_vec=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"
+    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
