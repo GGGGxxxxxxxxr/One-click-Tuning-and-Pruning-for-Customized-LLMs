@@ -9,6 +9,8 @@ from rouge_score import rouge_scorer
 import re
 import math
 import os
+from peft import LoftQConfig, LoraConfig, get_peft_model
+
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -37,8 +39,8 @@ def transform_output_layer_uniform(inputs):
         start = end
     return arch_vector
 
-def initialize_model_and_tokenizer(base=False):
-    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_trail.pth.tar'
+def initialize_model_and_tokenizer(base=False, lora=False):
+    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar'
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
@@ -54,6 +56,24 @@ def initialize_model_and_tokenizer(base=False):
     ).cuda()
     model.resize_token_embeddings(len(tokenizer))
 
+    if lora == True:
+        print("intialize LoRA insertions.")
+        lora_config = LoraConfig(
+                            r=8,
+                            lora_alpha=8,
+                            target_modules="all-linear",
+                            lora_dropout=0.1,
+                            bias="none"
+                        )
+        # lora detailed configuration
+        print(f"  r: {lora_config.r}")
+        print(f"  lora_alpha: {lora_config.lora_alpha}")
+        print(f"  target_modules: {lora_config.target_modules}")
+        print(f"  lora_dropout: {lora_config.lora_dropout}")
+        print(f"  bias: {lora_config.bias}")
+        # fuse lora module into pre-trained target llm
+        model = get_peft_model(model, lora_config)
+    
     print("Loading state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
@@ -420,10 +440,10 @@ def general_text_completion(model, tokenizer):
 
 if __name__ == "__main__":
     base = True
-    if not base:
-        model, tokenizer, masks = initialize_model_and_tokenizer(base=base)
-    else:
-        model, tokenizer, masks = initialize_model_and_tokenizer(base=base)
+    lora = True
+    
+    model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora)
+
     while True:
         dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
         

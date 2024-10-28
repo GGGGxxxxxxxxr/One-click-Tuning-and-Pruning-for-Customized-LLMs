@@ -382,17 +382,21 @@ def main():
         llm_ddp        = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
 
     llm_params      = llm_ddp.parameters()
+
     if args.use_8bit_training == True:
-        optimizer_llm = bnb.optim.AdamW8bit(llm_params,lr = args.lr)
+        optimizer_llm   = bnb.optim.AdamW8bit(llm_params,lr = args.lr)
     else:
         optimizer_llm   = torch.optim.AdamW(llm_params,lr = args.lr)
+
     scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=1e-6)
+
     print("=====> Trainable parameters for target_LLM: <=====")
     for name, param in llm_ddp.named_parameters():
         if param.requires_grad:
             print(f"Parameter name: {name}, Shape: {param.shape}")
 
     print("=====> Training Optimizers and Schedulers Initialization Done. <=====\n")
+    
     #-----------------------------------------------------------------#
     if args.tuning_method != "lora":
         print("schardedGradScaler has been intialized for FSDP.")
@@ -400,6 +404,7 @@ def main():
     else:
         print("AMP is initialized for LoRA Finetuning.")
         scaler = torch.amp.GradScaler()
+        
     #-----------------------------------------------------------------#
     # Training Process
     print("=====> Begin Training: <=====\n")
