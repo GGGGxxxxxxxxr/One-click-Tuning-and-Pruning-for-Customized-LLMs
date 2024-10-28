@@ -68,7 +68,7 @@ def initialize_model_and_tokenizer(base=False):
 
         return model, tokenizer, masks
     
-    return model, tokenizer
+    return model, tokenizer, None
 
 def observe_weight_masks(model, model_cfg, masks):
     # Check weights of the first layer's MLP
