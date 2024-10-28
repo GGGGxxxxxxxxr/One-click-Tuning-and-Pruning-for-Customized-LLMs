@@ -581,7 +581,7 @@ def llm_tuning_train_one_epoch(
         current_lr = optimizer_llm.param_groups[0]['lr']
 
         # Forward pass and loss computation for LLM
-        llm_loss, target_loss = target_llm_step(
+        llm_loss, target_loss, _ = target_llm_step(
             llm_model=target_llm, 
             input_ids=text_input["input_ids"], 
             masks=None, 
