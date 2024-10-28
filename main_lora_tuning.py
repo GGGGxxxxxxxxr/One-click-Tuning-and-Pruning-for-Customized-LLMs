@@ -171,11 +171,7 @@ def setup_for_distributed(is_master):
 def save_checkpoint(
     epoch, 
     model=None, 
-    hyper_net=None, 
-    optimizer_llm=None, 
-    optimizer_hyper=None, 
-    cur_mask_vec=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"
+    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
@@ -197,16 +193,6 @@ def save_checkpoint(
         state['model_state_dict'] = (
             model.module.state_dict() if hasattr(model, "module") else model.state_dict()
         )
-    if hyper_net is not None:
-        state['hyper_net_state_dict'] = (
-            hyper_net.module.state_dict() if hasattr(hyper_net, "module") else hyper_net.state_dict()
-        )
-    if optimizer_llm is not None:
-        state['optimizer_llm_state_dict'] = optimizer_llm.state_dict()
-    if optimizer_hyper is not None:
-        state['optimizer_hyper_state_dict'] = optimizer_hyper.state_dict()
-    if cur_mask_vec is not None:
-        state['mask_vec'] = cur_mask_vec
 
     # Save only on the main process to avoid multiple processes writing the file
     if dist.get_rank() == 0:
@@ -433,7 +419,10 @@ def main():
         # learing rate update
         scheduler_llm.step()
 
-        save_fsdp_checkpoint(epoch=epoch, model=llm_ddp)
+        if args.tuning_method == "lora":
+            save_checkpoint(epoch=epoch, model=llm_ddp)
+        else:
+            save_fsdp_checkpoint(epoch=epoch, model=llm_ddp)
     
         torch.cuda.empty_cache()
         print(f"cuda cache cleaned for epoch {epoch}")
