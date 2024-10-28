@@ -382,10 +382,10 @@ def compute_perplexity(model, tokenizer, dataset):
             )
             loss = outputs.loss
             # 乘以标记数获取总损失
-            total_loss += loss.item()
+            total_loss   += loss.item() * inputs['input_ids'].size(1)
             total_length += inputs['input_ids'].size(1)
 
-    perplexity = math.exp(total_loss / len(dataset))
+    perplexity = math.exp(total_loss / total_length)
     return perplexity
 
 #-----------------------------------------------------------------#
