@@ -588,6 +588,7 @@ def llm_tuning_train_one_epoch(
             attn_mask=text_input["attention_mask"], 
             epoch=epoch, 
             args=args, 
+            gl_module=None,
             scaler=scaler
         )
 
