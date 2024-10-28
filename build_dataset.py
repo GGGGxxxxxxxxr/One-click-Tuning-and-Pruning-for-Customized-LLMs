@@ -137,7 +137,7 @@ def format_hqs_example(example):
 def formatted_HQS_dataset(num_samples=None):
     # 加载数据集并移除不需要的列
     #training_dataset   = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
-    training_dataset   = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.json")['train'].remove_columns("q_id")
+    training_dataset   = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_train.json")['train']
     validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.json")['train'].remove_columns("q_id")
 
     ## more data pieces for HealthQuestionSum
