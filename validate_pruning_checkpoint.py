@@ -441,7 +441,7 @@ def general_text_completion(model, tokenizer):
 if __name__ == "__main__":
     base = True
     lora = False
-    ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"
+    ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_tuning_trail.pth.tar"
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path)
 
     while True:
