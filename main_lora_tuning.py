@@ -215,6 +215,23 @@ def save_checkpoint(
 
     # Synchronize all processes to ensure consistency
     dist.barrier()
+
+def save_fsdp_checkpoint(epoch, model, filename="/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"):
+    
+    save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+    with FSDP.state_dict_type(model, StateDictType.FULL_STATE_DICT, save_policy):
+            cpu_state = model.state_dict()
+            state = {
+                'model_state_dict': cpu_state,
+            }
+
+            # Save only on the main process to avoid multiple processes writing the file
+            if torch.distributed.get_rank() == 0:
+                torch.save(state, filename)
+                print(f"Checkpoint saved at epoch {epoch} to {filename}\n")
+    
+    dist.barrier()
+#-----------------------------------------------------------------#
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
@@ -370,7 +387,8 @@ def main():
     # 2. For HyperNet() and target LLM, common CosLR is applied for learningrate adjusting for smooth LR dropping
     # Pre-training from scratch probably needs CosWarmRestart() but as we have a inital point from pre-trained, we could go for CosLR directly.
 
-    llm_ddp         = DDP(model, device_ids=[device])
+    #llm_ddp        = DDP(model, device_ids=[device])
+    llm_ddp         = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
     llm_params      = llm_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_llm = bnb.optim.AdamW8bit(llm_params,lr = args.lr)
@@ -384,8 +402,9 @@ def main():
 
     print("=====> Training Optimizers and Schedulers Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
-    scaler = torch.amp.GradScaler()
-
+    #scaler = torch.amp.GradScaler()
+    
+    scaler = ShardedGradScaler()
     #-----------------------------------------------------------------#
     # Training Process
     print("=====> Begin Training: <=====\n")
@@ -405,7 +424,7 @@ def main():
         # learing rate update
         scheduler_llm.step()
 
-        save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=None, optimizer_llm=optimizer_llm, optimizer_hyper=None, cur_mask_vec=None)
+        save_fsdp_checkpoint(epoch=epoch, model=llm_ddp)
     
         torch.cuda.empty_cache()
         print(f"cuda cache cleaned for epoch {epoch}")
