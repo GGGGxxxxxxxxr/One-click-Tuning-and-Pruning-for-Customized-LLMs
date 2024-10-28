@@ -253,7 +253,7 @@ def formatted_PubMedQA_dataset(num_samples=None):
     )
     
     raw_training_dataset = raw_training_dataset.map(
-        formatted_PubMedQA_dataset,
+        format_pubmedqa_example_raw,
         remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
     )
 
