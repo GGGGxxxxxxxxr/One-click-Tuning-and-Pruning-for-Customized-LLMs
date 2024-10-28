@@ -39,8 +39,8 @@ def transform_output_layer_uniform(inputs):
         start = end
     return arch_vector
 
-def initialize_model_and_tokenizer(base=False, lora=False):
-    ckpt_path = '/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar'
+def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None):
+    ckpt_path = input_ckpt_path
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
@@ -440,9 +440,9 @@ def general_text_completion(model, tokenizer):
 
 if __name__ == "__main__":
     base = True
-    lora = True
-    
-    model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora)
+    lora = False
+    ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_tuning_test.pth.tar"
+    model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path)
 
     while True:
         dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
