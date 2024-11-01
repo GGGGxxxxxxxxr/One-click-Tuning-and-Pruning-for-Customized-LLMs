@@ -52,6 +52,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
     model = LlamaForCausalLM.from_pretrained(
         "meta-llama/Llama-2-7b-hf",
         attn_implementation="sdpa",
+        torch_dtype=torch.bfloat16,
         token=api_token
     ).cuda()
     model.resize_token_embeddings(len(tokenizer))
