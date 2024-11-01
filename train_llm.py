@@ -389,9 +389,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 
                 if ratio_loss_counter >= ratio_loss_consecutive_steps:
                     skip_hypernet_training = True
-                    grouplasso_module.lam = 2000
                     print(f"ratio_loss has been below {ratio_loss_threshold} for {ratio_loss_consecutive_steps} steps.")
-                    print("Skipping hypernet training, setting grouplasso.lam to 2000, and fixing mask_vec for future training.")
+                    print("Skipping hypernet training, setting grouplasso.lam to 2000 if executing GroupLassoProjection, and fixing mask_vec for future training.")
         
         # if hypernet() is frozen prior to the configured stop epoch, validation would be performed on the current model + fixed masks
         # ** for tracking training purpose only
