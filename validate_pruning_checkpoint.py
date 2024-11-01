@@ -360,19 +360,21 @@ def generate_predictions(model, tokenizer, input_text, masks):
 
     # Base Sparse model prediction
     if masks == None:
-        model_output = model(
-            input_ids=model_inputs["input_ids"],
-            attention_mask=model_inputs["attention_mask"],
-            return_dict=True
-        )
+        with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+            model_output = model(
+                input_ids=model_inputs["input_ids"],
+                attention_mask=model_inputs["attention_mask"],
+                return_dict=True
+            )
     # masked model prediction
     else:
-        model_output = model(
-            input_ids=model_inputs["input_ids"],
-            attention_mask=model_inputs["attention_mask"],
-            return_dict=True,
-            pruning_mask = masks,
-        )
+        with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+            model_output = model(
+                input_ids=model_inputs["input_ids"],
+                attention_mask=model_inputs["attention_mask"],
+                return_dict=True,
+                pruning_mask = masks,
+            )
 
     logits = model_output.logits
     next_token_logits = logits[:, -1, :]
