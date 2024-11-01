@@ -410,18 +410,20 @@ def compute_perplexity(model, tokenizer, dataset, masks):
             ).to('cuda')
 
             if masks == None:
-                outputs = model(
-                    input_ids=inputs['input_ids'],
-                    attention_mask=inputs['attention_mask'],
-                    labels=inputs['input_ids']
-                )
+                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                    outputs = model(
+                        input_ids=inputs['input_ids'],
+                        attention_mask=inputs['attention_mask'],
+                        labels=inputs['input_ids']
+                    )
             else:
-                outputs = model(
-                    input_ids=inputs['input_ids'],
-                    attention_mask=inputs['attention_mask'],
-                    labels=inputs['input_ids'],
-                    pruning_mask = masks
-                )
+                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                    outputs = model(
+                        input_ids=inputs['input_ids'],
+                        attention_mask=inputs['attention_mask'],
+                        labels=inputs['input_ids'],
+                        pruning_mask = masks
+                    )
 
             loss = outputs.loss
             # 乘以标记数获取总损失
