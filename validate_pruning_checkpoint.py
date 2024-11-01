@@ -87,7 +87,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
         # Include weight mask observation parts
         # observe_weight_masks(model, model_cfg, masks)
 
-        return model, tokenizer, masks
+        return model, tokenizer, None
     
     return model, tokenizer, None
 

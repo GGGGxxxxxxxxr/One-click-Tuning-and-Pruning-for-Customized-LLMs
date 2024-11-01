@@ -702,6 +702,7 @@ class LlamaDecoderLayer(nn.Module):
             m_out  = layer_wise_masks[-2]
             m_K    = layer_wise_masks[:self.self_attn.num_key_value_heads]
             m_V    = layer_wise_masks[self.self_attn.num_key_value_heads : 2 * self.self_attn.num_key_value_heads]
+
         else:
             m_out = m_umlp = m_K = m_V = None
 
