@@ -170,6 +170,7 @@ def setup_for_distributed(is_master):
 # checkpoint saving for each epoch
 def save_checkpoint(
     epoch, 
+    cur_mask_vec,
     model=None, 
     filename="/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
 ):
@@ -186,7 +187,8 @@ def save_checkpoint(
     filename (str): Path to save the checkpoint file.
     """
     # Initialize the state dictionary
-    state = {'epoch': epoch}
+    state = {'epoch': epoch,
+             'mask_vec': cur_mask_vec}
 
     # Store state_dicts only if the corresponding component is not None
     if model is not None:
@@ -458,11 +460,6 @@ def main():
         print("AMP is initialized for LoRA Finetuning.")
         scaler = torch.amp.GradScaler()
 
-    save_checkpoint(epoch=0, model=llm_ddp)
-    checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar", map_location=torch.device('cpu'))
-    llm_ddp.module.load_state_dict(checkpoint["model_state_dict"], strict=True)
-    sys.exit()
-    
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
     grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler)
@@ -508,7 +505,7 @@ def main():
             if args.tuning_method != 'lora':
                 save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
             else:
-                save_checkpoint(epoch=epoch, model=llm_ddp)
+                save_checkpoint(epoch=epoch, cur_mask_vec=cur_maskVec, model=llm_ddp)
 
             torch.cuda.empty_cache()
             print(f"cuda cache cleaned for epoch {epoch}")
