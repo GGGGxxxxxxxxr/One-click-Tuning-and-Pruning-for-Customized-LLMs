@@ -316,7 +316,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
 
     # step1: [pruning_MASK] selection (pre-fixed or newly-generated)
-    if epoch >= (args.start_epoch_control + args.control_epochs):
+    if epoch >= (args.start_epoch_control + args.control_epochs) or skip_hypernet_training:
         print(f"[Pruning_MASK] is pre-fixed, only target LLM weight would be updated in epoch: {epoch}")
         return_mask = copy.deepcopy(cur_mask_vec)
         masks       = hyper_net.module.transform_output(cur_mask_vec)
@@ -392,6 +392,21 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     grouplasso_module.lam = 2000
                     print(f"ratio_loss has been below {ratio_loss_threshold} for {ratio_loss_consecutive_steps} steps.")
                     print("Skipping hypernet training, setting grouplasso.lam to 2000, and fixing mask_vec for future training.")
+        
+        # if hypernet() is frozen prior to the configured stop epoch, validation would be performed on the current model + fixed masks
+        # ** for tracking training purpose only
+        if skip_hypernet_training:
+            val_inputs = next(nlp_hypernet_iter)
+            with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                temp_output      = target_llm(input_ids=val_inputs["input_ids"], 
+                                        labels=val_inputs["input_ids"], 
+                                        return_dict=True, 
+                                        use_cache=False,
+                                        num_logits_to_keep= val_inputs["input_ids"].shape[1], 
+                                        attention_mask=val_inputs["attention_mask"],
+                                        pruning_mask=masks)
+            validation_purpose_loss = temp_output["loss"]
+            print(f"The current validation loss with fixed maskSchedule: {validation_purpose_loss}")
 
         # Step 2: LLM 权重更新
         optimizer_llm.zero_grad()

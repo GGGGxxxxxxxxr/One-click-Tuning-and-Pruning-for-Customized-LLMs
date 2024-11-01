@@ -88,7 +88,7 @@ parser.add_argument('--epochs', default=10, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--bsz', default=2, type=int,metavar='N',
+parser.add_argument('--bsz', default=4, type=int,metavar='N',
                     help='training batchsize of a single process, DDP is utilized instead of DP in ATO implementation')
 parser.add_argument('--lr', metavar='LR', default=1e-4, type=float,
                     help='basic initial learning rate', dest='lr')
