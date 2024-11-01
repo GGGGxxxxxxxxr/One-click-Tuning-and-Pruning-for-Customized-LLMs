@@ -171,7 +171,7 @@ def setup_for_distributed(is_master):
 def save_checkpoint(
     epoch, 
     model=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar"
+    filename="/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
@@ -458,6 +458,11 @@ def main():
         print("AMP is initialized for LoRA Finetuning.")
         scaler = torch.amp.GradScaler()
 
+    save_checkpoint(epoch=0, model=llm_ddp)
+    checkpoint = torch.load("/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar", map_location=torch.device('cpu'))
+    llm_ddp.module.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    sys.exit()
+    
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
     grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler)
