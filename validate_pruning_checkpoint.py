@@ -303,9 +303,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
     with torch.no_grad():
         for _ in range(max_length):
             if masks == None:
-                outputs = model(input_ids = generated)
+                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                    outputs = model(input_ids = generated)
             else:
-                outputs = model(input_ids = generated, pruning_mask = masks)
+                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                    outputs = model(input_ids = generated, pruning_mask = masks)
 
             next_token_logits = outputs.logits[:, -1, :]
 
