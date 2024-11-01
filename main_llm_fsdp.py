@@ -168,35 +168,40 @@ def setup_for_distributed(is_master):
 
 #-----------------------------------------------------------------#
 # checkpoint saving for each epoch
-def save_checkpoint(epoch, model, hyper_net, optimizer_llm, optimizer_hyper, cur_mask_vec, filename="/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"):
+def save_checkpoint(
+    epoch, 
+    model=None, 
+    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar"
+):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
-    
+
     Args:
     epoch (int): Current epoch number.
-    model (torch.nn.Module): The main model (target_llm).
-    hyper_net (torch.nn.Module): The hyper network.
-    optimizer_llm (torch.optim.Optimizer): Optimizer for the main model.
-    optimizer_hyper (torch.optim.Optimizer): Optimizer for the hyper network.
-    cur_mask_vec (torch.Tensor): Current mask vector.
+    model (torch.nn.Module, optional): The main model (target_llm).
+    hyper_net (torch.nn.Module, optional): The hyper network.
+    optimizer_llm (torch.optim.Optimizer, optional): Optimizer for the main model.
+    optimizer_hyper (torch.optim.Optimizer, optional): Optimizer for the hyper network.
+    cur_mask_vec (torch.Tensor, optional): Current mask vector.
     filename (str): Path to save the checkpoint file.
     """
-    # Save model, hyper_net, optimizers, and mask vector in the checkpoint
-    state = {
-        'epoch': epoch,
-        'model_state_dict': model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
-        'hyper_net_state_dict': hyper_net.module.state_dict() if hasattr(hyper_net, "module") else hyper_net.state_dict(),
-        'optimizer_llm_state_dict': optimizer_llm.state_dict(),
-        'optimizer_hyper_state_dict': optimizer_hyper.state_dict(),
-        'mask_vec': cur_mask_vec,
-    }
-    
+    # Initialize the state dictionary
+    state = {'epoch': epoch}
+
+    # Store state_dicts only if the corresponding component is not None
+    if model is not None:
+        state['model_state_dict'] = (
+            model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+        )
+
     # Save only on the main process to avoid multiple processes writing the file
-    if torch.distributed.get_rank() == 0:
+    if dist.get_rank() == 0:
         torch.save(state, filename)
         print(f"Checkpoint saved at epoch {epoch} to {filename}\n")
-    
+
+    # Synchronize all processes to ensure consistency
     dist.barrier()
+
 
 def save_fsdp_checkpoint(epoch, model, cur_mask_vec, filename="/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"):
     
@@ -498,7 +503,7 @@ def main():
             if args.tuning_method != 'lora':
                 save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
             else:
-                save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
+                save_checkpoint(epoch=epoch, model=llm_ddp)
 
             torch.cuda.empty_cache()
             print(f"cuda cache cleaned for epoch {epoch}")
