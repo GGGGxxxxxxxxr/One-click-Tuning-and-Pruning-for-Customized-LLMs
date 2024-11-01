@@ -155,7 +155,7 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
             "json",
             data_files="nlp_dataset_collections/HQS/HQS_test.jsonl"
         )["train"]
-        evaluate_healthquestionsum(model, tokenizer, dataset)
+        evaluate_healthquestionsum(model, tokenizer, dataset, masks)
     elif dataset_name.lower() == 'harrison':
         evaluate_perplexity_on_harrison(model, tokenizer, masks)
     else:
@@ -178,7 +178,7 @@ def evaluate_pubmedqa(model, tokenizer, masks, dataset):
             f"The answer is '"
         )
 
-        prediction = generate_predictions(model, tokenizer, input_text)
+        prediction = generate_predictions(model, tokenizer, input_text, masks)
 
         # Map prediction to one of the labels
         prediction = prediction.lower()
@@ -226,7 +226,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             f"Their relationship is '"
         )
         
-        prediction_base = generate_predictions(model, tokenizer, input_text)
+        prediction_base = generate_predictions(model, tokenizer, input_text, masks)
         print(prediction_base)
         if "cont" in prediction_base:
             prediction_base = "contradiction"
@@ -254,7 +254,7 @@ def extract_message(text):
         return text.strip()
 
 
-def evaluate_healthquestionsum(model, tokenizer, dataset):
+def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
     print("Evaluating on HealthQuestionSum dataset...")
     references = []
     hypotheses = []
@@ -272,7 +272,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
             f"The summary of the question is '"
         )
 
-        generated_summary = generate_summary(model, tokenizer, input_text)
+        generated_summary = generate_summary(model, tokenizer, input_text, masks)
 
         references.append(reference_summary)
         hypotheses.append(generated_summary)
@@ -296,13 +296,17 @@ def evaluate_healthquestionsum(model, tokenizer, dataset):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
-def generate_text_custom(model, tokenizer, input_ids, max_length=50, free=False):
+def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False):
     model.eval()
     generated = input_ids
 
     with torch.no_grad():
         for _ in range(max_length):
-            outputs = model(input_ids=generated)
+            if masks == None:
+                outputs = model(input_ids = generated)
+            else:
+                outputs = model(input_ids = generated, pruning_mask = masks)
+
             next_token_logits = outputs.logits[:, -1, :]
 
             # 使用贪心解码
@@ -324,11 +328,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, free=False)
 
     return generated
 
-def generate_summary(model, tokenizer, input_text, free=False):
+def generate_summary(model, tokenizer, input_text, masks, free=False):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
-        model, tokenizer, input_ids, max_length=50, free=free  # 根据需要调整 max_length
+        model, tokenizer, input_ids, max_length=50, masks=masks, free=free  # 根据需要调整 max_length
     )
 
     generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
@@ -347,17 +351,26 @@ def generate_summary(model, tokenizer, input_text, free=False):
 
     return generated_summary
 
-def generate_predictions(model, tokenizer, input_text):
+def generate_predictions(model, tokenizer, input_text, masks):
     generated_text = input_text
 
     model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
 
-    # Base model prediction
-    model_output = model(
-        input_ids=model_inputs["input_ids"],
-        attention_mask=model_inputs["attention_mask"],
-        return_dict=True
-    )
+    # Base Sparse model prediction
+    if masks == None:
+        model_output = model(
+            input_ids=model_inputs["input_ids"],
+            attention_mask=model_inputs["attention_mask"],
+            return_dict=True
+        )
+    # masked model prediction
+    else:
+        model_output = model(
+            input_ids=model_inputs["input_ids"],
+            attention_mask=model_inputs["attention_mask"],
+            return_dict=True,
+            pruning_mask = masks,
+        )
 
     logits = model_output.logits
     next_token_logits = logits[:, -1, :]
@@ -379,10 +392,10 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
     dataset = load_dataset('json', data_files=dataset_file, split='train')
 
     # 计算困惑度
-    perplexity = compute_perplexity(model, tokenizer, dataset)
+    perplexity = compute_perplexity(model, tokenizer, dataset, masks)
     print(f"Perplexity on Harrison dataset: {perplexity:.2f}")
 
-def compute_perplexity(model, tokenizer, dataset):
+def compute_perplexity(model, tokenizer, dataset, masks):
     total_loss = 0.0
     total_length = 0
 
@@ -393,14 +406,23 @@ def compute_perplexity(model, tokenizer, dataset):
                 example['text'],
                 return_tensors='pt',
                 truncation=True,
-                max_length=2048  # 根据需要调整 max_length
+                #max_length=2048  # 根据需要调整 max_length
             ).to('cuda')
 
-            outputs = model(
-                input_ids=inputs['input_ids'],
-                attention_mask=inputs['attention_mask'],
-                labels=inputs['input_ids']
-            )
+            if masks == None:
+                outputs = model(
+                    input_ids=inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
+                    labels=inputs['input_ids']
+                )
+            else:
+                outputs = model(
+                    input_ids=inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
+                    labels=inputs['input_ids'],
+                    pruning_mask = masks
+                )
+
             loss = outputs.loss
             # 乘以标记数获取总损失
             total_loss   += loss.item() * inputs['input_ids'].size(1)
@@ -411,7 +433,7 @@ def compute_perplexity(model, tokenizer, dataset):
 
 #-----------------------------------------------------------------#
 # 定义通用文本续写函数
-def general_text_completion(model, tokenizer):
+def general_text_completion(model, tokenizer, masks):
     """
     处理通用文本续写任务。
     
@@ -435,7 +457,7 @@ def general_text_completion(model, tokenizer):
             continue
         
         # 生成续写
-        generated_text = generate_summary(model, tokenizer, user_input, True)
+        generated_text = generate_summary(model, tokenizer, user_input, masks, True)
         print(f"续写内容:\n{generated_text}\n")
 
 
@@ -452,7 +474,7 @@ if __name__ == "__main__":
             print("Exiting the evaluation loop.")
             break
         elif dataset_name == 'free':
-            general_text_completion(model, tokenizer)
+            general_text_completion(model, tokenizer, masks)
         else:
             evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
             print("-" * 50)  # 分隔线，便于阅读输出
