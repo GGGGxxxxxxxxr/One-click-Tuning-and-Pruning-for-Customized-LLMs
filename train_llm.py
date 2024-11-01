@@ -406,6 +406,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                                         pruning_mask=masks)
             validation_purpose_loss = temp_output["loss"]
             print(f"The current validation loss with fixed maskSchedule: {validation_purpose_loss}")
+            del temp_output
+            del validation_purpose_loss
 
         # Step 2: LLM 权重更新
         optimizer_llm.zero_grad()
