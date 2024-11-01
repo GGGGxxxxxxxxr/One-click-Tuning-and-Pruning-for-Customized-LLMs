@@ -84,7 +84,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
         masks = transform_output_layer_uniform(cur_mask_vec)
 
         # Include weight mask observation parts
-        observe_weight_masks(model, model_cfg, masks)
+        # observe_weight_masks(model, model_cfg, masks)
 
         return model, tokenizer, masks
     
@@ -439,9 +439,9 @@ def general_text_completion(model, tokenizer):
 
 
 if __name__ == "__main__":
-    base = True
+    base = False
     lora = False
-    ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_tuning_trail.pth.tar"
+    ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_test.pth.tar"
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path)
 
     while True:
