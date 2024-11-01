@@ -107,9 +107,11 @@ class Group_Lasso_regularization(nn.Module):
         #return sum_loss
         return sum_loss
         '''
-    # we have detected the issue when launching the training script via torch.FSDP,
-    # where GroupLasso requires the fullparam of a certain weight on each GPU, however, the [gl_loss] would retain the whole graph,
-    # thus CUDAmem allocation would be larger and larger
+    
+    # ** we have detected the issue when launching the training script via torch.FSDP,
+    # ** where GroupLasso requires the fullparam of a certain weight on each GPU, however, the [gl_loss] would retain the whole graph,
+    # ** thus CUDAmem allocation would be larger and larger
+    # ** this func only works with FSDP mode, and this func only works as a [verification] of the progress 
     def forward(self, target_llm, pruning_masks, epoch):
         self.model = target_llm
         gl_list = []
@@ -192,9 +194,80 @@ class Group_Lasso_regularization(nn.Module):
         # sum gl_loss (for value tracing only)
         #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
         sum_loss = sum(gl_list) / len(gl_list)
-        return sum_loss              
+        return sum_loss      
+            
 
-    
+    # ** The LoRA-aware GroupLasso Loss has been supported in Oct.31th update;
+    # ** If we choose [LoRA] over [Full-Param], only the LoRA would have physically pruning pattern, the base model's channel would be removed after the training of the Hypernet()
+    # ** this func is working with DDP support, as by defauly LoRA implementation would not call FSDP mode;
+    # ** in DDP mode, such GroupLassoLoss is quite easy to compute cuz each GPU has its own copy (and the same as others) of the LoRA weights locally.
+    def lora_forward(self, target_llm, pruning_masks):
+        self.model = target_llm
+        gl_list    = []
+
+        # layer_iterative GroupLasso processing based on LoRA module
+        for layer_idx in range(self.cfg.num_hidden_layers):
+            # extract corrsponding LLM_DecoderLayer & Masks for this layer
+            cur_layer = self.model.model.layers[layer_idx]                                          # CasualLM.model -> LMmodel.layer -> DecoderLayer
+            layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
+            m_umlp = layer_wise_masks[-1]
+            m_out  = layer_wise_masks[-2]
+            m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
+            m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
+
+            # process MLP_up_mask for LoRA weights
+            mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B.default.weight
+            mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B.default.weight
+            mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A.default.weight
+
+            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_list.append(gl_loss)
+
+            # process attn_out_mask
+            attn_out_lora_B = cur_layer.self_attn.o_proj.lora_B.default.weight
+            mlp_g_lora_A    = cur_layer.mlp.gate_proj.lora_A.default.weight
+            mlp_u_lora_A    = cur_layer.mlp.up_proj.lora_A.default.weight
+
+            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                          + ((1 - m_out).unsqueeze(0) * mlp_g_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
+                          + ((1 - m_out).unsqueeze(0) * mlp_u_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_list.append(gl_loss)
+
+            # process attn_V_mask
+            # a) concate V_split_masks into mask for original WV
+            V_mask = torch.cat(m_V)
+            V_mask_repeated = torch.cat([t.repeat(self.num_groups) for t in m_V])
+            # b) compute gl for v_weight, v_bias, out_weight
+            attn_v_lora_B   = cur_layer.self_attn.v_proj.lora_B.default.weight
+            attn_out_lora_A = cur_layer.self_attn.o_proj.lora_A.default.weight
+
+            gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                          + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_list.append(gl_loss)
+
+            # process attn_K_mask (Q_mask)
+            # a) concate K_split_masks into mask for original WK
+            K_mask = torch.cat(m_K)
+            Q_mask = torch.cat([t.repeat(self.num_groups) for t in m_K])
+            attn_k_lora_B = cur_layer.self_attn.k_proj.lora_B.default.weight
+            attn_q_lora_B = cur_layer.self_attn.q_proj.lora_B.default.weight
+
+            gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                          + ((1 - Q_mask).unsqueeze(1) * attn_q_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
+                          #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_list.append(gl_loss)
+        
+        # sum gl_loss
+        sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
+        return sum_loss
+
+
+
+
+
+
     # several implementations for GroupLasso in FSDP mode have been tried.
     # 1. direct computation of gl_loss(sum) + target_llm_loss --> CUDAmem bloaded 
     # 2. instant backward() after gl_loss computed for a certain group --> the gradient for this group would be totally ignored after context exits

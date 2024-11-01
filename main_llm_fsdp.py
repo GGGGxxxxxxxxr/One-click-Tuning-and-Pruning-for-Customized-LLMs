@@ -265,11 +265,18 @@ def main():
     # pre-trained LLM initialization
     # Huggingface support is pulled to make sure the generalization ability of our scripts.
     # ** current support: {qwen2-0.5b, llama2-7b}
+    if args.tuning_method == 'lora':
+        print("LoRA has been enabled for tuning, DDP mode is selected.")
+        init_device = device
+    else:
+        print("Full-param tuning has been enabled, FSDP mode is selected.")
+        init_device = 'cpu'
+
     print("=====> Intialization pre-trained: '{}' from Huggingface <=====".format(args.model))
     if args.model == 'qwen-0.5b':
         model_cfg = AutoConfig.from_pretrained("Qwen/Qwen2-0.5B")
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B")
-        model     = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B")
+        model     = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B").to(init_device)
         args.num_key_values = model_cfg.num_key_value_heads
 
         print("=====> Model structure: <=====")
@@ -283,7 +290,7 @@ def main():
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token = api_token)
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", token = api_token)
+        model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", torch_dtype=torch.bfloat16, token = api_token).to(init_device)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
     else:
@@ -404,24 +411,34 @@ def main():
     hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
-        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 2e-3)
+        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-3)
     else:
-        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 2e-3)
-    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-6)
+        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-3)
+    
     print("=====> Trainable parameters for HyperNet(): <=====")
     for name, param in hyper_net_ddp.named_parameters():
         if param.requires_grad:
             print(f"Parameter name: {name}, Shape: {param.shape}")
 
     # b) optimzer for target LLM
-    llm_ddp         = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
+    if args.tuning_method != 'lora':
+        llm_ddp = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
+        print("FSDP wrapper with mixed precision has been enabled.")
+    else:
+        llm_ddp = DDP(model, device_ids=[device])
+        print("DDP wrappe has been enabled.")
+
     #llm_ddp         = torch.compile(llm_ddp)
     llm_params      = llm_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_llm = bnb.optim.AdamW8bit(llm_params,lr = args.lr)
     else:
         optimizer_llm   = torch.optim.AdamW(llm_params,lr = args.lr)
+
+    # learning rate scheduler
     scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=1e-6)
+    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-6)
+
     print("=====> Trainable parameters for target_LLM: <=====")
     for name, param in llm_ddp.named_parameters():
         if param.requires_grad:
@@ -429,12 +446,16 @@ def main():
 
     print("=====> Training Optimizers and Schedulers Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
-    #scaler = torch.amp.GradScaler()
-    scaler = ShardedGradScaler()
+    if args.tuning_method != "lora":
+        print("schardedGradScaler has been intialized for FSDP.")
+        scaler = ShardedGradScaler()
+    else:
+        print("AMP is initialized for LoRA Finetuning.")
+        scaler = torch.amp.GradScaler()
 
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
-    grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler).to(device)
+    grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler)
     print("=====> Group_Lasso Sparsity Module Initialization Done. <=====\n")
     #-----------------------------------------------------------------#
 
@@ -474,8 +495,10 @@ def main():
             scheduler_llm.step()
             scheduler_hyper.step()
 
-            #save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
-            save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
+            if args.tuning_method != 'lora':
+                save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
+            else:
+                save_checkpoint(epoch=epoch, model=llm_ddp, hyper_net=hyper_net_ddp, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, cur_mask_vec=cur_maskVec)
 
             torch.cuda.empty_cache()
             print(f"cuda cache cleaned for epoch {epoch}")
