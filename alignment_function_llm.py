@@ -202,13 +202,12 @@ class Group_Lasso_regularization(nn.Module):
     # ** this func is working with DDP support, as by defauly LoRA implementation would not call FSDP mode;
     # ** in DDP mode, such GroupLassoLoss is quite easy to compute cuz each GPU has its own copy (and the same as others) of the LoRA weights locally.
     def lora_forward(self, target_llm, pruning_masks):
-        self.model = target_llm
         gl_list    = []
 
         # layer_iterative GroupLasso processing based on LoRA module
         for layer_idx in range(self.cfg.num_hidden_layers):
             # extract corrsponding LLM_DecoderLayer & Masks for this layer
-            cur_layer = self.model.base_model.model.layers[layer_idx]                                          # CasualLM.model -> LMmodel.layer -> DecoderLayer
+            cur_layer = target_llm.base_model.model.layers[layer_idx]                                          # CasualLM.model -> LMmodel.layer -> DecoderLayer
             layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
             m_umlp = layer_wise_masks[-1]
             m_out  = layer_wise_masks[-2]
