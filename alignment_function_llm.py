@@ -214,6 +214,10 @@ class Group_Lasso_regularization(nn.Module):
             m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
             m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
 
+            # test
+            device = m_umlp.device
+            m_umlp = torch.randint(0, 2, (11008,)).to(device)
+            
             # process MLP_up_mask for LoRA weights
             mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
