@@ -219,6 +219,8 @@ class Group_Lasso_regularization(nn.Module):
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
             mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A
 
+            print(mlp_g_lora_B.requires_grads)
+
             gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
