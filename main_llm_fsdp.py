@@ -347,7 +347,6 @@ def main():
         '''
         customized_lora_substitution(model, rank=8, dropout=0.1)
         print("=====> LoRA infusion done. <=====\n")
-        sys.exit()
     else:
         print("=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====\n")
     #-----------------------------------------------------------------#

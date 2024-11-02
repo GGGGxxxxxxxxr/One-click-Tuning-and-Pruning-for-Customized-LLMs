@@ -157,17 +157,22 @@ class LoRALinear(nn.Module):
         cur_device = linear_module.weight.device  # 确保 device 一致
         
         # 初始化 LoRA 参数
-        self.lora_A = nn.Parameter(torch.randn(in_features, r, dtype=data_type, device=cur_device))
-        self.lora_B = nn.Parameter(torch.randn(r, out_features, dtype=data_type, device=cur_device))
+        self.lora_A = nn.Parameter(torch.randn(r, in_features,  dtype=data_type, device=cur_device))
+        self.lora_B = nn.Parameter(torch.randn(out_features, r, dtype=data_type, device=cur_device))
         
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x, mask):
         # 原始 Linear 层输出 + LoRA 路径
-        original_output = self.linear(x)
-        lora_output = self.lora_dropout(x @ self.lora_A) @ self.lora_B
-        return original_output + lora_output
+        if mask == None:
+            original_output = self.linear(x)
+            lora_output = self.lora_dropout(x @ self.lora_A.T) @ self.lora_B.T
+            return original_output + lora_output
+        else:
+            original_output = self.linear(x) * mask
+            lora_output = self.lora_dropout(x @ self.lora_A.T) @ self.lora_B.T
+            return original_output + lora_output
 
 # 递归替换 decoder_layer 中的所有 Linear 层为 LoRALinear
 def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1):
