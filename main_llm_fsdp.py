@@ -46,6 +46,7 @@ from datasets import load_dataset
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures
 from util_llm import pruning_ratio_contribution
+from util_llm import LoRALinear, customized_lora_substitution
 from hypernet_llm import LLM_HyperStructure
 from train_llm import llm_sp_train_one_epoch
 from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset
@@ -322,6 +323,9 @@ def main():
     # LoRA integration or full-param tuning
     # currently we use full-param, LoRA feature would be developed later
     if args.tuning_method == 'lora':
+        '''
+        ** in order to fit LoRA with AllInOnce Implementation, customized LoRALinear with mask capability is required
+        ** thus instead of Peft library, we customize LoRA Infusion.
         print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====\n")
         lora_config = LoraConfig(
                         r=8,
@@ -340,6 +344,10 @@ def main():
         model = get_peft_model(model, lora_config)
         print("=====> LoRA infusion done. <=====\n")
         model.print_trainable_parameters()
+        '''
+        customized_lora_substitution(model, rank=8, dropout=0.1)
+        print("=====> LoRA infusion done. <=====\n")
+        sys.exit()
     else:
         print("=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====\n")
     #-----------------------------------------------------------------#

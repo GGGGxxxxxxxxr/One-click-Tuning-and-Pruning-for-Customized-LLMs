@@ -144,6 +144,74 @@ def pruning_ratio_contribution(model_cfg):
 #-----------------------------------------------------------------#
 
 
+
+
+class LoRALinear(nn.Module):
+    def __init__(self, linear_module, r=8, dropout=0.1):
+        super(LoRALinear, self).__init__()
+        # 保留原始的 Linear 层
+        self.linear = linear_module
+        in_features = linear_module.in_features
+        out_features = linear_module.out_features
+        data_type = linear_module.weight.dtype  # 确保 dtype 一致
+        cur_device = linear_module.weight.device  # 确保 device 一致
+        
+        # 初始化 LoRA 参数
+        self.lora_A = nn.Parameter(torch.randn(in_features, r, dtype=data_type, device=cur_device))
+        self.lora_B = nn.Parameter(torch.randn(r, out_features, dtype=data_type, device=cur_device))
+        
+        # dropout for LoRA
+        self.lora_dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        # 原始 Linear 层输出 + LoRA 路径
+        original_output = self.linear(x)
+        lora_output = self.lora_dropout(x @ self.lora_A) @ self.lora_B
+        return original_output + lora_output
+
+# 递归替换 decoder_layer 中的所有 Linear 层为 LoRALinear
+def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1):
+    replacement_count = 0  # 记录每层替换的 Linear 数量
+    
+    # 使用 named_modules() 递归查找所有子模块
+    for name, module in decoder_layer.named_modules():
+        if isinstance(module, nn.Linear):
+            # 替换为自定义的 LoRALinear
+            lora_linear = LoRALinear(module, r=rank, dropout=dropout)
+            
+            # 获取父模块，并将该 Linear 层替换为 LoRALinear
+            parent_module = dict(decoder_layer.named_modules())[name.rsplit('.', 1)[0]]
+            setattr(parent_module, name.split('.')[-1], lora_linear)
+            
+            replacement_count += 1
+
+    return replacement_count
+
+# 主函数：冻结整个模型，并将 Linear 替换为 LoRALinear
+def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
+    # 1. 冻结整个模型的参数
+    for param in llm_model.parameters():
+        param.requires_grad = False
+
+    # 2. 遍历每个 decoder 层，替换 Linear 为 LoRALinear
+    for layer_idx, decoder_layer in enumerate(llm_model.model.layers):
+        # 替换当前层的 Linear 模块为 LoRALinear，并获取该层的替换数量
+        replacement_count = replace_linear_with_lora(decoder_layer, rank=rank, dropout=dropout)
+        
+        # 每个 decoder layer 中应有 7 个 Linear，进行断言
+        assert replacement_count == 7, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
+
+    trainable_params = [(name, param) for name, param in llm_model.named_parameters() if param.requires_grad]
+    print("Trainable parameters after LoRA Infusion:")
+    for name, param in trainable_params:
+        print(f"{name}: {param.shape}")
+
+    print("All Linear layers in decoder have been replaced with LoRALinear.")
+
+
+
+
+
     
 
         
