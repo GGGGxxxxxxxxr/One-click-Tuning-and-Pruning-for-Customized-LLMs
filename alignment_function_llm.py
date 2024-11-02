@@ -228,8 +228,6 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
-            gl_loss.backward()
-            print(mlp_d_lora_A.grad)
 
             # process attn_out_mask
             attn_out_lora_B = cur_layer.self_attn.o_proj.lora_B

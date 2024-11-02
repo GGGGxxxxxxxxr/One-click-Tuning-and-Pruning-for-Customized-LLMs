@@ -155,7 +155,8 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
             gl_loss = torch.tensor(0.0).to(target_loss.device)
     else:
         if epoch >= args.start_epoch_regularization:
-            gl_loss = gl_module.lora_forward(target_llm = llm_model.module, pruning_masks = masks)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                gl_loss = gl_module.lora_forward(target_llm = llm_model.module, pruning_masks = masks)
 
     
     #** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
