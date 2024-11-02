@@ -130,7 +130,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
                             return_dict=True, 
                             use_cache=False,
                             num_logits_to_keep=seq_len, 
-                            pruning_mask=None)
+                            pruning_mask=masks)
     else:
         output      = llm_model(input_ids=input_ids, 
                                 attention_mask=attn_mask,
