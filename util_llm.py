@@ -158,7 +158,9 @@ class LoRALinear(nn.Module):
         
         # 初始化 LoRA 参数
         self.lora_A = nn.Parameter(torch.randn(r, in_features,  device=cur_device))
-        self.lora_B = nn.Parameter(torch.randn(out_features, r, device=cur_device))
+        
+        # lora_B 零初始化
+        self.lora_B = nn.Parameter(torch.zeros(out_features, r, device=cur_device))
         
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
