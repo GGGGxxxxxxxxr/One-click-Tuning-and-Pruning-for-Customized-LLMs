@@ -296,6 +296,7 @@ def main():
     elif args.model == 'llama2-7b':
         api_token = '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'
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token = api_token)
+        print(f"pretraining_tp: {model_cfg.pretraining_tp}")
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", torch_dtype=torch.bfloat16, token = api_token).to(init_device)
