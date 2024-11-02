@@ -157,8 +157,8 @@ class LoRALinear(nn.Module):
         cur_device = linear_module.weight.device  # 确保 device 一致
         
         # 初始化 LoRA 参数
-        self.lora_A = nn.Parameter(torch.randn(r, in_features,  dtype=data_type, device=cur_device))
-        self.lora_B = nn.Parameter(torch.randn(out_features, r, dtype=data_type, device=cur_device))
+        self.lora_A = nn.Parameter(torch.randn(r, in_features,  device=cur_device))
+        self.lora_B = nn.Parameter(torch.randn(out_features, r, device=cur_device))
         
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
