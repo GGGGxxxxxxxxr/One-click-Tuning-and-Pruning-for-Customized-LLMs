@@ -163,7 +163,7 @@ class LoRALinear(nn.Module):
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
 
-    def forward(self, x, mask):
+    def forward(self, x, mask=None):
         # 原始 Linear 层输出 + LoRA 路径
         if mask == None:
             original_output = self.linear(x)
