@@ -162,7 +162,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
     if epoch >= (args.epochs - 9):
-        gl_tensity = 1000           # force to set expected weights to ZERO
+        gl_tensity = 1000                              # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
 
@@ -363,7 +363,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     # 只在 rank 0 生成 mask_vec
                     if dist.get_rank() == 0:
                         mask_vec = hyper_net(dummy=0)
-                        mask_vec = mask_vec.detach()
                     else:
                         # 在其他 rank 处创建一个相同形状的 tensor 占位
                         mask_vec = torch.empty_like(hyper_net(dummy=0))
