@@ -576,10 +576,10 @@ class LlamaSdpaAttention(LlamaAttention):
             key_states   = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
         else:
-            stacked_k_mask = torch.stack(pruning_K_mask)
-            stacked_v_mask = torch.stack(pruning_V_mask)
+            stacked_k_mask = torch.cat(pruning_K_mask, dim=0)
+            stacked_v_mask = torch.cat(pruning_V_mask, dim=0)
 
-            query_states = self.q_proj(hidden_states)
+            query_states = self.q_proj(hidden_states, stacked_k_mask)
             key_states   = self.k_proj(hidden_states, stacked_k_mask)
             value_states = self.v_proj(hidden_states, stacked_v_mask)
 
