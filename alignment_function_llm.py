@@ -217,7 +217,7 @@ class Group_Lasso_regularization(nn.Module):
             # test
             device = m_umlp.device
             m_umlp = torch.randint(0, 2, (11008,)).to(device)
-            
+
             # process MLP_up_mask for LoRA weights
             mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
@@ -228,6 +228,7 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
+            print(gl_loss)
 
             # process attn_out_mask
             attn_out_lora_B = cur_layer.self_attn.o_proj.lora_B
@@ -268,9 +269,11 @@ class Group_Lasso_regularization(nn.Module):
 
 
         #test
+        '''
         sum_loss.backward()
         mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
         print(mlp_g_lora_B.grad)
+        '''
         return sum_loss
 
 
