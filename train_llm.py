@@ -363,6 +363,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     # 只在 rank 0 生成 mask_vec
                     if dist.get_rank() == 0:
                         mask_vec = hyper_net(dummy=0)
+                        mask_vec = mask_vec.detach()
                     else:
                         # 在其他 rank 处创建一个相同形状的 tensor 占位
                         mask_vec = torch.empty_like(hyper_net(dummy=0))
