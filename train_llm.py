@@ -185,7 +185,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
 
 #-----------------------------------------------------------------#
 # step_wise forward() for hypernet() param_tuning
-def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, num_key_value, pruning_contribution):
+def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, num_key_value, pruning_contribution, scaler):
     # acquire K, V, O, Up mask pruning contributions
     k_ratio = pruning_contribution["k_ratio"]
     v_ratio = pruning_contribution["v_ratio"]
@@ -199,7 +199,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
-    mask_vec = hypernet(dummy=0)   #.module()
+    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+        mask_vec = hypernet(dummy=0)                                                             #.module()
     binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(binary_mask_vec)
@@ -263,8 +264,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # e) sum the loss
     hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
 
-    hyper_loss.backward()
-
+    #hyper_loss.backward()
+    scaler.scale(hyper_loss).backward()
     '''
     with torch.no_grad():
         hypernet.eval()
@@ -289,7 +290,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 # ** GroupLasso is applied for WeightProjection (directly imported from ATO's raw implementation)
 # ** [Calibration_Dataset] for hypernet() training is a small portion of data from the NLP dataset['train']
 # ** Casual LLM takes shifted [input_ids] as the self-supervised training labels for NEXT_TOKEN_PREDICTION
-def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, pruning_contribution, skip_hyper_training):
+def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, scaler_hyper, pruning_contribution, skip_hyper_training):
     print(f"Epoch {epoch} starting.............")
     # initialize training loss holder
     llm_loss_ave       = AverageMeter()
@@ -352,10 +353,14 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     attn_mask=val_inputs["attention_mask"], 
                     pruning_ratio_target=pruning_ratio_target, 
                     num_key_value=num_key_value, 
-                    pruning_contribution=pruning_contribution
+                    pruning_contribution=pruning_contribution,
+                    scaler=scaler_hyper
                 )
-                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 1.0)
-                optimizer_hyper.step()
+                scaler_hyper.unscale_(optimizer_hyper)
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
+                scaler_hyper.step(optimizer_hyper)
+                scaler_hyper.update()
+                
 
                 # 生成新掩码供 LLM 训练使用
                 with torch.no_grad():
