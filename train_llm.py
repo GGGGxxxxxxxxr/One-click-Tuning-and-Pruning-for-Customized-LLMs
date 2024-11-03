@@ -162,7 +162,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     #** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
-    if epoch >= (args.epochs - 9):
+    if epoch == (args.epochs - 1):
         gl_tensity = 1000                              # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
