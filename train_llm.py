@@ -356,8 +356,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     pruning_contribution=pruning_contribution,
                     scaler=scaler_hyper
                 )
-                scaler_hyper.unscale_(optimizer_hyper)
-                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
+                #scaler_hyper.unscale_(optimizer_hyper)
+                #torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
                 scaler_hyper.step(optimizer_hyper)
                 scaler_hyper.update()
                 
