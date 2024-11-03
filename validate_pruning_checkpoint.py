@@ -10,7 +10,7 @@ import re
 import math
 import os
 from peft import LoftQConfig, LoraConfig, get_peft_model
-
+from util_llm import LoRALinear, customized_lora_substitution
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -59,6 +59,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
 
     if lora == True:
         print("intialize LoRA insertions.")
+        '''
         lora_config = LoraConfig(
                             r=8,
                             lora_alpha=8,
@@ -74,7 +75,9 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
         print(f"  bias: {lora_config.bias}")
         # fuse lora module into pre-trained target llm
         model = get_peft_model(model, lora_config)
-    
+        '''
+        customized_lora_substitution(model, rank=8, dropout=0.1)
+
     print("Loading state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
