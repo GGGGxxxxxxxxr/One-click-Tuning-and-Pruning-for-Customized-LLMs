@@ -199,8 +199,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
-    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-        mask_vec = hypernet(dummy=0)                                                             #.module()
+    #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+    mask_vec = hypernet(dummy=0)                                                             #.module()
     binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(binary_mask_vec)
@@ -264,8 +264,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # e) sum the loss
     hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
 
-    #hyper_loss.backward()
-    scaler.scale(hyper_loss).backward()
+    hyper_loss.backward()
+    #scaler.scale(hyper_loss).backward()
     '''
     with torch.no_grad():
         hypernet.eval()
@@ -357,9 +357,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     scaler=scaler_hyper
                 )
                 #scaler_hyper.unscale_(optimizer_hyper)
-                #torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
-                scaler_hyper.step(optimizer_hyper)
-                scaler_hyper.update()
+                torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
+                optimizer_hyper.step()
+                #scaler_hyper.step(optimizer_hyper)
+                #scaler_hyper.update()
                 
 
                 # 生成新掩码供 LLM 训练使用
