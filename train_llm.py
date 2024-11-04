@@ -208,14 +208,14 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # c) masked_llm forward() with 'pruning_mask = mask'
     seq_len = val_ids.shape[1]
 
-    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-        output      = llm_model(input_ids=val_ids, 
-                                labels=val_ids, 
-                                return_dict=True, 
-                                use_cache=False,
-                                num_logits_to_keep=seq_len, 
-                                attention_mask=attn_mask,
-                                pruning_mask=mask)
+    #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+    output      = llm_model(input_ids=val_ids, 
+                            labels=val_ids, 
+                            return_dict=True, 
+                            use_cache=False,
+                            num_logits_to_keep=seq_len, 
+                            attention_mask=attn_mask,
+                            pruning_mask=mask)
     target_loss = output["loss"]
     
     # ** constrain the pruning target
@@ -265,6 +265,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
 
     hyper_loss.backward()
+    
     #scaler.scale(hyper_loss).backward()
     '''
     with torch.no_grad():
