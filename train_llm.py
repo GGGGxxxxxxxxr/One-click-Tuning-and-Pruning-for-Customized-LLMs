@@ -155,7 +155,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else: 
         gl_tensity = 10
         gl_module.grad_mul = gl_tensity
-        
+
     if args.tuning_method != 'lora':
         if epoch >= args.start_epoch_regularization:
             #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
@@ -318,7 +318,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
-    ratio_loss_threshold = 0.0001
+    ratio_loss_threshold = 0.01
     ratio_loss_consecutive_steps = 100
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 
