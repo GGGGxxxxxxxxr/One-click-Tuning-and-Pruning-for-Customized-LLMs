@@ -5,7 +5,8 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 from typing import List
 from transformers import AutoConfig
-
+import torch.nn.init as init
+import math
 #-----------------------------------------------------------------#
 # counting prunable structures for Decoder-only-based transformer LLMs
 # We do not prune the nn.Embedding following other works!
@@ -157,10 +158,11 @@ class LoRALinear(nn.Module):
         cur_device = linear_module.weight.device  # 确保 device 一致
         
         # 初始化 LoRA 参数
-        self.lora_A = nn.Parameter(torch.randn(r, in_features,  device=cur_device))
+        self.lora_A = nn.Parameter(torch.empty(r, in_features, device=cur_device, dtype=data_type))
+        init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  # 使用 Kaiming Uniform 初始化
         
         # lora_B 零初始化
-        self.lora_B = nn.Parameter(torch.zeros(out_features, r, device=cur_device))
+        self.lora_B = nn.Parameter(torch.zeros(out_features, r, device=cur_device, dtype=data_type))
         
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
