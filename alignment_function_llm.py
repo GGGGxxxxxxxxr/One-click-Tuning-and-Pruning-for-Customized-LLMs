@@ -260,8 +260,10 @@ class Group_Lasso_regularization(nn.Module):
             gl_list.append(gl_loss)
         
         # sum gl_loss
-        sum_loss = sum(gl_list)/len(gl_list)
+        #sum_loss = sum(gl_list)/len(gl_list)
 
+        sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
+        
         #test
         '''
         sum_loss.backward()
