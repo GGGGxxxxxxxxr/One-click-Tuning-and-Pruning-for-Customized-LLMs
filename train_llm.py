@@ -196,6 +196,9 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     llm_model.eval()
     hypernet.train()
 
+    for param in llm_model.parameters():
+        param.requires_grad = False
+
     # b) hypernet.forward() (get logits instead of binary mask for hypernet() training)
     # acquire trainable mask for masked_llm inference
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
@@ -218,6 +221,9 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
                                 pruning_mask=mask)
     target_loss = output["loss"]
     
+    for param in llm_model.parameters():
+        param.requires_grad = True
+
     # ** constrain the pruning target
     # d) mask constrain: total pruning ratio + head-wise dimensional alignment
     # i) the total mask ratio is close to 0.5
