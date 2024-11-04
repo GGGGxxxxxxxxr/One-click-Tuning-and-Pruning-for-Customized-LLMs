@@ -148,6 +148,14 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     # ** we dont use such gl_loss as backward() to update the grouplasso regularization
     # ** we only use it as a value inspector, thus no_grad_fn would be applied here
     # ** GroupLasso is implemented via direct WeightProjection
+
+    if epoch == (args.epochs - 1):
+        gl_tensity = 1000                              # force to set expected weights to ZERO
+        gl_module.grad_mul = gl_tensity
+    else: 
+        gl_tensity = 10
+        gl_module.grad_mul = gl_tensity
+        
     if args.tuning_method != 'lora':
         if epoch >= args.start_epoch_regularization:
             #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
@@ -163,15 +171,17 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     #** depreciated for FSDP mode, cuz GroupLassoLoss via backward() would cause severe memory consumption issue for CUDA **
     # c) combined loss for target_llm_param optimization
     # ** adjust tensity for GroupLasso Regularization, when training is close to the end, increase the tensity to make sure that GroupLassoLoss is close to 0.
+    '''
     if epoch == (args.epochs - 1):
         gl_tensity = 1000                              # force to set expected weights to ZERO
     else: 
         gl_tensity = 1
+    '''
 
     if args.tuning_method != 'lora':
         llm_loss = target_loss                         # in FSDP mode, we are forced to use GroupLasso DirectProjection to simulate such GL_loss backward effects
     else:
-        llm_loss = target_loss + gl_tensity * gl_loss
+        llm_loss = target_loss + gl_loss
 
     scaler.scale(llm_loss).backward()
 
