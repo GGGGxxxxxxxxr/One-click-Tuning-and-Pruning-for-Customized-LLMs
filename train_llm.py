@@ -172,7 +172,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
         llm_loss = target_loss                         # in FSDP mode, we are forced to use GroupLasso DirectProjection to simulate such GL_loss backward effects
     else:
         llm_loss = gl_tensity * gl_loss #target_loss + gl_tensity * gl_loss
-        target_loss = 0
+        target_loss = torch.tensor(0.0).to(gl_loss.device)
 
     scaler.scale(llm_loss).backward()
 
