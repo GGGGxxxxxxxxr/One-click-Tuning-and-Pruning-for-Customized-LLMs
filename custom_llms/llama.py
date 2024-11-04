@@ -634,8 +634,8 @@ class LlamaSdpaAttention(LlamaAttention):
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
-            key_states.to(torch.bfloat16),
-            value_states.to(torch.bfloat16),
+            key_states,
+            value_states,
             attn_mask=causal_mask,
             dropout_p=self.attention_dropout if self.training else 0.0,
             is_causal=is_causal,
