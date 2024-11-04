@@ -25,10 +25,11 @@ def gumbel_softmax_sample(logits, T, offset=0):
 
 
 def hard_concrete(out):
+    device = out.device
     out_hard = torch.zeros(out.size())
     out_hard[out>=0.5]=1
     if out.is_cuda:
-        out_hard = out_hard.cuda()
+        out_hard = out_hard.to(device)
     # Set gradients w.r.t. y_hard gradients w.r.t. y
     out_hard = (out_hard - out).detach() + out
     return out_hard
