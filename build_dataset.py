@@ -288,6 +288,71 @@ def create_medical_dataset():
     return combined_train, combined_val
 #-----------------------------------------------------------------#
 
+#-----------------------------------------------------------------#
+# *************************************************************** #
+# LEGAL DOMAIN DATASET #
+#-----------------------------------------------------------------#
+def format_casehold_example(example):
+    # 提取输入数据中的内容
+    citing_prompt = example['citing_prompt']
+    holding_statements = [
+        example.get(f'holding_{i}', '') for i in range(5)
+    ]
+    label = example['label']
+    
+    # 确定索引名称
+    idx_mapping = {
+        "0": "first",
+        "1": "second",
+        "2": "third",
+        "3": "fourth",
+        "4": "fifth"
+    }
+    idx = idx_mapping.get(str(label), None)
+    if idx is None:
+        raise ValueError("Label out of expected range.")
+
+    # 根据模板格式化文本
+    formatted_text = (
+        f"A citing text consisting of the context and legal citation text is '{citing_prompt}'. "
+        f"Holding statement 0 is '{holding_statements[0]}', "
+        f"holding statement 1 is '{holding_statements[1]}', "
+        f"holding statement 2 is '{holding_statements[2]}', "
+        f"holding statement 3 is '{holding_statements[3]}', "
+        f"and holding statement 4 is '{holding_statements[4]}'. "
+        f"Choose the correct corresponding holding statement. "
+        f"The correct answer is holding statement {label}, which is the {idx} statement."
+    )
+
+    return {'text': formatted_text}
+
+def formatted_casehold_dataset(num_samples=None):
+    ds     = load_dataset("casehold/casehold", "all")['train']
+    ds_val = load_dataset("casehold/casehold", "all")['test']
+
+    # 如果指定了 num_samples，选择前 num_samples 条数据
+    if num_samples is not None:
+        ds = ds.select(range(min(num_samples, len(ds))))
+
+    # 
+    ds_val = ds_val.select(range(min(200, len(ds))))
+
+    # 应用格式化函数
+    train_dataset = ds.map(format_casehold_example).remove_columns(
+        ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
+    )
+    val_dataset = ds_val.map(format_casehold_example).remove_columns(
+        ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
+    )
+    return train_dataset, val_dataset
+
+
+
+
+
+
+
+
 
 
 #-----------------------------------------------------------------#
@@ -374,8 +439,4 @@ def formatted_AGNews_dataset():
 
 
 
-'''
-hqs_train, hqs_val = create_medical_dataset()
-for i in range(12000, 12010):
-    print(hqs_train[i])
-'''
+

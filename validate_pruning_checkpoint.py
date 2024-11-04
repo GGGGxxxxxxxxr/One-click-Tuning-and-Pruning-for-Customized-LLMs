@@ -314,6 +314,13 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
             next_token_logits = outputs.logits[:, -1, :]
 
+            temperature = 1.0
+            next_token_logits = next_token_logits / temperature
+            next_token_probs = torch.softmax(next_token_logits, dim=-1)
+
+            # 从概率分布中采样下一个 token
+            next_token_id = torch.multinomial(next_token_probs, num_samples=1)
+            
             # 使用贪心解码
             next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
 

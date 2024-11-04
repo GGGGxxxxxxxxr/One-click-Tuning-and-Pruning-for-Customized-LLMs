@@ -445,7 +445,7 @@ def main():
 
     #llm_ddp         = torch.compile(llm_ddp)
     if args.use_8bit_training == True:
-        optimizer_llm = bnb.optim.AdamW8bit(filter(lambda p: p.requires_grad, llm_ddp.parameters()),lr = args.lr)
+        optimizer_llm   = bnb.optim.AdamW8bit(filter(lambda p: p.requires_grad, llm_ddp.parameters()),lr = args.lr)
     else:
         optimizer_llm   = torch.optim.AdamW(filter(lambda p: p.requires_grad, llm_ddp.parameters()),lr = args.lr)
 
