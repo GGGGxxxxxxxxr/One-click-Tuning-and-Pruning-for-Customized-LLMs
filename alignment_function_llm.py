@@ -35,7 +35,7 @@ class Group_Lasso_regularization(nn.Module):
     def __init__(self, args, target_llm_cfg, prunable_structure, fsdp_scaler):
         super().__init__()
         self.grad_mul = args.grad_mul if args else 1
-        self.lam = args.gl_lam if args else 1000
+        self.lam = 1000#args.gl_lam if args else 1000
         self.p_structure = prunable_structure
         self.model       = None
         self.cfg         = target_llm_cfg
@@ -263,7 +263,7 @@ class Group_Lasso_regularization(nn.Module):
         #sum_loss = sum(gl_list)/len(gl_list)
 
         sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
-        
+
         #test
         '''
         sum_loss.backward()
