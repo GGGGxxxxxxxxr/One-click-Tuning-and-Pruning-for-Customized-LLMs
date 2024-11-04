@@ -221,20 +221,21 @@ class Group_Lasso_regularization(nn.Module):
 
             '''
             test
-            '''
+            
             m_umlp_shape = m_umlp.shape
 
             # 创建一个与 m_umlp 大小相同的张量，前一半为 0，后一半为 1
             half_size = m_umlp_shape[0] // 2
             m_umlp = torch.cat([torch.zeros(half_size, *m_umlp_shape[1:], device=m_umlp.device),
                                     torch.ones(m_umlp_shape[0] - half_size, *m_umlp_shape[1:], device=m_umlp.device)])
-            
+            '''
+
             gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
-            '''
+            
             # process attn_out_mask
             attn_out_lora_B = cur_layer.self_attn.o_proj.lora_B
             mlp_g_lora_A    = cur_layer.mlp.gate_proj.lora_A
@@ -268,7 +269,7 @@ class Group_Lasso_regularization(nn.Module):
                           + ((1 - Q_mask).unsqueeze(1) * attn_q_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                           #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
-            '''
+            
 
         # sum gl_loss
         #sum_loss = sum(gl_list)/len(gl_list)

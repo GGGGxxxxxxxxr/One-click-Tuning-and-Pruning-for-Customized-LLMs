@@ -120,7 +120,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     attn_mask = attn_mask.to(cur_device)
     seq_len = input_ids.shape[1]
 
-    '''
+    
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
     #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
     if args.tuning_method == "lora":
@@ -141,7 +141,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
                                 num_logits_to_keep=seq_len, 
                                 pruning_mask=None)
     target_loss = output["loss"]
-    '''
+    
     
     # b) if current_epoch >= args.start_epoch_regularization:
     # **Group Lasso Sparsity Regularization is performed on the masked weights.
@@ -171,8 +171,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     if args.tuning_method != 'lora':
         llm_loss = target_loss                         # in FSDP mode, we are forced to use GroupLasso DirectProjection to simulate such GL_loss backward effects
     else:
-        llm_loss = gl_tensity * gl_loss #target_loss + gl_tensity * gl_loss
-        target_loss = torch.tensor(0.0).to(gl_loss.device)
+        llm_loss = target_loss + gl_tensity * gl_loss
 
     scaler.scale(llm_loss).backward()
 
@@ -359,11 +358,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     pruning_contribution=pruning_contribution,
                     scaler=scaler_hyper
                 )
-                #scaler_hyper.unscale_(optimizer_hyper)
+
                 torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
                 optimizer_hyper.step()
-                #scaler_hyper.step(optimizer_hyper)
-                #scaler_hyper.update()
                 
 
                 # 生成新掩码供 LLM 训练使用
