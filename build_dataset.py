@@ -16,6 +16,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # original DP is swapped into DDP for efficient and more organzied training logic
 from torch.utils.data import DataLoader, DistributedSampler
 import re
+import pandas as pd 
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
@@ -385,8 +386,8 @@ def create_legal_dataset():
     perplexity_val               = formatted_multilegalpile_dataset()
 
     combined_train = concatenate_datasets([billsum_train, casehold_train])
-    #ombined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
-    combined_val   = concatenate_datasets([billsum_val, casehold_val])
+    combined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
+    #combined_val   = concatenate_datasets([billsum_val, casehold_val])
 
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
 
@@ -477,8 +478,14 @@ def formatted_AGNews_dataset():
 #-----------------------------------------------------------------#
 
 
+'''
 legal_train, legal_val = create_legal_dataset()
+text_lengths = [len(example['text']) for example in legal_train]
 
+# 转换为 Pandas Series 并查看描述统计信息
+text_length_series = pd.Series(text_lengths)
+print(text_length_series.describe())
+'''
 
 
 
