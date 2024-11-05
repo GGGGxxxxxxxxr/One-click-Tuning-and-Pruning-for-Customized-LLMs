@@ -345,7 +345,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
             if not free:
                 # 检查是否生成了句号
-                if next_token == '?' or next_token.strip() == '.':
+                if next_token == '?' or next_token == '.':
                     break
 
             # 检查结束标记
