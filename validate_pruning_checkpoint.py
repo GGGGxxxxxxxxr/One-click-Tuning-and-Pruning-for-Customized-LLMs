@@ -111,8 +111,10 @@ def observe_weight_masks(model, model_cfg, masks):
     attn_out_mask = masks[-2]
     attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
     attn_v_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
+    attn_o_pruning_dim = [(1 - attn_out_mask).sum(dim=1)]
     print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
     print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
+    print(f"attn_o_pruning_pattern: {attn_o_pruning_dim}")
 
     # Debugging for Group Lasso Weight Projection
     print("Viewing pruning patterns for each layer.")
@@ -120,10 +122,11 @@ def observe_weight_masks(model, model_cfg, masks):
         layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in masks]
         mlp_up_mask = layer_wise_masks[-1]
         print(f"Layer {layer_idx}:")
-        print(f"  mlp_up_mask_shape: {mlp_up_mask.size()}")
+        print(f"mlp_up_mask_shape: {mlp_up_mask.size()}")
         mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
-        print(f"  mlp_up_mask_ratio: {mlp_up_mask_ratio}")
+        print(f"mlp_up_mask_ratio: {mlp_up_mask_ratio}")
 
+    '''
     # Validate Group Lasso regularization
     print("Validating Group Lasso regularization.")
     gl_loss_module = Group_Lasso_regularization(
@@ -137,7 +140,7 @@ def observe_weight_masks(model, model_cfg, masks):
         pruning_masks=masks,
         epoch=None
     )
-
+    '''
 def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
     if dataset_name.lower() == 'pubmedqa':
         dataset = load_dataset(
