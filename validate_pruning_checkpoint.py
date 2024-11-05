@@ -88,7 +88,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
         masks = transform_output_layer_uniform(cur_mask_vec)
 
         # Include weight mask observation parts
-        # observe_weight_masks(model, model_cfg, masks)
+        observe_weight_masks(model, model_cfg, masks)
 
         return model, tokenizer, masks
     
