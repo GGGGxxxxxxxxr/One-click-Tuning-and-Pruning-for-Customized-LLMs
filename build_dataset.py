@@ -60,7 +60,7 @@ def format_mednli_example(example):
 
 def formatted_MedNLI_dataset(
     train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl',
-    val_data_file='nlp_dataset_collections/medNLI/mli_test_v1.jsonl',
+    val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl',
     num_samples=None
 ):
     # 加载数据集
