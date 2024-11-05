@@ -395,7 +395,7 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-        return tokenizer(examples["text"], truncation=True, padding='longest')
+        return tokenizer(examples["text"], truncation=True, padding=False)
     
     tokenized_datasets = nlp_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
     tokenized_valsets  = val_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
