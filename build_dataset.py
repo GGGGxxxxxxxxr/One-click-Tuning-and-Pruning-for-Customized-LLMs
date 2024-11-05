@@ -328,14 +328,13 @@ def format_casehold_example(example):
 
 def formatted_casehold_dataset(num_samples=None):
     ds     = load_dataset("casehold/casehold", "all")['train']
-    ds_val = load_dataset("casehold/casehold", "all")['test']
+    ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
 
-    # 
-    ds_val = ds_val.select(range(min(200, len(ds))))
+    ds_val = ds_val.select(range(min(500, len(ds))))
 
     # 应用格式化函数
     train_dataset = ds.map(format_casehold_example).remove_columns(
@@ -344,15 +343,55 @@ def formatted_casehold_dataset(num_samples=None):
     val_dataset = ds_val.map(format_casehold_example).remove_columns(
         ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
     )
+
+    return train_dataset, val_dataset
+
+def format_billsum_example(example):
+    # 使用模板格式化文本
+    formatted_text = (
+        f"A bill text is '{example['clean_text']}'. "
+        f"The summary of the bill is '{example['clean_summary']}'."
+    )
+    return {'text': formatted_text}
+
+
+def formatted_billsum_dataset(num_samples=None):
+    ds = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_train_2000.jsonl")['train']
+    ds_val = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_val_500.jsonl")['train']
+
+    if num_samples is not None:
+        ds = ds.select(range(min(num_samples, len(ds))))
+    
+    # apply string formatted-function
+    train_dataset = ds.map(format_billsum_example).remove_columns(
+        ['clean_text', 'clean_summary']
+    )
+    val_dataset   = ds.map(format_billsum_example).remove_columns(
+        ['clean_text', 'clean_summary']
+    )
+
     return train_dataset, val_dataset
 
 
+def formatted_multilegalpile_dataset(num_samples=None):
+    ds = load_dataset("json", data_files='nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl')['train']
+    val_dataset = ds.remove_columns(["language", 'type', 'jurisdiction'])
 
+    return val_dataset
 
+def create_legal_dataset():
+    billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000)
+    casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000)
+    perplexity_val               = formatted_multilegalpile_dataset()
 
+    combined_train = concatenate_datasets([billsum_train, casehold_train])
+    combined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
 
+    assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
 
+    return combined_train, combined_val
 
+    
 
 
 #-----------------------------------------------------------------#

@@ -318,13 +318,13 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
-    ratio_loss_threshold = 0.01
-    ratio_loss_consecutive_steps = 100
+    ratio_loss_threshold = 0.005                  # 0.005 equals to a gap range of 0.5%
+    ratio_loss_consecutive_steps = 500
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 
     gl_loss_counter = 0
     gl_loss_threshold = 1.57
-    gl_loss_consecutive_steps = 100000
+    gl_loss_consecutive_steps = 1000000   # if you are using lora, we recommend using epoch instead of specific step control, as overfitting is not that much heavy an issue
     terminate_training = False
 
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
@@ -412,17 +412,21 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         # if hypernet() is frozen prior to the configured stop epoch, validation would be performed on the current model + fixed masks
         # ** for tracking training purpose only
         if skip_hypernet_training:
+            target_llm.eval()
             val_inputs = next(nlp_hypernet_iter)
-            with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-                temp_output      = target_llm(input_ids=val_inputs["input_ids"], 
-                                        labels=val_inputs["input_ids"], 
-                                        return_dict=True, 
-                                        use_cache=False,
-                                        num_logits_to_keep= val_inputs["input_ids"].shape[1], 
-                                        attention_mask=val_inputs["attention_mask"],
-                                        pruning_mask=masks)
-            validation_purpose_loss = temp_output["loss"]
-            print(f"The current validation loss with fixed maskSchedule: {validation_purpose_loss}")
+            with torch.no_grad():  # 添加 no_grad 以减少内存占用
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    temp_output = target_llm(
+                        input_ids=val_inputs["input_ids"], 
+                        labels=val_inputs["input_ids"], 
+                        return_dict=True, 
+                        use_cache=False,
+                        num_logits_to_keep=val_inputs["input_ids"].shape[1], 
+                        attention_mask=val_inputs["attention_mask"],
+                        pruning_mask=masks
+                    )
+                validation_purpose_loss = temp_output["loss"]
+                print(f"The current validation loss with fixed maskSchedule: {validation_purpose_loss}")
             del temp_output
             del validation_purpose_loss
 

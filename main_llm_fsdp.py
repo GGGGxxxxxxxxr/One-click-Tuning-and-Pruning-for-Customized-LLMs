@@ -49,7 +49,7 @@ from util_llm import pruning_ratio_contribution
 from util_llm import LoRALinear, customized_lora_substitution
 from hypernet_llm import LLM_HyperStructure
 from train_llm import llm_sp_train_one_epoch
-from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset
+from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from custom_llms.llama import LlamaForCausalLM
@@ -372,7 +372,7 @@ def main():
 
     #-----------------------------------------------------------------#
     # dataset initialization
-    if args.dataset == "wikitext":
+    if args.dataset   == "wikitext":
         nlp_dataset, val_dataset = formatted_wikitext_dataset()
     elif args.dataset == 'MedNLI':
         nlp_dataset, val_dataset = formatted_MedNLI_dataset()
@@ -380,12 +380,15 @@ def main():
         nlp_dataset, val_dataset = formatted_AGNews_dataset()
     elif args.dataset == 'medical':
         nlp_dataset, val_dataset = create_medical_dataset()
+    elif args.dataset == 'legal':
+        nlp_dataset, val_dataset = create_legal_dataset()
+        torch.backends.cuda.enable_flash_sdp(True)    # as legal-domain dataset are super long, we suggest a checking for flashattention availbility
 
     print("=====> Dataset Config & Sample Check: <=====\n")
     print(nlp_dataset)
     print(val_dataset)
 
-    # Print the 85th samples
+    # Print the 85th samples just for dataset cleaning verfication
     print("=====> The 85th Sequence Sample: <=====")
     print(nlp_dataset[85])  
     print(val_dataset[85])
