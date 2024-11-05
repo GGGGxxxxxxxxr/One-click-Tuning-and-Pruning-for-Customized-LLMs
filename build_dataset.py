@@ -477,6 +477,9 @@ def formatted_AGNews_dataset():
 #-----------------------------------------------------------------#
 
 
+legal_train, legal_val = create_legal_dataset()
+
+
 
 
 
