@@ -262,7 +262,7 @@ class LlamaMLP(nn.Module):
                     # structured_pruning computation
                     mask_up   = torch.pow(mask_up,2)
                     temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * mask_up
-                    print(temp)
+                    #print(temp)
                     down_proj = self.down_proj(temp)
                 else:
                     down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
