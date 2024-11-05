@@ -150,10 +150,10 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     # ** GroupLasso is implemented via direct WeightProjection
 
     if epoch == (args.epochs - 1):
-        gl_tensity = 100                              # force to set expected weights to ZERO
+        gl_tensity = 10                               # force to set expected weights to ZERO
         gl_module.grad_mul = gl_tensity
     else: 
-        gl_tensity = 1
+        gl_tensity = 0.3
         gl_module.grad_mul = gl_tensity
 
     if args.tuning_method != 'lora':
