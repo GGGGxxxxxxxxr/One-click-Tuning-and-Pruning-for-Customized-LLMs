@@ -97,12 +97,25 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
 def observe_weight_masks(model, model_cfg, masks):
     # Check weights of the first layer's MLP
     print("Checking weights of the first layer's MLP:")
-    print("gate_proj.weight:")
-    print(model.model.layers[0].mlp.gate_proj.weight)
+    print("gate_proj.lora_A:")
+    print(model.model.layers[0].mlp.gate_proj.lora_A)
+    print("gate_proj.lora_B:")
+    print(model.model.layers[0].mlp.gate_proj.lora_B)
+    print("up_proj.lora_A:")
+    print(model.model.layers[0].mlp.up_proj.lora_A)
+    print("up_proj.lora_B:")
+    print(model.model.layers[0].mlp.up_proj.lora_B)
+    print("down_proj.lora_A:")
+    print(model.model.layers[0].mlp.down_proj.lora_A)
+    print("down_proj.lora_B:")
+    print(model.model.layers[0].mlp.down_proj.lora_B)
+
+    '''
     print("up_proj.weight:")
     print(model.model.layers[0].mlp.up_proj.weight)
     print("down_proj.weight:")
     print(model.model.layers[0].mlp.down_proj.weight)
+    '''
 
     # View current pruning pattern
     print("Viewing current pruning pattern.")
