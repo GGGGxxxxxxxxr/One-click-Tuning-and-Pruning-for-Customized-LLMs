@@ -385,7 +385,8 @@ def create_legal_dataset():
     perplexity_val               = formatted_multilegalpile_dataset()
 
     combined_train = concatenate_datasets([billsum_train, casehold_train])
-    combined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
+    #ombined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
+    combined_val   = concatenate_datasets([billsum_val, casehold_val])
 
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
 
