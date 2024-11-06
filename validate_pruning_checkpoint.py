@@ -308,7 +308,7 @@ def evaluate_casehold(model, tokenizer, masks):
         )
 
         #prediction = generate_predictions(model, tokenizer, input_text, masks)
-        prediction = generate_summary(model, tokenizer, input_text, 4, masks)
+        prediction = generate_summary(model, tokenizer, input_text, masks)
         # Map prediction to one of the labels
         print(prediction)
 
