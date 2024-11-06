@@ -460,6 +460,7 @@ def generate_predictions(model, tokenizer, input_text, masks):
             )
     # masked model prediction
     else:
+        print("true")
         with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
             model_output = model(
                 input_ids=model_inputs["input_ids"],
