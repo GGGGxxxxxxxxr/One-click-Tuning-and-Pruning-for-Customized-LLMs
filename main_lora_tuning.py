@@ -48,7 +48,7 @@ from util_llm import count_llm_p_structures
 from util_llm import pruning_ratio_contribution
 from hypernet_llm import LLM_HyperStructure
 from train_llm import llm_sp_train_one_epoch, llm_tuning_train_one_epoch
-from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset
+from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from custom_llms.llama import LlamaForCausalLM
@@ -171,7 +171,7 @@ def setup_for_distributed(is_master):
 def save_checkpoint(
     epoch, 
     model=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_base_tuning_lora.pth.tar"
+    filename="/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
@@ -331,6 +331,8 @@ def main():
         nlp_dataset, val_dataset = formatted_AGNews_dataset()
     elif args.dataset == 'medical':
         nlp_dataset, val_dataset = create_medical_dataset()
+    elif args.dataset == 'legal':
+        nlp_dataset, val_dataset = create_legal_dataset()
 
     print("=====> Dataset Config & Sample Check: <=====\n")
     print(nlp_dataset)

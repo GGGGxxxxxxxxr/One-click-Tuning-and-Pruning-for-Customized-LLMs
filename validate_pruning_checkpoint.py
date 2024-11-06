@@ -59,24 +59,27 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
 
     if lora == True:
         print("intialize LoRA insertions.")
-        '''
-        lora_config = LoraConfig(
-                            r=8,
-                            lora_alpha=8,
-                            target_modules="all-linear",
-                            lora_dropout=0.1,
-                            bias="none"
-                        )
-        # lora detailed configuration
-        print(f"  r: {lora_config.r}")
-        print(f"  lora_alpha: {lora_config.lora_alpha}")
-        print(f"  target_modules: {lora_config.target_modules}")
-        print(f"  lora_dropout: {lora_config.lora_dropout}")
-        print(f"  bias: {lora_config.bias}")
-        # fuse lora module into pre-trained target llm
-        model = get_peft_model(model, lora_config)
-        '''
-        customized_lora_substitution(model, rank=8, dropout=0.1)
+        if base == True:
+            print("intialize LoRA insertions.")
+            lora_config = LoraConfig(
+                                r=8,
+                                lora_alpha=8,
+                                target_modules="all-linear",
+                                lora_dropout=0.1,
+                                bias="none"
+                            )
+            # lora detailed configuration
+            print(f"  r: {lora_config.r}")
+            print(f"  lora_alpha: {lora_config.lora_alpha}")
+            print(f"  target_modules: {lora_config.target_modules}")
+            print(f"  lora_dropout: {lora_config.lora_dropout}")
+            print(f"  bias: {lora_config.bias}")
+            # fuse lora module into pre-trained target llm
+            model = get_peft_model(model, lora_config)
+        
+        else:
+            print("use customized lora-blocks.")
+            customized_lora_substitution(model, rank=8, dropout=0.1)
 
     print("Loading state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
@@ -404,7 +407,6 @@ def evaluate_billsum(model, tokenizer, masks):
         f"The summary of the bill is '{example['summary']}'."
         )
 
-        
         generated_summary = generate_summary(model, tokenizer, input_text, masks)
 
         references.append(reference_summary)
