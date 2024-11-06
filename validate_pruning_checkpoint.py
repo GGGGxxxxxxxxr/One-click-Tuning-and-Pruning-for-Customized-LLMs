@@ -267,6 +267,70 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
     print(f"Pruned Model Accuracy: {acc_count_base / len(dataset) * 100:.2f}%")
 
 
+def evaluate_casehold(model, tokenizer, masks):
+    dataset_file = 'nlp_dataset_collections/CaseHold/casehold_2000.jsonl'
+    dataset = load_dataset('json', data_files=dataset_file, split='train')
+
+    true_labels = []
+    pred_labels = []
+
+    for i in range(len(dataset)):
+        citing_prompt = dataset[i]['citing_prompt']
+        holding_statements = [
+            dataset[i].get(f'holding_{i}', '') for i in range(5)
+        ]
+        label = dataset[i]['label']
+        
+        # 确定索引名称
+        idx_mapping = {
+            "0": "first",
+            "1": "second",
+            "2": "third",
+            "3": "fourth",
+            "4": "fifth"
+        }
+        idx = idx_mapping.get(str(label), None)
+        if idx is None:
+            raise ValueError("Label out of expected range.")
+
+        # 根据模板格式化文本
+        input_text = (
+            f"A citing text consisting of the context and legal citation text is '{citing_prompt}'. "
+            f"Holding statement 0 is '{holding_statements[0]}', "
+            f"holding statement 1 is '{holding_statements[1]}', "
+            f"holding statement 2 is '{holding_statements[2]}', "
+            f"holding statement 3 is '{holding_statements[3]}', "
+            f"and holding statement 4 is '{holding_statements[4]}'. "
+            f"Choose the correct corresponding holding statement. "
+            f"The correct answer is holding statement ' "
+        )
+
+        prediction = generate_predictions(model, tokenizer, input_text, masks)
+
+        # Map prediction to one of the labels
+        print(input_text + prediction)
+
+        true_labels.append(label)
+        pred_labels.append(prediction)
+
+        print(f"Sample {i+1}/{len(dataset)} | Gold: {label} | Prediction: {prediction}")
+
+    # Calculate precision, recall, and F1 score for each class
+    precision, recall, f1, support = precision_recall_fscore_support(
+        true_labels, pred_labels, labels=['0', '1', '2', '3', '4'], average=None, zero_division=0
+    )
+
+    # Calculate macro-F1 score
+    macro_f1 = f1.mean()
+
+    # Print per-class metrics
+    for i, label in enumerate(['0', '1', '2', '3', '4']):
+        print(f"Class '{label}': Precision: {precision[i]:.4f}, Recall: {recall[i]:.4f}, F1 Score: {f1[i]:.4f}, Support: {support[i]}")
+
+    print(f"\nMacro-F1 Score: {macro_f1:.4f}")
+
+
+
 def extract_message(text):
     match = re.search(r'MESSAGE:(.*)', text, re.DOTALL)
     if match:
