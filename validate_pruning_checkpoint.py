@@ -181,6 +181,8 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
         evaluate_perplexity_on_multilegalpile(model, tokenizer, masks)
     elif dataset_name.lower() == 'casehold':
         evaluate_casehold(model, tokenizer, masks)
+    elif dataset_name.lower() == 'billsum':
+        evaluate_billsum(model, tokenizer, masks)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
@@ -384,6 +386,50 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
+def evaluate_billsum(model, tokenizer, masks):
+    print("Evaluating on BillSum dataset...")
+    dataset = load_dataset('json', data_files='nlp_dataset_collections/BillSum/billsum_test_200.jsonl', split='train')
+
+    references = []
+    hypotheses = []
+
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+
+    for i in range(len(dataset)):
+        example = dataset[i]
+        reference_summary = example['summary']
+
+        input_text = (
+        f"A bill text is '{example['source']}'. "
+        f"The summary of the bill is '{example['summary']}'."
+        )
+
+        
+        generated_summary = generate_summary(model, tokenizer, input_text, masks)
+
+        references.append(reference_summary)
+        hypotheses.append(generated_summary)
+
+        print(f"Sample {i+1}/{len(dataset)}")
+        print(f"Question: {example['source']}")
+        print(f"Reference Summary: {reference_summary}")
+        print(f"Generated Summary: {generated_summary}")
+        print("-" * 50)
+
+    # Calculate ROUGE scores
+    rouge_scores = {'rouge1': [], 'rouge2': [], 'rougeL': []}
+
+    for ref, hyp in zip(references, hypotheses):
+        scores = scorer.score(ref, hyp)
+        for key in rouge_scores:
+            rouge_scores[key].append(scores[key].fmeasure)
+
+    # Calculate average scores
+    for key in rouge_scores:
+        avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
+        print(f"Average {key} F1 Score: {avg_score:.2f}%")
+
+
 def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False):
     model.eval()
     generated = input_ids
@@ -427,7 +473,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
-        model, tokenizer, input_ids, max_length=50, masks=masks, free=free  # 根据需要调整 max_length
+        model, tokenizer, input_ids, max_length=100, masks=masks, free=free  # 根据需要调整 max_length
     )
 
     generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
