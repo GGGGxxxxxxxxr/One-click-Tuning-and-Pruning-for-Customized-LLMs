@@ -304,7 +304,7 @@ def evaluate_casehold(model, tokenizer, masks):
             f"holding statement 3 is '{holding_statements[3]}', "
             f"and holding statement 4 is '{holding_statements[4]}'. "
             f"Choose the correct corresponding holding statement. "
-            f"The correct answer is holding statement"
+            f"The correct answer is holding statement '"
         )
 
         prediction = generate_predictions(model, tokenizer, input_text, masks)
