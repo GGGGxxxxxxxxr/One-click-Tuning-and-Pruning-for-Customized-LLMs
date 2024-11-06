@@ -267,8 +267,12 @@ class LlamaMLP(nn.Module):
                 else:
                     down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
             else:
-                temp = self.act_fn(self.gate_proj(x, mask_up)) * self.up_proj(x, mask_up)
-                down_proj = self.down_proj(temp)
+                if mask_up != None:
+                    temp = self.act_fn(self.gate_proj(x, mask_up)) * self.up_proj(x, mask_up)
+                    down_proj = self.down_proj(temp)
+                else:
+                    temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x)
+                    down_proj = self.down_proj(temp)
 
         return down_proj
 
@@ -577,7 +581,7 @@ class LlamaSdpaAttention(LlamaAttention):
             key_states   = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
         else:
-            if pruning_K_mask! = None:
+            if pruning_K_mask != None:
                 stacked_k_mask = torch.cat(pruning_K_mask, dim=0)
                 stacked_v_mask = torch.cat(pruning_V_mask, dim=0)
                 query_states = self.q_proj(hidden_states, stacked_k_mask)
