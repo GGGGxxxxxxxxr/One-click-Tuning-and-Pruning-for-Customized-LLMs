@@ -404,7 +404,7 @@ def evaluate_billsum(model, tokenizer, masks):
 
         input_text = (
         f"A bill text is '{example['source']}'. "
-        f"The summary of the bill is "
+        f"The summary of the bill is"
         )
 
         generated_summary = generate_summary(model, tokenizer, input_text, masks)
@@ -413,9 +413,9 @@ def evaluate_billsum(model, tokenizer, masks):
         hypotheses.append(generated_summary)
 
         print(f"Sample {i+1}/{len(dataset)}")
-        print(f"Question: {example['source']}")
-        print(f"Reference Summary: {reference_summary}")
-        print(f"Generated Summary: {generated_summary}")
+        print(f"Question: {example['source']}\n")
+        print(f"Reference Summary: {reference_summary}\n")
+        print(f"Generated Summary: {generated_summary}\n")
         print("-" * 50)
 
     # Calculate ROUGE scores
