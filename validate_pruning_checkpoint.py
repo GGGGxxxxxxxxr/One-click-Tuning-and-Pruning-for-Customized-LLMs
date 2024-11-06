@@ -80,7 +80,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None)
 
     print("Loading state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
-    model.train()
+    model.eval()
 
     if not base:
         print("Getting current mask vector.")
