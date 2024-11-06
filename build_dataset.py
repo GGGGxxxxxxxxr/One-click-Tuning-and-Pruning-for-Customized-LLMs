@@ -376,10 +376,10 @@ def formatted_billsum_dataset(num_samples=None):
     
     # apply string formatted-function
     train_dataset = ds.map(format_billsum_example).remove_columns(
-        ['clean_text', 'clean_summary']
+        ['source', 'summary']
     )
     val_dataset   = ds_val.map(format_billsum_example).remove_columns(
-        ['clean_text', 'clean_summary']
+        ['source', 'summary']
     )
 
     return train_dataset, val_dataset
