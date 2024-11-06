@@ -149,12 +149,13 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     # ** we only use it as a value inspector, thus no_grad_fn would be applied here
     # ** GroupLasso is implemented via direct WeightProjection
 
-    if epoch == (args.epochs - 1):
-        gl_tensity = 10                               # force to set expected weights to ZERO
-        gl_module.grad_mul = gl_tensity
-    else: 
-        gl_tensity = 0.3
-        gl_module.grad_mul = gl_tensity
+    if epoch >= args.start_epoch_regularization:
+        if epoch == (args.epochs - 1):
+            gl_tensity = 10                               # force to set expected weights to ZERO
+            gl_module.grad_mul = gl_tensity
+        else: 
+            gl_tensity = 0.3
+            gl_module.grad_mul = gl_tensity
 
     if args.tuning_method != 'lora':
         if epoch >= args.start_epoch_regularization:
