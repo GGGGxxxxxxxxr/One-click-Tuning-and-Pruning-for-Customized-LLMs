@@ -313,8 +313,8 @@ def evaluate_casehold(model, tokenizer, masks):
             f"The correct answer is holding statement "
         )
 
-        prediction = generate_predictions(model, tokenizer, input_text, masks)
-        #prediction = generate_summary(model, tokenizer, input_text, masks)
+        #prediction = generate_predictions(model, tokenizer, input_text, masks)
+        prediction = generate_summary(model, tokenizer, input_text, masks)
         # Map prediction to one of the labels
 
         true_labels.append(label)
@@ -459,12 +459,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             generated = torch.cat((generated, next_token_id), dim=1)
 
             next_token = tokenizer.decode(next_token_id.squeeze())
-
-            if not free:
-                # 检查是否生成了句号
-                if next_token == '?' or next_token == '.':
-                    break
-
+                
             # 检查结束标记
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
