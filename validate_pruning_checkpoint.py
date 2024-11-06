@@ -179,6 +179,8 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
         evaluate_perplexity_on_harrison(model, tokenizer, masks)
     elif dataset_name.lower() == 'multilegalpile':
         evaluate_perplexity_on_multilegalpile(model, tokenizer, masks)
+    elif dataset_name.lower() == 'casehold':
+        evaluate_casehold(model, tokenizer, masks)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
