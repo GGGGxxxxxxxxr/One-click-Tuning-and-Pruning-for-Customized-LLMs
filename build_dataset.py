@@ -328,7 +328,7 @@ def format_casehold_example(example):
     return {'text': formatted_text}
 
 def formatted_casehold_dataset(num_samples=None):
-    raw_train_2000 = load_dataset('json', data_files="nlp_dataset_collections/CaseHold/casehold_train_clean", split='train')
+    raw_train_2000 = load_dataset('json', data_files="nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl", split='train')
     
     # 应用格式化函数到模板数据集并获取最大长度
     formatted_raw_train_2000 = raw_train_2000.map(format_casehold_example)
