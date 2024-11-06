@@ -470,7 +470,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
-        model, tokenizer, input_ids, max_length=100, masks=masks, free=free  # 根据需要调整 max_length
+        model, tokenizer, input_ids, max_length=600, masks=masks, free=free  # 根据需要调整 max_length
     )
 
     generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
