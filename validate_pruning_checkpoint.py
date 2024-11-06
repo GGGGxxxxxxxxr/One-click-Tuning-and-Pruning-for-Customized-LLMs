@@ -619,9 +619,13 @@ def general_text_completion(model, tokenizer, masks):
 
 
 if __name__ == "__main__":
-    base = False
+    base = True
     lora = True
-    ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
+    if base != True:
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
+    else:
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
+
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path)
 
     while True:
