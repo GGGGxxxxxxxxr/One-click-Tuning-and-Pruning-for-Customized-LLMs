@@ -270,8 +270,9 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
 
 
 def evaluate_casehold(model, tokenizer, masks):
-    dataset_file = 'nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl'
-    dataset = load_dataset('json', data_files=dataset_file, split='train')
+    #dataset_file = 'nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl'
+    #dataset = load_dataset('json', data_files=dataset_file, split='train')
+    dataset = load_dataset("casehold/casehold", "all")['validation']
 
     true_labels = []
     pred_labels = []
@@ -460,7 +461,6 @@ def generate_predictions(model, tokenizer, input_text, masks):
             )
     # masked model prediction
     else:
-        print("true")
         with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
             model_output = model(
                 input_ids=model_inputs["input_ids"],
