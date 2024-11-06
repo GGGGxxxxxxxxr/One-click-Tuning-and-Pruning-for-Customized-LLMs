@@ -307,15 +307,16 @@ def evaluate_casehold(model, tokenizer, masks):
             f"The correct answer is holding statement"
         )
 
-        prediction = generate_predictions(model, tokenizer, input_text, masks)
-
+        #prediction = generate_predictions(model, tokenizer, input_text, masks)
+        input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
+        prediction = generate_text_custom(model, tokenizer, input_ids, 4, masks)
         # Map prediction to one of the labels
-        print(input_text + prediction)
+        print(prediction)
 
         true_labels.append(label)
         pred_labels.append(prediction)
 
-        print(f"Sample {i+1}/{len(dataset)} | Gold: {label} | Prediction: {prediction}")
+        #print(f"Sample {i+1}/{len(dataset)} | Gold: {label} | Prediction: {prediction}")
 
     # Calculate precision, recall, and F1 score for each class
     precision, recall, f1, support = precision_recall_fscore_support(
