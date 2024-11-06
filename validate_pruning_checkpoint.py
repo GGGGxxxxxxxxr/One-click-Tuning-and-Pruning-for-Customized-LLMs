@@ -177,6 +177,8 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
         evaluate_healthquestionsum(model, tokenizer, dataset, masks)
     elif dataset_name.lower() == 'harrison':
         evaluate_perplexity_on_harrison(model, tokenizer, masks)
+    elif dataset_name.lower() == 'multilegalpile':
+        evaluate_perplexity_on_multilegalpile(model, tokenizer, masks)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
@@ -422,6 +424,16 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks):
     # 计算困惑度
     perplexity = compute_perplexity(model, tokenizer, dataset, masks)
     print(f"Perplexity on Harrison dataset: {perplexity:.2f}")
+
+
+def evaluate_perplexity_on_multilegalpile(model, tokenizer, masks):
+    print("Evaluating perplexity on MultiLegalPile Dataset...")
+
+    dataset_file = 'nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl'
+    dataset = load_dataset('json', data_files=dataset_file, split='train')
+    perplexity = compute_perplexity(model, tokenizer, dataset, masks)
+    print(f"Perplexity on Harrison dataset: {perplexity:.2f}")
+
 
 def compute_perplexity(model, tokenizer, dataset, masks):
     total_loss = 0.0
