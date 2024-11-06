@@ -318,7 +318,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
-    ratio_loss_threshold = 0.005                  # 0.005 equals to a gap range of 0.5%
+    ratio_loss_threshold = 0.0001                  # 0.005 equals to a gap range of 0.5%
     ratio_loss_consecutive_steps = 500
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 

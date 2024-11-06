@@ -361,8 +361,8 @@ def formatted_casehold_dataset(num_samples=None):
 def format_billsum_example(example):
     # 使用模板格式化文本
     formatted_text = (
-        f"A bill text is '{example['clean_text']}'. "
-        f"The summary of the bill is '{example['clean_summary']}'."
+        f"A bill text is '{example['source']}'. "
+        f"The summary of the bill is '{example['summary']}'."
     )
     return {'text': formatted_text}
 
