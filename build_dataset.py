@@ -328,17 +328,28 @@ def format_casehold_example(example):
     return {'text': formatted_text}
 
 def formatted_casehold_dataset(num_samples=None):
-    ds     = load_dataset("casehold/casehold", "all")['train']
+    raw_train_2000 = load_dataset('json', data_files="nlp_dataset_collections/CaseHold/casehold_train_clean", split='train')
+    
+    # 应用格式化函数到模板数据集并获取最大长度
+    formatted_raw_train_2000 = raw_train_2000.map(format_casehold_example)
+    max_length = max(len(example['text']) for example in formatted_raw_train_2000)
+    print(f"Maximum formatted string length in CaseHold raw_train_2000: {max_length}")
+
+    # 加载 CaseHold 数据集
+    ds = load_dataset("casehold/casehold", "all")['train']
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
+    
+    ds_val = ds_val.select(range(min(500, len(ds_val))))
 
-    ds_val = ds_val.select(range(min(500, len(ds))))
-
-    # 应用格式化函数
-    train_dataset = ds.map(format_casehold_example).remove_columns(
+    # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
+    filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
+    
+    # 移除不需要的列
+    train_dataset = filtered_train_dataset.remove_columns(
         ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
     )
     val_dataset = ds_val.map(format_casehold_example).remove_columns(
@@ -358,7 +369,7 @@ def format_billsum_example(example):
 
 def formatted_billsum_dataset(num_samples=None):
     ds = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_train_2000.jsonl")['train']
-    ds_val = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_val_500.jsonl")['train']
+    ds_val = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_test_200.jsonl")['train']
 
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
@@ -367,7 +378,7 @@ def formatted_billsum_dataset(num_samples=None):
     train_dataset = ds.map(format_billsum_example).remove_columns(
         ['clean_text', 'clean_summary']
     )
-    val_dataset   = ds.map(format_billsum_example).remove_columns(
+    val_dataset   = ds_val.map(format_billsum_example).remove_columns(
         ['clean_text', 'clean_summary']
     )
 
