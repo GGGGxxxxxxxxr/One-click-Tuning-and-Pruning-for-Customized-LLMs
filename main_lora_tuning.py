@@ -365,7 +365,8 @@ def main():
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
-    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer)
+    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding='longest')
+    
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
