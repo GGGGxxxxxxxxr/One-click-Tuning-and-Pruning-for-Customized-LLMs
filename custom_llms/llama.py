@@ -577,12 +577,17 @@ class LlamaSdpaAttention(LlamaAttention):
             key_states   = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
         else:
-            stacked_k_mask = torch.cat(pruning_K_mask, dim=0)
-            stacked_v_mask = torch.cat(pruning_V_mask, dim=0)
+            if pruning_K_mask! = None:
+                stacked_k_mask = torch.cat(pruning_K_mask, dim=0)
+                stacked_v_mask = torch.cat(pruning_V_mask, dim=0)
+                query_states = self.q_proj(hidden_states, stacked_k_mask)
+                key_states   = self.k_proj(hidden_states, stacked_k_mask)
+                value_states = self.v_proj(hidden_states, stacked_v_mask)
+            else:
+                query_states = self.q_proj(hidden_states)
+                key_states   = self.k_proj(hidden_states)
+                value_states = self.v_proj(hidden_states)
 
-            query_states = self.q_proj(hidden_states, stacked_k_mask)
-            key_states   = self.k_proj(hidden_states, stacked_k_mask)
-            value_states = self.v_proj(hidden_states, stacked_v_mask)
 
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
@@ -652,7 +657,10 @@ class LlamaSdpaAttention(LlamaAttention):
             else:
                 attn_output = self.o_proj(attn_output)
         else:
-            attn_output = self.o_proj(attn_output, pruning_out_mask)
+            if pruning_out_mask != None:
+                attn_output = self.o_proj(attn_output, pruning_out_mask)
+            else:
+                attn_output = self.o_proj(attn_output)
 
         return attn_output, None, past_key_value
 
