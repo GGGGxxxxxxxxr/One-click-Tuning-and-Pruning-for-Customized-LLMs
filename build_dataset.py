@@ -339,20 +339,21 @@ def formatted_casehold_dataset(num_samples=None):
     ds = load_dataset("casehold/casehold", "all")['train']
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
-    # 如果指定了 num_samples，选择前 num_samples 条数据
-    if num_samples is not None:
-        ds = ds.select(range(min(num_samples, len(ds))))
-    
-    ds_val = ds_val.select(range(min(500, len(ds_val))))
-
     # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
     filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
+    filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
+
+    # 如果指定了 num_samples，选择前 num_samples 条数据
+    if num_samples is not None:
+        train_dataset = filtered_train_dataset.select(range(min(num_samples, len(ds))))
     
+    val_dataset = filtered_val_dataset.select(range(min(500, len(ds_val))))
+
     # 移除不需要的列
-    train_dataset = filtered_train_dataset.remove_columns(
+    train_dataset = train_dataset.remove_columns(
         ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
     )
-    val_dataset = ds_val.map(format_casehold_example).remove_columns(
+    val_dataset   = val_dataset.remove_columns(
         ['citing_prompt', 'holding_0', 'holding_1', 'holding_2', 'holding_3', 'holding_4', 'label', 'example_id']
     )
 
