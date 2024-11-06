@@ -270,13 +270,13 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
 
 
 def evaluate_casehold(model, tokenizer, masks):
-    dataset_file = 'nlp_dataset_collections/CaseHold/casehold_2000.jsonl'
+    dataset_file = 'nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl'
     dataset = load_dataset('json', data_files=dataset_file, split='train')
 
     true_labels = []
     pred_labels = []
 
-    for i in range(len(dataset)):
+    for i in range(200):
         citing_prompt = dataset[i]['citing_prompt']
         holding_statements = [
             dataset[i].get(f'holding_{i}', '') for i in range(5)
