@@ -307,17 +307,16 @@ def evaluate_casehold(model, tokenizer, masks):
             f"The correct answer is holding statement"
         )
 
-        #prediction = generate_predictions(model, tokenizer, input_text, masks)
-        prediction = generate_summary(model, tokenizer, input_text, masks)
+        prediction = generate_predictions(model, tokenizer, input_text, masks)
+        #prediction = generate_summary(model, tokenizer, input_text, masks)
         # Map prediction to one of the labels
-        print(prediction)
 
         true_labels.append(label)
         pred_labels.append(prediction)
 
-        #print(f"Sample {i+1}/{len(dataset)} | Gold: {label} | Prediction: {prediction}")
+        print(f"Sample {i+1}/{len(dataset)} | Gold: {label} | Prediction: {prediction}")
 
-    '''
+    
     # Calculate precision, recall, and F1 score for each class
     precision, recall, f1, support = precision_recall_fscore_support(
         true_labels, pred_labels, labels=['0', '1', '2', '3', '4'], average=None, zero_division=0
@@ -331,7 +330,7 @@ def evaluate_casehold(model, tokenizer, masks):
         print(f"Class '{label}': Precision: {precision[i]:.4f}, Recall: {recall[i]:.4f}, F1 Score: {f1[i]:.4f}, Support: {support[i]}")
 
     print(f"\nMacro-F1 Score: {macro_f1:.4f}")
-    '''
+    
 
 
 def extract_message(text):
