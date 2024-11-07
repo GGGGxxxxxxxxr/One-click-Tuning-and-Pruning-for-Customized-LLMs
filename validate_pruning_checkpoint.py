@@ -437,30 +437,34 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
     generated = input_ids
 
     with torch.no_grad():
+        past_key_values = None  # 初始化 past_key_values 为 None
+        input_ids = generated  # 初始输入
+        
         for _ in range(max_length):
-            if masks == None:
-                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-                    outputs = model(input_ids = generated)
+            if masks is None:
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    # 使用 past_key_values 以加速生成，只传入新生成的 token
+                    outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True)
             else:
-                with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-                    outputs = model(input_ids = generated, pruning_mask = masks)
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True, pruning_mask=masks)
 
+            # 获取最后一个 token 的 logits
             next_token_logits = outputs.logits[:, -1, :]
 
+            # 更新 past_key_values，以便下一步生成时使用
+            past_key_values = outputs.past_key_values
 
-            # 从概率分布中采样下一个 token
-            #next_token_probs = torch.softmax(next_token_logits, dim=-1)
-            #next_token_id = torch.multinomial(next_token_probs, num_samples=1)
-            
-            # 使用贪心解码
+            # 使用贪心解码或采样方法生成下一个 token
             next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
 
-            # 添加下一个标记
+            # 将生成的 token 添加到整个生成序列中
             generated = torch.cat((generated, next_token_id), dim=1)
 
-            #next_token = tokenizer.decode(next_token_id.squeeze())
-                
-            # 检查结束标记
+            # 更新 input_ids 只包含新生成的 token，供下一轮生成使用
+            input_ids = next_token_id
+
+            # 检查结束标记，如果生成了 EOS token 则停止生成
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
 
