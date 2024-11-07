@@ -456,8 +456,14 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             past_key_values = outputs.past_key_values
 
             # 使用贪心解码或采样方法生成下一个 token
-            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
+            #next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
 
+            # Apply softmax to get probabilities
+            next_token_probs = torch.softmax(next_token_logits, dim=-1)
+
+            # Sample from the probability distribution
+            next_token_id = torch.multinomial(next_token_probs, num_samples=1)
+            
             # 将生成的 token 添加到整个生成序列中
             generated = torch.cat((generated, next_token_id), dim=1)
 
