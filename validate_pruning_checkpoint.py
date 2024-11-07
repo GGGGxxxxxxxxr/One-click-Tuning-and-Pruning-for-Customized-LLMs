@@ -620,7 +620,7 @@ def general_text_completion(model, tokenizer, masks):
 
 
 if __name__ == "__main__":
-    base = True
+    base = False
     lora = True
     if base != True:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
