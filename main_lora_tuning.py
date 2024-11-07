@@ -290,6 +290,12 @@ def main():
         model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", torch_dtype=torch.bfloat16, attn_implementation="sdpa", token = api_token).to(device)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
+    elif args.model == 'llm-pruner':
+        pruned_dict = torch.load('/home/sgao1/llm_pruner/LLM-Pruner/prune_log/llama_prune', map_location='cpu')
+        tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = 32
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
@@ -366,7 +372,7 @@ def main():
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
     data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding='longest')
-    
+
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
