@@ -395,7 +395,19 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-        return tokenizer(examples["text"], truncation=True, padding=False)
+        # Tokenize with truncation enabled but without padding
+        tokens = tokenizer(examples["text"], truncation=True, padding=False)
+        
+        # Add the EOS token ID at the end of each tokenized input
+        eos_token_id = tokenizer.eos_token_id  # Ensure your tokenizer has an EOS token
+        if eos_token_id is None:
+            raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+        
+        # Append the EOS token to each sequence and update the attention mask
+        tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
+        tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
+
+        return tokens
     
     tokenized_datasets = nlp_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
     tokenized_valsets  = val_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
@@ -403,7 +415,7 @@ def main():
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
-    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer)
+    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding='longest')
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
