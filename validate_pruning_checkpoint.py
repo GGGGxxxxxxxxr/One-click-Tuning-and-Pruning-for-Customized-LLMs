@@ -464,7 +464,7 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
 
 def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.7):
     model.eval()
-    generated = input_ids
+    generated = input_ids[0]
 
     with torch.no_grad():
         past_key_values = None  # Initialize past_key_values to None
