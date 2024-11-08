@@ -507,11 +507,11 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
     return text
 
-def generate_summary(model, tokenizer, input_text, masks, free=False):
+def generate_summary(model, tokenizer, input_text, masks, free=False, max_length=200):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
-        model, tokenizer, input_ids, max_length=1000, masks=masks, free=free  # 根据需要调整 max_length
+        model, tokenizer, input_ids, max_length=max_length, masks=masks, free=free  # 根据需要调整 max_length
     )
 
     generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
