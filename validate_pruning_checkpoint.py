@@ -432,6 +432,35 @@ def evaluate_billsum(model, tokenizer, masks):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
+def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
+    """ Filter a distribution of logits using top-k and/or nucleus (top-p) filtering
+        Args:
+            logits: logits distribution shape (vocabulary size)
+            top_k >0: keep only top k tokens with highest probability (top-k filtering).
+            top_p >0.0: keep the top tokens with cumulative probability >= top_p (nucleus filtering).
+                Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751)
+    """
+    assert logits.dim() == 1  # batch size 1 for now - could be updated for more but the code would be less clear
+    top_k = min(top_k, logits.size(-1))  # Safety check
+    if top_k > 0:
+        # Remove all tokens with a probability less than the last token of the top-k
+        indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1, None]
+        logits[indices_to_remove] = filter_value
+
+    if top_p > 0.0:
+        sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+        cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+
+        # Remove tokens with cumulative probability above the threshold
+        sorted_indices_to_remove = cumulative_probs > top_p
+        # Shift the indices to the right to keep also the first token above the threshold
+        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+        sorted_indices_to_remove[..., 0] = 0
+
+        indices_to_remove = sorted_indices[sorted_indices_to_remove]
+        logits[indices_to_remove] = filter_value
+    return logits
+
 
 def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.7):
     model.eval()
@@ -450,7 +479,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
                     outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True, pruning_mask=masks)
 
             # Get the logits for the last generated token
-            next_token_logits = outputs.logits[:, -1, :]
+            next_token_logits = outputs.logits[0, -1, :]
 
             # Update past_key_values for the next iteration
             past_key_values = outputs.past_key_values
@@ -458,39 +487,12 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             # Apply temperature scaling
             next_token_logits = next_token_logits / temperature
 
-            # Filter with top-k
-            if top_k > 0:
-                top_k_values, _ = torch.topk(next_token_logits, top_k)
-                min_top_k_value = top_k_values[:, -1].unsqueeze(-1)
-                next_token_logits = torch.where(
-                    next_token_logits < min_top_k_value,
-                    torch.full_like(next_token_logits, float('-inf')).to(next_token_logits.device),
-                    next_token_logits
-                )
-
-            # Filter with top-p (nucleus sampling)
-            if top_p < 1.0:
-                sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
-                cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
-                sorted_indices_to_remove = cumulative_probs > top_p
-                sorted_indices_to_remove[:, 1:] = sorted_indices_to_remove[:, :-1].clone()
-                sorted_indices_to_remove[:, 0] = False
-                next_token_logits[sorted_indices[sorted_indices_to_remove]] = float('-inf')
+            filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
 
             # Apply softmax to get probabilities
-            next_token_probs = torch.softmax(next_token_logits, dim=-1)
-            
-            # Ensure no NaNs in the probability distribution
-            if torch.isnan(next_token_probs).any():
-                print("Warning: NaNs detected in the probability distribution.")
-                next_token_probs = torch.full_like(next_token_probs, 1e-10)
-
-            # Sample from the probability distribution
-            try:
-                next_token_id = torch.multinomial(next_token_probs, num_samples=1)
-            except RuntimeError as e:
-                print(f"Sampling error: {e}")
-                break
+            next_token_probs = torch.softmax(filtered_logits, dim=-1)
+        
+            next_token_id = torch.multinomial(next_token_probs, num_samples=1)
 
             # Append the generated token to the sequence
             generated = torch.cat((generated, next_token_id), dim=1)
@@ -511,7 +513,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False):
         model, tokenizer, input_ids, max_length=1000, masks=masks, free=free  # 根据需要调整 max_length
     )
 
-    generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+    generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
     # 提取摘要
     if generated_text.startswith(input_text):
