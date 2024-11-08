@@ -374,13 +374,13 @@ def formatted_casehold_dataset(num_samples=None, args=None):
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
-    if args.loss_on_input == False:
+    if args.loss_on_answer == False:
         filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
         filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
     else:
-        filtered_train_dataset = ds.map(format_casehold_example_qa).fitler(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
-        filtered_val_dataset   = ds_val.map(format_casehold_example_qa).fitler(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
-        
+        filtered_train_dataset = ds.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+        filtered_val_dataset   = ds_val.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         train_dataset = filtered_train_dataset.select(range(min(num_samples, len(ds))))
@@ -426,7 +426,7 @@ def formatted_billsum_dataset(num_samples=None, args=None):
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
     
-    if args.loss_on_input == False:
+    if args.loss_on_answer == False:
         # apply string formatted-function
         train_dataset = ds.map(format_billsum_example).remove_columns(
             ['source', 'summary']

@@ -111,7 +111,7 @@ parser.add_argument('--seed', default=0, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--log-interval', default=20, type=int,
                     help='training log intervals of STEPs')
-parser.add_argument('--loss-on-input', action='store_true', 
+parser.add_argument('--loss-on-answer', action='store_true', 
                     help='If set, calculate loss on the entire input including the context')
 #-----------------------------------------------------------------#
 
