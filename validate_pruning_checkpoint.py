@@ -404,6 +404,7 @@ def evaluate_billsum(model, tokenizer, masks):
 
         input_text = (
         f"A bill text is '{example['source']}'. "
+        f"Please summary this bill."
         f"The summary of the bill is"
         )
 
@@ -463,7 +464,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
             # Sample from the probability distribution
             next_token_id = torch.multinomial(next_token_probs, num_samples=1)
-            
+
             # 将生成的 token 添加到整个生成序列中
             generated = torch.cat((generated, next_token_id), dim=1)
 
@@ -629,7 +630,7 @@ if __name__ == "__main__":
     base = False
     lora = True
     if base != True:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora_qa.pth.tar"
     else:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
 
