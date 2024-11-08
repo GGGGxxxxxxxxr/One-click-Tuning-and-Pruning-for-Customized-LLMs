@@ -374,7 +374,7 @@ def formatted_casehold_dataset(num_samples=None, args=None):
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
-    if args.loss_on_answer == False:
+    if args!=None and args.loss_on_answer == False:
         filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
         filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
     else:
@@ -412,9 +412,9 @@ def format_billsum_example_qa(example):
         f"A bill text is '{example['source']}'. "
         f"Please summary this bill."
     )
-    answer = {
+    answer = (
         f"The summary of the bill is '{example['summary']}'."
-    }
+    )
 
     return {'text': formatted_text, 'answer': answer}
 
@@ -426,7 +426,7 @@ def formatted_billsum_dataset(num_samples=None, args=None):
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
     
-    if args.loss_on_answer == False:
+    if args!=None and args.loss_on_answer == False:
         # apply string formatted-function
         train_dataset = ds.map(format_billsum_example).remove_columns(
             ['source', 'summary']
@@ -563,7 +563,10 @@ text_lengths = [len(example['text']) for example in legal_train]
 text_length_series = pd.Series(text_lengths)
 print(text_length_series.describe())
 '''
-
+'''
+legal_train,legal_val = formatted_billsum_dataset(2000, args=None)
+print(legal_train[1])
+'''
 
 
 
