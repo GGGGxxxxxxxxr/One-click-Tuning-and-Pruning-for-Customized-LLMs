@@ -505,7 +505,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
 
-    return generated
+    return text
 
 def generate_summary(model, tokenizer, input_text, masks, free=False):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
