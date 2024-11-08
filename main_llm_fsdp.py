@@ -399,7 +399,7 @@ def main():
     def tokenize_function(examples):
         has_answer = 'answer' in examples and examples['answer'] is not None
 
-        if args.loss_on_input or not has_answer:
+        if args.loss_on_answer or not has_answer:
             # Tokenize with truncation enabled but without padding
             tokens = tokenizer(examples["text"], truncation=True, padding=False)
             
