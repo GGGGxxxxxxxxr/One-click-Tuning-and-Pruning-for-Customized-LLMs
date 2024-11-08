@@ -397,22 +397,25 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-
-        if args.loss_on_answer == False:
+        if not args.loss_on_answer:
             # Tokenize with truncation enabled but without padding
             tokens = tokenizer(examples["text"], truncation=True, padding=False)
             
             # Add the EOS token ID at the end of each tokenized input
-            eos_token_id = tokenizer.eos_token_id  # Ensure your tokenizer has an EOS token
+            eos_token_id = tokenizer.eos_token_id
             if eos_token_id is None:
                 raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
             
             # Append the EOS token to each sequence and update the attention mask
-            tokens["input_ids"] = [ids + eos_token_id for ids in tokens["input_ids"]]
-            tokens["attention_mask"] = [mask + 1 for mask in tokens["attention_mask"]]
+            tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
+            tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
 
             return tokens
         else:
+            # Ensure 'answer' key is present, otherwise handle it gracefully
+            if 'answer' not in examples:
+                raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
+            
             inputs = tokenizer(examples["text"], truncation=True, padding=False)
             answers = tokenizer(examples["answer"], truncation=True, padding=False)
             
@@ -421,7 +424,7 @@ def main():
             attention_mask = inputs['attention_mask'] + answers['attention_mask']
             
             # Create labels where the input part is masked with -100
-            labels = [32000] * len(inputs['input_ids']) + answers['input_ids']
+            labels = [-100] * len(inputs['input_ids']) + answers['input_ids']
             
             return {
                 'input_ids': input_ids,
