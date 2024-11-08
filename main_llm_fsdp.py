@@ -430,13 +430,14 @@ def main():
                 'labels': labels
             }
         
-    tokenized_datasets = nlp_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
-    tokenized_valsets  = val_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
+    tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text"])
+    tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text"])
+
     print(tokenized_datasets[85])
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
-    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding='longest')
+    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding=True)
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
