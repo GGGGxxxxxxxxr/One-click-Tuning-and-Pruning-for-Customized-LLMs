@@ -419,12 +419,17 @@ def main():
             inputs = tokenizer(examples["text"], truncation=True, padding=False)
             answers = tokenizer(examples["answer"], truncation=True, padding=False)
             
-            # Concatenate input and answer
-            input_ids = inputs['input_ids'] + answers['input_ids']
-            attention_mask = inputs['attention_mask'] + answers['attention_mask']
+            # Get EOS token ID
+            eos_token_id = tokenizer.eos_token_id
+            if eos_token_id is None:
+                raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
             
-            # Create labels where the input part is masked with -100
-            labels = [-100] * len(inputs['input_ids']) + answers['input_ids']
+            # Concatenate input and answer
+            input_ids = inputs['input_ids'] + answers['input_ids'] + [eos_token_id]
+            attention_mask = inputs['attention_mask'] + answers['attention_mask'] + [1]
+            
+            # Create labels where the input part is masked with ignore_index 32000, and add EOS token
+            labels = [32000] * len(inputs['input_ids']) + answers['input_ids'] + [eos_token_id]
             
             return {
                 'input_ids': input_ids,
