@@ -437,8 +437,8 @@ def main():
                 'labels': labels
             }
         
-    tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text"])
-    tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text"])
+    tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+    tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
 
     print(tokenized_datasets[85])
     print(tokenized_valsets[85])
