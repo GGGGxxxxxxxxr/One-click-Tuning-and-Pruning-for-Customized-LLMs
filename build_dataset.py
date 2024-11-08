@@ -327,7 +327,41 @@ def format_casehold_example(example):
 
     return {'text': formatted_text}
 
-def formatted_casehold_dataset(num_samples=None):
+def format_casehold_example_qa(example):
+    citing_prompt = example['citing_prompt']
+    holding_statements = [example.get(f'holding_{i}', '') for i in range(5)]
+    label = example['label']
+    
+    idx_mapping = {
+        "0": "first",
+        "1": "second",
+        "2": "third",
+        "3": "fourth",
+        "4": "fifth"
+    }
+    idx = idx_mapping.get(str(label), None)
+    if idx is None:
+        raise ValueError("Label out of expected range.")
+    
+    # Construct the input text
+    formatted_text = (
+        f"A citing text consisting of the context and legal citation text is '{citing_prompt}'. "
+        f"Holding statement 0 is '{holding_statements[0]}', "
+        f"holding statement 1 is '{holding_statements[1]}', "
+        f"holding statement 2 is '{holding_statements[2]}', "
+        f"holding statement 3 is '{holding_statements[3]}', "
+        f"and holding statement 4 is '{holding_statements[4]}'. "
+        f"Choose the correct corresponding holding statement. "
+    )
+    
+    # The correct answer
+    answer_text = f"The correct answer is holding statement {label}, which is the {idx} statement."
+
+    # Return both the input and the answer
+    return {'text': formatted_text, 'answer': answer_text}
+
+
+def formatted_casehold_dataset(num_samples=None, args=None):
     raw_train_2000 = load_dataset('json', data_files="nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl", split='train')
     
     # 应用格式化函数到模板数据集并获取最大长度
@@ -340,9 +374,13 @@ def formatted_casehold_dataset(num_samples=None):
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
-    filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
-    filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
-
+    if args.loss_on_input == False:
+        filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
+        filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
+    else:
+        filtered_train_dataset = ds.map(format_casehold_example_qa).fitler(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+        filtered_val_dataset   = ds_val.map(format_casehold_example_qa).fitler(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+        
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         train_dataset = filtered_train_dataset.select(range(min(num_samples, len(ds))))
@@ -359,6 +397,7 @@ def formatted_casehold_dataset(num_samples=None):
 
     return train_dataset, val_dataset
 
+
 def format_billsum_example(example):
     # 使用模板格式化文本
     formatted_text = (
@@ -367,21 +406,41 @@ def format_billsum_example(example):
     )
     return {'text': formatted_text}
 
+def format_billsum_example_qa(example):
+    # 使用模板格式化文本
+    formatted_text = (
+        f"A bill text is '{example['source']}'. "
+        f"Please summary this bill."
+    )
+    answer = {
+        f"The summary of the bill is '{example['summary']}'."
+    }
 
-def formatted_billsum_dataset(num_samples=None):
+    return {'text': formatted_text, 'answer': answer}
+
+
+def formatted_billsum_dataset(num_samples=None, args=None):
     ds = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_train_2000.jsonl")['train']
     ds_val = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_test_200.jsonl")['train']
 
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
     
-    # apply string formatted-function
-    train_dataset = ds.map(format_billsum_example).remove_columns(
-        ['source', 'summary']
-    )
-    val_dataset   = ds_val.map(format_billsum_example).remove_columns(
-        ['source', 'summary']
-    )
+    if args.loss_on_input == False:
+        # apply string formatted-function
+        train_dataset = ds.map(format_billsum_example).remove_columns(
+            ['source', 'summary']
+        )
+        val_dataset   = ds_val.map(format_billsum_example).remove_columns(
+            ['source', 'summary']
+        )
+    else:
+        train_dataset = ds.map(format_billsum_example_qa).remove_columns(
+            ['source', 'summary']
+        )
+        val_dataset   = ds_val.map(format_billsum_example_qa).remove_columns(
+            ['source', 'summary']
+        )
 
     return train_dataset, val_dataset
 
@@ -392,9 +451,9 @@ def formatted_multilegalpile_dataset(num_samples=None):
 
     return val_dataset
 
-def create_legal_dataset():
-    billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000)
-    casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000)
+def create_legal_dataset(args):
+    billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000, args=args)
+    casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000, args=args)
     perplexity_val               = formatted_multilegalpile_dataset()
 
     combined_train = concatenate_datasets([billsum_train, casehold_train])

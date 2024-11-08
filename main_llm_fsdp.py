@@ -111,6 +111,8 @@ parser.add_argument('--seed', default=0, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--log-interval', default=20, type=int,
                     help='training log intervals of STEPs')
+parser.add_argument('--loss-on-input', action='store_true', 
+                    help='If set, calculate loss on the entire input including the context')
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
@@ -381,7 +383,7 @@ def main():
     elif args.dataset == 'medical':
         nlp_dataset, val_dataset = create_medical_dataset()
     elif args.dataset == 'legal':
-        nlp_dataset, val_dataset = create_legal_dataset()
+        nlp_dataset, val_dataset = create_legal_dataset(args=args)
         torch.backends.cuda.enable_flash_sdp(True)    # as legal-domain dataset are super long, we suggest a checking for flashattention availbility
 
     print("=====> Dataset Config & Sample Check: <=====\n")
@@ -395,20 +397,39 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-        # Tokenize with truncation enabled but without padding
-        tokens = tokenizer(examples["text"], truncation=True, padding=False)
-        
-        # Add the EOS token ID at the end of each tokenized input
-        eos_token_id = tokenizer.eos_token_id  # Ensure your tokenizer has an EOS token
-        if eos_token_id is None:
-            raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
-        
-        # Append the EOS token to each sequence and update the attention mask
-        tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
-        tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
+        has_answer = 'answer' in examples and examples['answer'] is not None
 
-        return tokens
-    
+        if args.loss_on_input or not has_answer:
+            # Tokenize with truncation enabled but without padding
+            tokens = tokenizer(examples["text"], truncation=True, padding=False)
+            
+            # Add the EOS token ID at the end of each tokenized input
+            eos_token_id = tokenizer.eos_token_id  # Ensure your tokenizer has an EOS token
+            if eos_token_id is None:
+                raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+            
+            # Append the EOS token to each sequence and update the attention mask
+            tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
+            tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
+
+            return tokens
+        else:
+            inputs = tokenizer(examples["text"], truncation=True, padding=False)
+            answers = tokenizer(examples["answer"], truncation=True, padding=False)
+            
+            # Concatenate input and answer
+            input_ids = inputs['input_ids'] + answers['input_ids']
+            attention_mask = inputs['attention_mask'] + answers['attention_mask']
+            
+            # Create labels where the input part is masked with -100
+            labels = [32000] * len(inputs['input_ids']) + answers['input_ids']
+            
+            return {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+                'labels': labels
+            }
+        
     tokenized_datasets = nlp_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
     tokenized_valsets  = val_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
     print(tokenized_datasets[85])

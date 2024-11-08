@@ -112,22 +112,22 @@ def dim_alignment_loss(mask, num_key_value, match_loss):
 
 #-----------------------------------------------------------------#
 # step_wise forward() for target_llm param_tuning
-def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_module, scaler):
+def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args, gl_module, scaler):
     llm_model.train()
     #uniform device
     cur_device = next(llm_model.parameters()).device
     input_ids = input_ids.to(cur_device)
     attn_mask = attn_mask.to(cur_device)
+    labels    = labels.to(cur_device)
     seq_len = input_ids.shape[1]
 
-    
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
     #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
     if args.tuning_method == "lora":
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             output      = llm_model(input_ids=input_ids, 
                             attention_mask=attn_mask,
-                            labels=input_ids, 
+                            labels=labels, 
                             return_dict=True, 
                             use_cache=False,
                             num_logits_to_keep=seq_len, 
@@ -135,7 +135,7 @@ def target_llm_step(llm_model, input_ids, masks, attn_mask, epoch, args, gl_modu
     else:
         output      = llm_model(input_ids=input_ids, 
                                 attention_mask=attn_mask,
-                                labels=input_ids, 
+                                labels=labels, 
                                 return_dict=True, 
                                 use_cache=False,
                                 num_logits_to_keep=seq_len, 
@@ -435,10 +435,16 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
         # Step 2: LLM 权重更新
         optimizer_llm.zero_grad()
+        if 'labels' in text_input and text_input['labels'] is not None:
+            labels = text_input["labels"]
+        else:
+            labels = text_input["input_ids"]
+
         current_lr = optimizer_llm.param_groups[0]['lr']
         llm_loss, target_loss, gl_loss = target_llm_step(
             llm_model=target_llm, 
             input_ids=text_input["input_ids"], 
+            labels=labels,
             masks=masks, 
             attn_mask=text_input["attention_mask"], 
             epoch=epoch, 
