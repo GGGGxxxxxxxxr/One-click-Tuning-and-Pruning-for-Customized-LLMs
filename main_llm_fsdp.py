@@ -397,9 +397,8 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-        has_answer = 'answer' in examples and examples['answer'] is not None
 
-        if args.loss_on_answer or not has_answer:
+        if args.loss_on_answer == False:
             # Tokenize with truncation enabled but without padding
             tokens = tokenizer(examples["text"], truncation=True, padding=False)
             
@@ -409,8 +408,8 @@ def main():
                 raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
             
             # Append the EOS token to each sequence and update the attention mask
-            tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
-            tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
+            tokens["input_ids"] = [ids + eos_token_id for ids in tokens["input_ids"]]
+            tokens["attention_mask"] = [mask + 1 for mask in tokens["attention_mask"]]
 
             return tokens
         else:
