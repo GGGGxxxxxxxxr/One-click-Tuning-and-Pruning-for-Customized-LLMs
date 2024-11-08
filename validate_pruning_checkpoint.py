@@ -464,7 +464,8 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
 
 def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.7):
     model.eval()
-    generated = input_ids[0]
+    generated = input_ids
+    text = input_ids[0]
 
     with torch.no_grad():
         past_key_values = None  # Initialize past_key_values to None
@@ -495,7 +496,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             next_token_id = torch.multinomial(next_token_probs, num_samples=1)
 
             # Append the generated token to the sequence
-            generated = torch.cat((generated, next_token_id), dim=1)
+            text = torch.cat((text, next_token_id), dim=1)
 
             # Update input_ids to only include the newly generated token for the next iteration
             input_ids = next_token_id.unsqueeze(0)
