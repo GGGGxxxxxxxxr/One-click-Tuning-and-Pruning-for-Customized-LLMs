@@ -17,6 +17,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 import re
 import pandas as pd 
+import random
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
@@ -458,15 +459,28 @@ def formatted_multilegalpile_dataset(num_samples=None):
     return val_dataset
 
 def create_legal_dataset(args):
-    billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000, args=args)
+    # 加载数据集
+    billsum_train, billsum_val = formatted_billsum_dataset(num_samples=2000, args=args)
     casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000, args=args)
-    perplexity_val               = formatted_multilegalpile_dataset()
+    perplexity_val = formatted_multilegalpile_dataset()
 
+    # 合并训练集和验证集
     combined_train = concatenate_datasets([billsum_train, casehold_train])
-    combined_val   = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
-    #combined_val   = concatenate_datasets([billsum_val, casehold_val])
-
+    combined_val = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
+    
+    # 确保训练集大小正确
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
+
+    # 从训练集中随机抽取 2000 条样本，并将其添加到验证集中
+    random_sample_indices = random.sample(range(len(combined_train)), 2000)
+    train_samples_for_val = combined_train.select(random_sample_indices)
+    
+    # 将抽取的样本添加到验证集中
+    combined_val = concatenate_datasets([combined_val, train_samples_for_val])
+
+    # 检查数据集大小
+    assert len(combined_val) == (len(billsum_val) + len(casehold_val) + len(perplexity_val) + 2000), \
+        f"Combined val dataset size mismatch after sampling: {len(combined_val)} != expected size"
 
     return combined_train, combined_val
 
