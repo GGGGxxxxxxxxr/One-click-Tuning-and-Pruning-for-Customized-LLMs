@@ -433,31 +433,50 @@ def evaluate_billsum(model, tokenizer, masks):
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
 
-def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False):
+def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.7):
     model.eval()
     generated = input_ids
 
     with torch.no_grad():
-        past_key_values = None  # 初始化 past_key_values 为 None
-        input_ids = generated  # 初始输入
+        past_key_values = None  # Initialize past_key_values to None
+        input_ids = generated  # Initial input
         
         for _ in range(max_length):
             if masks is None:
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    # 使用 past_key_values 以加速生成，只传入新生成的 token
+                    # Use past_key_values for faster generation, only pass in the newly generated token
                     outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True)
             else:
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True, pruning_mask=masks)
 
-            # 获取最后一个 token 的 logits
+            # Get the logits for the last generated token
             next_token_logits = outputs.logits[:, -1, :]
 
-            # 更新 past_key_values，以便下一步生成时使用
+            # Update past_key_values for the next iteration
             past_key_values = outputs.past_key_values
 
-            # 使用贪心解码或采样方法生成下一个 token
-            #next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
+            # Apply temperature scaling
+            next_token_logits = next_token_logits / temperature
+
+            # Apply top-k sampling
+            if top_k > 0:
+                top_k_values, _ = torch.topk(next_token_logits, top_k)
+                min_top_k_value = top_k_values[:, -1].unsqueeze(-1)
+                next_token_logits = torch.where(
+                    next_token_logits < min_top_k_value,
+                    torch.full_like(next_token_logits, float('-inf')),
+                    next_token_logits
+                )
+
+            # Apply top-p (nucleus) sampling
+            if top_p < 1.0:
+                sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
+                cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[:, 1:] = sorted_indices_to_remove[:, :-1].clone()
+                sorted_indices_to_remove[:, 0] = False
+                next_token_logits[sorted_indices[sorted_indices_to_remove]] = float('-inf')
 
             # Apply softmax to get probabilities
             next_token_probs = torch.softmax(next_token_logits, dim=-1)
@@ -465,13 +484,13 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             # Sample from the probability distribution
             next_token_id = torch.multinomial(next_token_probs, num_samples=1)
 
-            # 将生成的 token 添加到整个生成序列中
+            # Append the generated token to the sequence
             generated = torch.cat((generated, next_token_id), dim=1)
 
-            # 更新 input_ids 只包含新生成的 token，供下一轮生成使用
+            # Update input_ids to only include the newly generated token for the next iteration
             input_ids = next_token_id
 
-            # 检查结束标记，如果生成了 EOS token 则停止生成
+            # Check if the generated token is the EOS token
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
 
