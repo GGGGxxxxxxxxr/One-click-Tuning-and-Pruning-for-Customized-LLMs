@@ -440,11 +440,10 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
     with torch.no_grad():
         past_key_values = None  # Initialize past_key_values to None
         input_ids = generated  # Initial input
-        
+
         for _ in range(max_length):
             if masks is None:
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    # Use past_key_values for faster generation, only pass in the newly generated token
                     outputs = model(input_ids=input_ids, past_key_values=past_key_values, use_cache=True)
             else:
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
@@ -459,17 +458,17 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             # Apply temperature scaling
             next_token_logits = next_token_logits / temperature
 
-            # Apply top-k sampling
+            # Filter with top-k
             if top_k > 0:
                 top_k_values, _ = torch.topk(next_token_logits, top_k)
                 min_top_k_value = top_k_values[:, -1].unsqueeze(-1)
                 next_token_logits = torch.where(
                     next_token_logits < min_top_k_value,
-                    torch.full_like(next_token_logits, float('-inf')),
+                    torch.full_like(next_token_logits, float('-inf')).to(next_token_logits.device),
                     next_token_logits
                 )
 
-            # Apply top-p (nucleus) sampling
+            # Filter with top-p (nucleus sampling)
             if top_p < 1.0:
                 sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
                 cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
@@ -480,9 +479,18 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
             # Apply softmax to get probabilities
             next_token_probs = torch.softmax(next_token_logits, dim=-1)
+            
+            # Ensure no NaNs in the probability distribution
+            if torch.isnan(next_token_probs).any():
+                print("Warning: NaNs detected in the probability distribution.")
+                next_token_probs = torch.full_like(next_token_probs, 1e-10)
 
             # Sample from the probability distribution
-            next_token_id = torch.multinomial(next_token_probs, num_samples=1)
+            try:
+                next_token_id = torch.multinomial(next_token_probs, num_samples=1)
+            except RuntimeError as e:
+                print(f"Sampling error: {e}")
+                break
 
             # Append the generated token to the sequence
             generated = torch.cat((generated, next_token_id), dim=1)
