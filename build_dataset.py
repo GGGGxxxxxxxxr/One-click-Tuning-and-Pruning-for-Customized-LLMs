@@ -563,10 +563,12 @@ text_lengths = [len(example['text']) for example in legal_train]
 text_length_series = pd.Series(text_lengths)
 print(text_length_series.describe())
 '''
-'''
+
 legal_train,legal_val = formatted_billsum_dataset(2000, args=None)
+legal_train_1,legal_val_2 = formatted_casehold_dataset(13000, args=None)
+train = concatenate_datasets([legal_train_1, legal_train])
 print(legal_train[1])
-'''
+
 
 
 
