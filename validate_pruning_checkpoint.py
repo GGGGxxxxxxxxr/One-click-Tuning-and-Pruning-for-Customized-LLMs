@@ -498,7 +498,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             generated = torch.cat((generated, next_token_id), dim=1)
 
             # Update input_ids to only include the newly generated token for the next iteration
-            input_ids = next_token_id
+            input_ids = next_token_id.unsqueeze(0)
 
             # Check if the generated token is the EOS token
             if next_token_id.item() == tokenizer.eos_token_id:
