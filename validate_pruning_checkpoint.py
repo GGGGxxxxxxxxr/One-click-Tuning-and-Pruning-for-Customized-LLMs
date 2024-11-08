@@ -496,7 +496,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             next_token_id = torch.multinomial(next_token_probs, num_samples=1)
 
             # Append the generated token to the sequence
-            text = torch.cat((text, next_token_id), dim=1)
+            text = torch.cat((text, next_token_id), dim=0)
 
             # Update input_ids to only include the newly generated token for the next iteration
             input_ids = next_token_id.unsqueeze(0)
