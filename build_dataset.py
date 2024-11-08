@@ -449,6 +449,12 @@ def formatted_multilegalpile_dataset(num_samples=None):
     ds = load_dataset("json", data_files='nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl')['train']
     val_dataset = ds.remove_columns(["language", 'type', 'jurisdiction'])
 
+    val_dataset = val_dataset.map(lambda example: {'answer': ''})
+    
+    # If num_samples is specified, limit the dataset size
+    if num_samples is not None:
+        val_dataset = val_dataset.select(range(min(num_samples, len(ds))))
+    
     return val_dataset
 
 def create_legal_dataset(args):
