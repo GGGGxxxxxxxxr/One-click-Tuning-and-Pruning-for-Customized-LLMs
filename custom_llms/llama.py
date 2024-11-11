@@ -576,17 +576,26 @@ class LlamaSdpaAttention(LlamaAttention):
 
         bsz, q_len, _ = hidden_states.size()
 
+        # inference logic
+        # the mask would be applied after RotaryEmbedding to make sure there is no additional information remaining
         if self.training != True:
             query_states = self.q_proj(hidden_states)
             key_states   = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
+
+        # training logic
+        # LinearOutput = Original_Linear * mask + LoRA, LoRA is regularized via GroupLasso to approach the mask shape
+        # e.g, mask = [0, 1, 0, 1], [normal] indicate activations within normal range, 
+        # e-10/-11 indicates the protion where LoRA weight has been heavily regularized close to zero
+        # LinearOutput = [0, a, 0, b]      [e-10, normal, e-10, normal]
+        #                [0, a, 0, b]  +   [e-12, normal, e-12, normal]
+        #                [0, a, 0, b]      [e-11, normal, e-11, normal]
+
         else:
             if pruning_K_mask != None:
-                stacked_k_mask = torch.cat(pruning_K_mask, dim=0)
-                stacked_v_mask = torch.cat(pruning_V_mask, dim=0)
-                query_states = self.q_proj(hidden_states, stacked_k_mask)
-                key_states   = self.k_proj(hidden_states, stacked_k_mask)
-                value_states = self.v_proj(hidden_states, stacked_v_mask)
+                query_states = self.q_proj(hidden_states, pruning_K_mask)
+                key_states   = self.k_proj(hidden_states, pruning_K_mask)
+                value_states = self.v_proj(hidden_states, pruning_V_mask)
             else:
                 query_states = self.q_proj(hidden_states)
                 key_states   = self.k_proj(hidden_states)
@@ -619,12 +628,11 @@ class LlamaSdpaAttention(LlamaAttention):
         # apply ATO pruning mask if pruning_mask != None
         if self.training != True:
             if pruning_K_mask != None:
-                stacked_k_mask = torch.pow(torch.stack(pruning_K_mask).unsqueeze(0).unsqueeze(2),2)
-                stacked_v_mask = torch.stack(pruning_V_mask).unsqueeze(0).unsqueeze(2)
-                key_states   = key_states * stacked_k_mask
-                value_states = value_states * stacked_v_mask
+                query_states = query_states * pruning_K_mask
+                key_states   = key_states   * pruning_K_mask
+                value_states = value_states * pruning_V_mask
 
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        key_states   = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         causal_mask = attention_mask
@@ -659,7 +667,7 @@ class LlamaSdpaAttention(LlamaAttention):
             if pruning_out_mask != None:
                 attn_output = self.o_proj(attn_output) * pruning_out_mask
             else:
-                attn_output = self.o_proj(attn_output)
+                attn_output = self.o_proj(attn_output)     
         else:
             if pruning_out_mask != None:
                 attn_output = self.o_proj(attn_output, pruning_out_mask)
@@ -727,11 +735,17 @@ class LlamaDecoderLayer(nn.Module):
         # in the reverse order of <UProj&GateProj, OutProj, V*head, K*head>
         if pruning_mask != None:
             layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_mask]
-
+            assert len(layer_wise_masks) == 3, "make sure your input [mask_vec] has K, V, MLP_Up masks only, or fit with the version.0.2 implementation logic."
             m_umlp = layer_wise_masks[-1]
-            m_out  = layer_wise_masks[-2]
-            m_K    = layer_wise_masks[:self.self_attn.num_key_value_heads]
-            m_V    = layer_wise_masks[self.self_attn.num_key_value_heads : 2 * self.self_attn.num_key_value_heads]
+            m_out  = None 
+            m_K    = layer_wise_masks[-2]
+            m_V    = layer_wise_masks[-3]
+            
+            #m_umlp = layer_wise_masks[-1]
+            #m_out  = layer_wise_masks[-2]   ** no out_proj mask anymore for dimensional matching
+            #m_out  = None 
+            #m_K    = layer_wise_masks[:self.self_attn.num_key_value_heads]
+            #m_V    = layer_wise_masks[self.self_attn.num_key_value_heads : 2 * self.self_attn.num_key_value_heads]
 
         else:
             m_out = m_umlp = m_K = m_V = None

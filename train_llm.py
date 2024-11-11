@@ -43,7 +43,7 @@ def reduce_loss(loss):
 # the value matching loss
 # **usage:    match_loss(x, y = target_value)
 # **function: make x --> closer to target_value
-def match_loss(x, y, epsilon=1e-8):
+def match_loss(x, y, epsilon=1e-10):
     """
     Computes R(x, y) = log(max(x, y) / (min(x, y) + epsilon)) to avoid division by zero.
     
@@ -71,6 +71,7 @@ def match_loss(x, y, epsilon=1e-8):
     
     return loss
 #-----------------------------------------------------------------#
+
 
 def process_tensor_list(tensor_list):
     concatenated = torch.stack([torch.sum(tensor, dim=1) for tensor in tensor_list], dim=1)
@@ -109,6 +110,43 @@ def dim_alignment_loss(mask, num_key_value, match_loss):
     
     return torch.mean(alignment_loss)
 #-----------------------------------------------------------------#
+
+def caculate_remaining_parmams(pruning_masks, args):
+    if args.model == 'llama2-7b':
+        assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
+        m_K = pruning_masks[0]
+        m_V = pruning_masks[1]
+        m_out = pruning_masks[2]
+
+        # calculate q_proj, k_proj remaining params
+        # input dim is 4096 because the hidden_states of each layer is unpruned, as [down_proj] has no output pruning masks
+        # m_K [32, 4096] (repeated head-wise pruning mask [32, 128] for 32 times to expand into the linear mask)
+        dim_after_pruning_K_out = torch.sum(m_K, dim=1)
+        remaining_K_params  = 4096 * dim_after_pruning_K_out
+        remaining_QK_params = torch.sum(remaining_K_params * 2)
+
+        # calculate v_proj remaining params
+        dim_after_pruning_V_out = torch.sum(m_V, dim=1)
+        remaining_V_params = torch.sum(4096 * dim_after_pruning_V_out)
+
+        # calculate out_proj remaining params
+        remaining_out_params = torch.sum(4096 * dim_after_pruning_V_out)
+
+        # calculate mlp_up / gate remaining params
+        dim_after_pruning_up_out = torch.sum(m_out, dim=1)
+        remaining_up_gate_params = 2 * torch.sum(4096 * dim_after_pruning_up_out)
+
+        # calculate mlp_down remaining params
+        remaining_down_params = torch.sum(4096 * dim_after_pruning_up_out)
+
+        total_remaining_params = remaining_QK_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
+
+        return total_remaining_params
+    
+    else:
+        raise NotImplementedError
+
+        
 
 #-----------------------------------------------------------------#
 # step_wise forward() for target_llm param_tuning
@@ -199,12 +237,17 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
 #-----------------------------------------------------------------#
 # step_wise forward() for hypernet() param_tuning
-def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, num_key_value, pruning_contribution, scaler):
+def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, num_key_value, total_params, args):
+    '''
+    ** depreciated version.0.1, the pruning ratio is now calculated via more accurate [remaining_parameters] / [total_params]
+    ** previous implementation considers the PruningContribution of each [0] within different masking locations
+    ** We have encountered the issue that it is not that accurate and cannot satisfy accurate control.
     # acquire K, V, O, Up mask pruning contributions
     k_ratio = pruning_contribution["k_ratio"]
     v_ratio = pruning_contribution["v_ratio"]
     o_ratio = pruning_contribution["o_ratio"]
-    u_ratio = pruning_contribution["u_ratio"]
+    u_ratio = pruning_contribution["u_ratio"]  
+    '''
 
     # a) freeze llm & unfreeze hypernet()
     llm_model.eval()
@@ -218,7 +261,8 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(binary_mask_vec)
-    
+    assert len(mask) == 3, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
+
     # c) masked_llm forward() with 'pruning_mask = mask'
     seq_len = val_ids.shape[1]
 
@@ -235,16 +279,12 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     # ** constrain the pruning target
     # d) mask constrain: total pruning ratio + head-wise dimensional alignment
     # i) the total mask ratio is close to 0.5
-    # ** modified logic for the real pruning ratio into 0.5, each (0/1) within the maskVec would contribute differently to the total p
+    # ** modified logic for the real pruning ratio into 0.5
+    # ** [remaining_params] / [total_params]
     # ** we use hard_concrete here to acquire more accurate way of real_pruning simulation
     '''
-    **deprecated naive mask ratio constrain
-    mask_sum    = torch.sum(mask_vec)
-    total_count = mask_vec.numel()
-    '''
-    #binary_mask_vec = hard_concrete(mask_vec)
-    #mask = hypernet.module.transform_output(binary_mask_vec)
-
+    # DEPRECIATED in VERSION.0.2 UPDATE
+    # NO LONGER USE contribution to constrain pruning sparsity
     total_count =   k_ratio   * torch.cat(mask[:num_key_value]).numel() \
                     + v_ratio * torch.cat(mask[num_key_value : 2 * num_key_value]).numel() \
                     + o_ratio * mask[-2].numel() \
@@ -256,25 +296,37 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
                     + u_ratio * torch.sum(mask[-1]) 
     
     mask_ratio  = mask_sum / total_count
-    ratio_loss  = match_loss(mask_ratio, pruning_ratio_target)
+    '''
+    remaining_params = caculate_remaining_parmams(pruning_masks=mask, args=args)
+    mask_ratio       = remaining_params / total_params
+    ratio_loss       = match_loss(mask_ratio, pruning_ratio_target)
+
 
     # ii) the intra-head dimensional alignment (specifically, for mask_K & mask_V)
     # the first version of implementation is too harsh sometimes, so that the Hypernet() would tend to never prune any of the attention part.
     # we turn to penalize the max() remaining dimension of K, V within the same layer to formulate a softer restriction
     '''
+    # DEPRECIATED AFTER VERISON.0.2 UPDATE
+    ** The K(Q) mask and V mask are formulated into [layer_count, 4096 (num_head * head_dim)] instead of num_head * [layer_count, head_dim]
     alignment_loss = 0
     mask_k = mask[:num_key_value]
     alignment_loss += dim_alignment_loss(mask_k, num_key_value, match_loss)
     mask_v = mask[num_key_value: 2*num_key_value]
     alignment_loss += dim_alignment_loss(mask_v, num_key_value, match_loss)
-    '''
+    
     alignment_loss = 0
     mask_k = mask[:num_key_value]
     mask_v = mask[num_key_value: 2 * num_key_value]
-    assert len(mask_v) + len(mask_k) + 2 == len(mask), "error for extracting binary mask, please check."
+    assert len(mask_v) + len(mask_k) + 1 == len(mask), "error for extracting binary mask, please check."
+    
     alignment_loss += process_tensor_list(mask_k)
     alignment_loss += process_tensor_list(mask_v)
+    '''
 
+    mask_k = mask[0]
+    mask_v = mask[1]
+    remaining_K_out_dim = torch.sum()
+    
     # e) sum the loss
     hyper_loss = target_loss + 5 * ratio_loss + 0.0005 * alignment_loss
 

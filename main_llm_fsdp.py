@@ -402,7 +402,7 @@ def main():
             tokens = tokenizer(examples["text"], truncation=True, padding=False)
             
             # Add the EOS token ID at the end of each tokenized input
-            eos_token_id = tokenizer.eos_token_id
+            eos_token_id = tokenizer.eos_token_id 
             if eos_token_id is None:
                 raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
             

@@ -74,10 +74,15 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_s
         # a) [Unified K_split] [Unified V_split]
         lw_structure.append(head_dim)
         lw_structure.append(head_dim)
+
         # b) attn_output
-        lw_structure.append(hidden_size)
+        # ** we have revisited the implentation details, as for the residual-link connection capability after pruning,
+        # ** dimensional pruning on the out_projection would lead to mismatch between the dimension of  [residual] & [hidden_state]!
+        #lw_structure.append(hidden_size)
+
         # c) MLP_Up
         lw_structure.append(intermediate_size)
+
         print("=====> Prunable Structure for One-Layer: <=====")
         print(lw_structure)
     else:
@@ -122,6 +127,8 @@ def attn_mask_transformation(mask_list, num_heads, bsz, q_len, head_dim):
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
+## ** DEPRECIATED
+# version.0.2 update: We no longer use pruning_contribution for such sparsity control
 # ** remember: each dimensional mask [0/1] would possibly result in the disabling of the current weight matrix & the sequantial weight matrix!
 # ** so that a ratio ought to take care both **
 # calculate pruning ratio contribution for each individual [0/1] (masked-out dimension indicator) based on model.Config
@@ -142,9 +149,17 @@ def pruning_ratio_contribution(model_cfg):
         "o_ratio": o_mask_ratio,
         "u_ratio": u_mask_ratio
     }
+
 #-----------------------------------------------------------------#
 
+## ** UPDATED
+# version.0.2: we now use more accurate param counting for sparsity control, as number of params is our main pruning focus.
+# this function is for the total params counting 
+def count_total_params(model):
+    return sum(p.numel() for p in model.parameters())
 
+def count_trainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 class LoRALinear(nn.Module):

@@ -264,7 +264,6 @@ class LLM_HyperStructure(nn.Module):
 
         return out
 
-
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
         if self.pruning_scheme == 'inner':
@@ -284,15 +283,19 @@ class LLM_HyperStructure(nn.Module):
                 end                 = start + size
                 sliced_input_tensor = inputs[:, start : end]
 
-                if i < 2:  # we need to extend K_V_head_mask for the whole layer (multi-head)
-                    replicated_slices = [sliced_input_tensor] * self.num_kv_heads
-                    arch_vector.extend(replicated_slices)
+                ## **
+                ## we need to extend K_V_head_mask for the whole layer (multi-head)
+                ## for K, V mask, we repeat a layer-uniform [head-wise] pruning for the actual K_proj / V_proj mask for more efficient implementation
+                if i < 2:  
+                    #replicated_slices = [sliced_input_tensor] * self.num_kv_heads
+                    #arch_vector.extend(replicated_slices)
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
                 else:
                     arch_vector.append(sliced_input_tensor)
                 start = end
-
+            assert len(arch_vector) == 3, "K(Q), V , MLP_up(Gate) masks are expected, 3 seperate masks in total, please check."
             return arch_vector
-
 
     def vector2mask(self, inputs):
         """(Deprecated) Transform vector to mask - not used in current ATO's application."""
