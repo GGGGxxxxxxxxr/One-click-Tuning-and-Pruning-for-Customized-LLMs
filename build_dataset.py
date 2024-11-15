@@ -466,11 +466,12 @@ def formatted_billsum_dataset(num_samples=None, args=None):
     return train_dataset, val_dataset
 
 
-def formatted_multilegalpile_dataset(num_samples=None):
+def formatted_multilegalpile_dataset(args=None, num_samples=None):
     ds = load_dataset("json", data_files='nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl')['train']
     val_dataset = ds.remove_columns(["language", 'type', 'jurisdiction'])
 
-    val_dataset = val_dataset.map(lambda example: {'answer': ''})
+    if args.loss_on_answer:
+        val_dataset = val_dataset.map(lambda example: {'answer': ''})
     
     # If num_samples is specified, limit the dataset size
     if num_samples is not None:
@@ -482,7 +483,7 @@ def create_legal_dataset(args):
     # 加载数据集
     billsum_train, billsum_val = formatted_billsum_dataset(num_samples=2000, args=args)
     casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000, args=args)
-    perplexity_val = formatted_multilegalpile_dataset()
+    perplexity_val = formatted_multilegalpile_dataset(args=args)
 
     # 合并训练集和验证集
     combined_train = concatenate_datasets([billsum_train, casehold_train])
