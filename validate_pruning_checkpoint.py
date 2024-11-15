@@ -562,7 +562,7 @@ def generate_predictions(model, tokenizer, input_text, masks):
     # Get next token predictions
     next_token_id = torch.argmax(probabilities, dim=-1)
     next_token = tokenizer.decode(next_token_id[0])
-
+    print(next_token)
     return next_token 
 
 def evaluate_perplexity_on_harrison(model, tokenizer, masks):
