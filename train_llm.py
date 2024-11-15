@@ -378,7 +378,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
     ratio_loss_threshold = 0.005                 # 0.005 equals to a gap range of 0.5%
-    ratio_loss_consecutive_steps = 50
+    ratio_loss_consecutive_steps = 400
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 
     gl_loss_counter = 0
@@ -573,7 +573,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
                     print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
 
-                if epoch <= (args.start_epoch_control + args.control_epochs):
+                if epoch < (args.start_epoch_control + args.control_epochs):
                     print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
                     print(f"Current AlignmentLoss: {reduced_align_loss}")
 
