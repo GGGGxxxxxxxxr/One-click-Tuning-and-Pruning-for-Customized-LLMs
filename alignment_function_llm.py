@@ -210,9 +210,9 @@ class Group_Lasso_regularization(nn.Module):
             cur_layer = target_llm.model.layers[layer_idx]                                          # CasualLM.model -> LMmodel.layer -> DecoderLayer
             layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
             m_umlp = layer_wise_masks[-1]
-            m_out  = layer_wise_masks[-2]
-            m_K    = layer_wise_masks[:self.cfg.num_key_value_heads]
-            m_V    = layer_wise_masks[self.cfg.num_key_value_heads : 2 * self.cfg.num_key_value_heads]
+            #m_out  = layer_wise_masks[-2]
+            m_K    = layer_wise_masks[0]
+            m_V    = layer_wise_masks[1]
 
             # process MLP_up_mask for LoRA weights
             mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
@@ -225,6 +225,7 @@ class Group_Lasso_regularization(nn.Module):
             gl_list.append(gl_loss)
 
             
+            '''
             # process attn_out_mask
             attn_out_lora_B = cur_layer.self_attn.o_proj.lora_B
             mlp_g_lora_A    = cur_layer.mlp.gate_proj.lora_A
@@ -234,7 +235,8 @@ class Group_Lasso_regularization(nn.Module):
                           + ((1 - m_out).unsqueeze(0) * mlp_g_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
                           + ((1 - m_out).unsqueeze(0) * mlp_u_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
-
+            '''
+            
             # process attn_V_mask
             # a) concate V_split_masks into mask for original WV
             V_mask = V_mask_repeated = m_V
