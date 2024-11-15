@@ -161,13 +161,18 @@ def formatted_HQS_dataset(num_samples=None):
     if num_samples is not None:
         num_samples = min(num_samples, len(training_dataset))
         training_dataset = training_dataset.select(range(num_samples))
-    
+
+    num_random_val_samples = 500
+    indices = random.sample(range(len(training_dataset)), num_random_val_samples)
+    extra_validation_dataset = training_dataset.select(indices)
+    extra_validation_dataset = extra_validation_dataset.map(format_hqs_example).remove_columns(["CHQ", "Summary"])
+
     # 应用格式化函数
     training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
     validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
 
 
-    return training_dataset, validation_dataset
+    return training_dataset, extra_validation_dataset #validation_dataset
 #-----------------------------------------------------------------#
 
 
@@ -237,17 +242,25 @@ def formatted_PubMedQA_dataset(num_samples=None):
     training_dataset = load_dataset("qiaojin/PubMedQA", "pqa_artificial")['train'].remove_columns(["pubid", "long_answer"])
     validation_dataset = load_dataset("qiaojin/PubMedQA", "pqa_labeled")['train'].remove_columns(["pubid", "long_answer"])
     
+    num_random_val_samples = 500
+    indices = random.sample(range(len(training_dataset)), num_random_val_samples)
+    extra_validation_dataset = training_dataset.select(indices)
+    extra_validation_dataset = extra_validation_dataset.map(
+        format_pubmedqa_example,
+        remove_columns=["context", "question", "final_decision"]
+    )
+
     # 如果指定了 num_samples，选择前 num_samples 条数据作为训练集
     if num_samples is not None:
         num_samples = min(num_samples, len(training_dataset))
         training_dataset = training_dataset.select(range(num_samples))
-    
+
     # 对训练集应用格式化函数并移除原始列
     training_dataset = training_dataset.map(
         format_pubmedqa_example,
         remove_columns=["context", "question", "final_decision"]
     )
-    
+
     # 对验证集应用格式化函数并移除原始列
     validation_dataset = validation_dataset.map(
         format_pubmedqa_example,
@@ -261,18 +274,25 @@ def formatted_PubMedQA_dataset(num_samples=None):
 
     training_dataset = concatenate_datasets([training_dataset, raw_training_dataset])
 
-    return training_dataset, validation_dataset
+    return training_dataset, extra_validation_dataset #validation_dataset
 
 def formatted_intermedMed_dataset(num_samples=None):
     train_data_file='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
     val_data_file='nlp_dataset_collections/internalMed/internalMed_test.jsonl'
     train_dataset = load_dataset('json', data_files=train_data_file, split='train')
     val_dataset = load_dataset('json', data_files=val_data_file, split='train')
+
+    num_random_val_samples = 1000
+    indices = random.sample(range(len(train_dataset)), num_random_val_samples)
+    extra_validation_dataset = train_dataset.select(indices)
+
     if num_samples is not None:
         num_samples = min(num_samples, len(train_dataset))
         train_dataset = train_dataset.select(range(num_samples))
 
-    return train_dataset, val_dataset
+    # for convincing results, we no longer use testing data for validation
+    
+    return train_dataset, extra_validation_dataset
 
 #-------------------- 合并数据集 --------------------#
 def create_medical_dataset():
