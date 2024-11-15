@@ -213,7 +213,8 @@ class Group_Lasso_regularization(nn.Module):
             #m_out  = layer_wise_masks[-2]
             m_K    = layer_wise_masks[0]
             m_V    = layer_wise_masks[1]
-
+            assert len(layer_wise_masks) == 3, 'check the implementation in [lora_forward]'
+            
             # process MLP_up_mask for LoRA weights
             mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
@@ -236,7 +237,7 @@ class Group_Lasso_regularization(nn.Module):
                           + ((1 - m_out).unsqueeze(0) * mlp_u_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
             '''
-            
+
             # process attn_V_mask
             # a) concate V_split_masks into mask for original WV
             V_mask = V_mask_repeated = m_V
