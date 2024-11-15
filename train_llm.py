@@ -572,10 +572,12 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
                     mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
                     print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
-                                
+
+                if epoch >= (args.start_epoch_control + args.control_epochs):
+                    print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
+                    print(f"Current AlignmentLoss: {reduced_align_loss}")
+                            
                 start_time = time.time()
-                print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
-                print(f"Current AlignmentLoss: {reduced_align_loss}")
 
         if terminate_training == True:
             print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated rightnow.")

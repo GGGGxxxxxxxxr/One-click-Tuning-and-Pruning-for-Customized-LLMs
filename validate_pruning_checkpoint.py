@@ -23,7 +23,7 @@ def transform_output(inputs):
     return arch_vector
 
 def transform_output_layer_uniform(inputs):
-    lw_structure = [128] * 2 + [4096] + [11008]
+    lw_structure = [128] * 2 + [11008]
     num_kv_heads = 32
     arch_vector = []
     start = 0
@@ -32,8 +32,8 @@ def transform_output_layer_uniform(inputs):
         sliced_input_tensor = inputs[:, start:end]
 
         if i < 2:  # Extend K_V_head_mask for the whole layer (multi-head)
-            replicated_slices = [sliced_input_tensor] * num_kv_heads
-            arch_vector.extend(replicated_slices)
+            replicated_slices = sliced_input_tensor.repeat(1, num_kv_heads)
+            arch_vector.append(replicated_slices)
         else:
             arch_vector.append(sliced_input_tensor)
         start = end
@@ -122,15 +122,15 @@ def observe_weight_masks(model, model_cfg, masks):
 
     # View current pruning pattern
     print("Viewing current pruning pattern.")
-    attn_k_mask = masks[:32]
-    attn_v_mask = masks[32:64]
-    attn_out_mask = masks[-2]
-    attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
-    attn_v_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
-    attn_o_pruning_dim = [(1 - attn_out_mask).sum(dim=1)]
-    print(f"attn_k_pruning_pattern: {attn_k_pruning_dim}")
-    print(f"attn_v_pruning_pattern: {attn_v_pruning_dim}")
-    print(f"attn_o_pruning_pattern: {attn_o_pruning_dim}")
+    attn_k_mask = masks[0]
+    attn_v_mask = masks[1]
+    #attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
+    attn_k_after_pruning = torch.sum(attn_k_mask, dim=1) / 32
+    attn_v_after_pruning = torch.sum(attn_v_after_pruning, dim = 1) / 32
+    #attn_v_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
+    print(f"attn_k_pruning_pattern: {attn_k_after_pruning}")
+    print(f"attn_v_pruning_pattern: {attn_v_after_pruning}")
+    #print(f"attn_o_pruning_pattern: {attn_o_pruning_dim}")
 
     # Debugging for Group Lasso Weight Projection
     print("Viewing pruning patterns for each layer.")
@@ -660,7 +660,7 @@ if __name__ == "__main__":
     base = False
     lora = True
     if base != True:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora_qa.pth.tar"
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
     else:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
 
