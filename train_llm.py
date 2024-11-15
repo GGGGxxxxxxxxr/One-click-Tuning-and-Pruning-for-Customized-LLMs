@@ -378,7 +378,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     # 添加计数器和标志
     ratio_loss_counter = 0  # 用于计数 ratio_loss 连续小于阈值的次数
     ratio_loss_threshold = 0.005                 # 0.005 equals to a gap range of 0.5%
-    ratio_loss_consecutive_steps = 100
+    ratio_loss_consecutive_steps = 50
     skip_hypernet_training = skip_hyper_training  # 标志：是否跳过 hypernet 的训练
 
     gl_loss_counter = 0
@@ -575,7 +575,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                                 
                 start_time = time.time()
                 print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
-                
+                print(f"Current AlignmentLoss: {reduced_align_loss}")
+
         if terminate_training == True:
             print(f"The GroupLasso Loss has been smaller than {gl_loss_threshold} for {gl_loss_consecutive_steps} steps, the training would be terminated rightnow.")
             break
