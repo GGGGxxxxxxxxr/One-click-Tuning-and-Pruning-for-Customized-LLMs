@@ -237,7 +237,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
 #-----------------------------------------------------------------#
 # step_wise forward() for hypernet() param_tuning
-def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, num_key_value, total_params, args):
+def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, total_params, args):
     '''
     ** depreciated version.0.1, the pruning ratio is now calculated via more accurate [remaining_parameters] / [total_params]
     ** previous implementation considers the PruningContribution of each [0] within different masking locations
@@ -361,7 +361,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 # ** GroupLasso is applied for WeightProjection (directly imported from ATO's raw implementation)
 # ** [Calibration_Dataset] for hypernet() training is a small portion of data from the NLP dataset['train']
 # ** Casual LLM takes shifted [input_ids] as the self-supervised training labels for NEXT_TOKEN_PREDICTION
-def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, scaler_hyper, pruning_contribution, skip_hyper_training):
+def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, scaler, scaler_hyper, total_params, skip_hyper_training):
     print(f"Epoch {epoch} starting.............")
     # initialize training loss holder
     llm_loss_ave       = AverageMeter()
@@ -424,7 +424,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     attn_mask=val_inputs["attention_mask"], 
                     pruning_ratio_target=pruning_ratio_target, 
                     num_key_value=num_key_value, 
-                    pruning_contribution=pruning_contribution,
+                    total_params=total_params,
                     scaler=scaler_hyper
                 )
 
