@@ -423,7 +423,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     val_ids=val_inputs["input_ids"], 
                     attn_mask=val_inputs["attention_mask"], 
                     pruning_ratio_target=pruning_ratio_target, 
-                    num_key_value=num_key_value, 
+                    #num_key_value=num_key_value, 
                     total_params=total_params,
                     scaler=scaler_hyper
                 )
