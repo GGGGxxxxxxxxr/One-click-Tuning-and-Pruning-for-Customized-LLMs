@@ -329,7 +329,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
     remaining_V_out_dim     = torch.sum(mask_v, dim=1)  #[32,]
     max_remaining_K_out_dim = torch.max(remaining_K_out_dim)
     max_remaining_V_out_dim = torch.max(remaining_V_out_dim)
-    alignment_loss          = max_remaining_K_out_dim + max_remaining_V_out_dim
+    alignment_loss          = (max_remaining_K_out_dim + max_remaining_V_out_dim) / 32
     
     # e) sum the loss
     hyper_loss = target_loss + 5 * ratio_loss + 0.00005 * alignment_loss
@@ -576,7 +576,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 if epoch >= (args.start_epoch_control + args.control_epochs):
                     print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
                     print(f"Current AlignmentLoss: {reduced_align_loss}")
-                            
+
                 start_time = time.time()
 
         if terminate_training == True:
