@@ -627,7 +627,10 @@ class LlamaSdpaAttention(LlamaAttention):
         # APPLY K, V (Q) mask here
         # apply ATO pruning mask if pruning_mask != None
         if self.training != True:
-            if pruning_K_mask != None:
+            if pruning_K_mask != None: #[4096,]
+                pruning_K_mask = pruning_K_mask.view(32, 128).unsqueeze(0).unsqueeze(2)
+                pruning_V_mask = pruning_V_mask.view(32, 128).unsqueeze(0).unsqueeze(2)
+                
                 query_states = query_states * pruning_K_mask
                 key_states   = key_states   * pruning_K_mask
                 value_states = value_states * pruning_V_mask
