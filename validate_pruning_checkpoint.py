@@ -362,6 +362,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
 
         input_text = (
             f"A question posted by a patient is '{question}'. "
+            f"Please summary this bill."
             f"The summary of the question is '"
         )
 
@@ -404,7 +405,7 @@ def evaluate_billsum(model, tokenizer, masks):
 
         input_text = (
         f"A bill text is '{example['source']}'. "
-        f"The summary of the bill is"
+        f"The summary of the bill is '"
         )
 
         generated_summary = generate_summary(model, tokenizer, input_text, masks)
