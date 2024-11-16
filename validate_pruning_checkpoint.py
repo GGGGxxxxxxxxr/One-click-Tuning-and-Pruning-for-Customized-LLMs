@@ -408,7 +408,7 @@ def evaluate_billsum(model, tokenizer, masks):
         f"The summary of the bill is '"
         )
 
-        generated_summary = generate_summary(model, tokenizer, input_text, masks)
+        generated_summary = generate_summary(model, tokenizer, input_text, masks, False, 600)
 
         references.append(reference_summary)
         hypotheses.append(generated_summary)
@@ -507,7 +507,7 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
 
     return text
 
-def generate_summary(model, tokenizer, input_text, masks, free=False, max_length=200):
+def generate_summary(model, tokenizer, input_text, masks, free=False, max_length=500):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to('cuda')
 
     generated_ids = generate_text_custom(
