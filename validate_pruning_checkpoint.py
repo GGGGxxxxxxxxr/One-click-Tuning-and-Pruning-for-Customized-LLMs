@@ -714,7 +714,7 @@ if __name__ == "__main__":
     base = False
     lora = True
     if base != True:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora_legal_newcodebase_answer.pth.tar"
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora_qa.pth.tar"
     else:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
 
