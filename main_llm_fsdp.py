@@ -447,6 +447,8 @@ def main():
         tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text"])
         tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text"])
 
+    print(tokenized_datasets)
+    print(tokenized_valsets)
     print(tokenized_datasets[85])
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
