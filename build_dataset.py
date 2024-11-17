@@ -614,7 +614,7 @@ def format_alpaca_qa(example):
 
 def formatted_alpaca_dataset(args=None, num_val_samples=5000):
     # load dataset [51.8k] pieces total
-    dataset = load_dataset("yahma/aplca-cleaned")['train']
+    dataset = load_dataset("yahma/alpaca-cleaned")['train']
 
     # format alpaca with official alpaca dataset
     dataset = dataset.map(format_alpaca_qa).remove_columns(['output', 'input', 'instruction'])
