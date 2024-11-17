@@ -416,9 +416,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 val_inputs = next(nlp_hypernet_iter)
                 optimizer_hyper.zero_grad()
 
-                print(val_inputs["input_ids"])
-                print(val_inputs["labels"])
-
                 # 调用 hypernet_step 进行超网训练
                 hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(
                     hypernet=hyper_net, 
