@@ -642,6 +642,4 @@ print(legal_train[1])
 '''
 
 
-train, val = formatted_alpaca_dataset(None, 5000)
-s = 1 + 1
 
