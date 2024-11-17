@@ -405,6 +405,7 @@ def evaluate_billsum(model, tokenizer, masks):
 
         input_text = (
         f"A bill text is '{example['source']}'. "
+        f"Please summart this bill."
         f"The summary of the bill is"
         )
 
