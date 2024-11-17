@@ -409,14 +409,15 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     assert len(nlp_hypernet_dataloader) != 0, "Error: The nlp_hypernet_dataloader is empty."
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
     for i, text_input in enumerate(nlp_dataloader):
-        print(val_inputs["input_ids"])
-        print(val_inputs["labels"])
         # Step 1: Hypernet 训练及生成新 Mask
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs) and not skip_hypernet_training:
             if (i + 1) % args.control_step == 0:
                 # 从验证集获取数据用于 Hypernet 的训练
                 val_inputs = next(nlp_hypernet_iter)
                 optimizer_hyper.zero_grad()
+
+                print(val_inputs["input_ids"])
+                print(val_inputs["labels"])
 
                 # 调用 hypernet_step 进行超网训练
                 hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(
