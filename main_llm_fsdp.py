@@ -41,7 +41,7 @@ from torch.distributed.fsdp.wrap import (
 import bitsandbytes as bnb
 
 # llm-related library import
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding, DataCollatorForSeq2Seq
 from datasets import load_dataset
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures, count_total_params, count_trainable_parameters
@@ -419,8 +419,8 @@ def main():
             if 'answer' not in examples:
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
             
-            inputs = tokenizer(examples["text"], truncation=True, padding=False)
-            answers = tokenizer(examples["answer"], truncation=True, padding=False)
+            inputs = tokenizer(examples["text"], padding=False)
+            answers = tokenizer(examples["answer"], padding=False)
             
             # Get EOS token ID
             eos_token_id = tokenizer.eos_token_id
@@ -451,7 +451,7 @@ def main():
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
-    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding=True)
+    data_collator  = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
