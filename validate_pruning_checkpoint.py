@@ -729,7 +729,7 @@ if __name__ == "__main__":
         elif dataset_name == 'free':
             general_text_completion(model, tokenizer, masks)
         elif dataset_name == 'instruct':
-            evaluate_instruction(model, tokenizer, masks)
+            evaluate_instruction(model, tokenizer, None)
         else:
             evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
             print("-" * 50)  # 分隔线，便于阅读输出
