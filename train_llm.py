@@ -409,6 +409,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     assert len(nlp_hypernet_dataloader) != 0, "Error: The nlp_hypernet_dataloader is empty."
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
     for i, text_input in enumerate(nlp_dataloader):
+        print(val_inputs["input_ids"])
+        print(val_inputs["labels"])
         # Step 1: Hypernet 训练及生成新 Mask
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs) and not skip_hypernet_training:
             if (i + 1) % args.control_step == 0:
