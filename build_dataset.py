@@ -590,6 +590,42 @@ def formatted_AGNews_dataset():
 #-----------------------------------------------------------------#
 
 
+def format_alpaca_qa(example):
+    response       = example["output"]
+    optional_input = example["input"]
+    instruction    = example["instruction"]
+
+    # optional_input is empty, in Alpaca dataset, it is usually a simple QA
+    if not optional_input:
+        input_text = (
+                        f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n"
+                        f"### Instruction:\n{instruction}\n\n"
+                        f"### Response:\n"
+                    )
+    # optional_input is not empty, then it is usually a instruct related to the input (input is usually a long text or some conditions)
+    else:
+        input_text = (
+                        f"Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
+                        f"### Instruction:\n{instruction}\n\n### Input:\n{optional_input}\n\n"
+                        f"### Response:\n"
+        )
+
+    return {'text': input_text, 'answer': response}
+
+def formatted_alpaca_dataset(args=None, num_val_samples=5000):
+    # load dataset [51.8k] pieces total
+    dataset = load_dataset("yahma/aplca-cleaned")['train']
+
+    # format alpaca with official alpaca dataset
+    dataset = dataset.map(format_alpaca_qa).remove_columns(['output', 'input', 'instruction'])
+    
+    # random sample [num_val_sample] pieces serving as validation_data for mask training
+    random_sample_indices = random.sample(range(len(dataset)), num_val_samples)
+    val_dataset           = dataset.select(random_sample_indices)
+
+    return dataset, val_dataset
+
+
 '''
 legal_train, legal_val = create_legal_dataset()
 text_lengths = [len(example['text']) for example in legal_train]
