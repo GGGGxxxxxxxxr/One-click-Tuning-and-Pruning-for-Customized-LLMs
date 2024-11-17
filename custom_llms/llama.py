@@ -741,8 +741,8 @@ class LlamaDecoderLayer(nn.Module):
             assert len(layer_wise_masks) == 3, "make sure your input [mask_vec] has K, V, MLP_Up masks only, or fit with the version.0.2 implementation logic."
             m_umlp = layer_wise_masks[-1]
             m_out  = None 
-            m_K    = layer_wise_masks[-2]
-            m_V    = layer_wise_masks[-3]
+            m_V    = layer_wise_masks[-2]
+            m_K    = layer_wise_masks[-3]
             
             #m_umlp = layer_wise_masks[-1]
             #m_out  = layer_wise_masks[-2]   ** no out_proj mask anymore for dimensional matching
