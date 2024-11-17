@@ -656,6 +656,59 @@ def general_text_completion(model, tokenizer, masks):
         generated_text = generate_summary(model, tokenizer, user_input, masks, True)
         print(f"续写内容:\n{generated_text}\n")
 
+def evaluate_instruction(model, tokenizer, masks):
+    """
+    评估模型，用户输入 instruction 和 optional_input，格式化输入并生成响应。
+
+    参数:
+        model: 预训练的语言模型。
+        tokenizer: 对应的分词器。
+        masks: 生成时需要的掩码或其他参数。
+
+    返回:
+        None
+    """
+    print("\n--- 指令评估模式 ---")
+    print("请输入您的指令（输入 'exit' 退出）：")
+
+    while True:
+        instruction = input("Instruction: ")
+        if instruction.lower() == 'exit':
+            print("退出指令评估模式。\n")
+            break
+        elif not instruction.strip():
+            print("指令为空，请重新输入。")
+            continue
+
+        optional_input = input("Optional Input（若无请直接按 Enter）: ")
+
+        # 根据训练格式格式化输入文本
+        if not optional_input.strip():
+            input_text = (
+                f"Below is an instruction that describes a task. "
+                f"Write a response that appropriately completes the request.\n\n"
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Response:\n"
+            )
+        else:
+            input_text = (
+                f"Below is an instruction that describes a task, paired with an input that provides further context. "
+                f"Write a response that appropriately completes the request.\n\n"
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Input:\n{optional_input}\n\n"
+                f"### Response:\n"
+            )
+
+        generated_text = generate_summary(model, tokenizer, input_text, masks, True)
+
+        # 提取 '### Response:\n' 之后的内容作为模型的响应
+        response_start = generated_text.find("### Response:\n")
+        if response_start != -1:
+            response = generated_text[response_start + len("### Response:\n"):].strip()
+        else:
+            response = generated_text.strip()
+
+        print(f"Answer:\n{response}\n")
 
 if __name__ == "__main__":
     base = False
