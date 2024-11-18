@@ -266,7 +266,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         
         if "contr" in prediction_base:
             prediction_base = "contradiction"
-        elif "entai" in prediction_base:
+        elif "ent" in prediction_base:
             prediction_base = "entailment"
         elif "neut" in prediction_base:
             prediction_base = "neutral"
