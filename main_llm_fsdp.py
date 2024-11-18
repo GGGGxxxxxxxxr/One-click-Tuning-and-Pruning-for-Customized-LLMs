@@ -405,7 +405,7 @@ def main():
         if not args.loss_on_answer:
             # Tokenize with truncation enabled but without padding
             inputs  = tokenizer(examples["text"], truncation=True, padding=False)
-            
+
             if examples["answer"]:
                 answers = tokenizer(examples["answer"], truncation=True, padding=False)
                 # Add the EOS token ID at the end of each tokenized input
@@ -459,8 +459,8 @@ def main():
         tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
         tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
     else:
-        tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text"])
-        tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text"])
+        tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+        tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
 
     print(tokenized_datasets)
     print(tokenized_valsets)
