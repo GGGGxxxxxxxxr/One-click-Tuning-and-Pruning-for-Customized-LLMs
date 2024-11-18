@@ -69,29 +69,36 @@ def format_mednli_example_qa(example):
     
 
 def format_mednli_example(example):
-    # 提取必要字段
+    # extract the info pieces
     sentence1 = example['sentence1']
     sentence2 = example['sentence2']
     gold_label = example['gold_label']
     
-    # 根据 gold_label 确定 trailing 文本
+    instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
+    optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
+
+    # determine the formatted response
     if gold_label == "entailment":
-        trailing = "the hypothesis is true given the premise."
+        trailing = "the hypothesis is true given the premise"
     elif gold_label == "contradiction":
-        trailing = "the hypothesis is false given the premise."
+        trailing = "the hypothesis is false given the premise"
     elif gold_label == "neutral":
-        trailing = "the hypothesis is undetermined given the premise."
+        trailing = "the hypothesis is undetermined given the premise"
     else:
         trailing = "the relationship is unknown."
-    
-    # 根据提供的模板格式化文本
-    formatted_text = (
-        f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
-        f"Their relationship is '{gold_label}', and this means {trailing}"
+    response = f"Their relationship is '{gold_label}', and this means {trailing}."
+
+    # follow Alpaca format to build the input
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n{response}"
     )
     
-    # 返回包含新字段的字典
-    return {'text': formatted_text}
+    # return 'text' (question prompt) & 'answer' (expected response prompt)
+    return {'text': input_text}
 
 def formatted_MedNLI_dataset(
     train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl',
@@ -193,18 +200,30 @@ def format_hqs_example_qa(example):
 
 
 def format_hqs_example(example):
-    # 提取问题
+    # 提取必要的信息
     question = extract_question(example['CHQ'])
-    summary =  extract_question(example['Summary'])
-    
-    # 根据模板格式化文本
-    formatted_text = (
-        f"A question posted by a patient is '{question}'. "
-        f"The summary of the question is '{summary}'."
+    summary = extract_question(example['Summary'])
+
+    # 定义 instruction
+    instruction = "Summarize the following question from a patient."
+
+    # 构建 optional_input
+    optional_input = f"Patient's question: '{question}'"
+
+    # 生成 response
+    response = f"The summary of the patient's question is: '{summary}'."
+
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n{response}"
     )
-    
-    # 返回包含新字段的字典
-    return {'text': formatted_text}
+
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text}
 
 def formatted_HQS_dataset(num_samples=None, args=None):
     # 加载数据集并移除不需要的列
@@ -260,30 +279,40 @@ def formatted_HQS_dataset(num_samples=None, args=None):
 # ** 构建具有指定文本模板和采样的 PubMedQA 数据集
 
 def format_pubmedqa_example(example):
-    # 提取必要字段
     context = example['context']['contexts']
     question = example['question']
     final_decision = example['final_decision']
-    
+
+    # 定义 instruction
+    instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
+
+    # 构建 optional_input
+    optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
+
     # 根据 final_decision 确定 trailing 文本
-    if final_decision == "yes":
+    if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
-    elif final_decision == "no":
+    elif final_decision.lower() == "no":
         trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
-    elif final_decision == "maybe":
+    elif final_decision.lower() == "maybe":
         trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
     else:
         trailing = "the answer is unknown."
-    
-    # 根据提供的模板格式化文本
-    formatted_text = (
-        f"The abstract of a biomedical research article is '{context}'. "
-        f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
-        f"The answer is '{final_decision}', which indicates {trailing}"
+
+    # 生成 response
+    response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
+
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n{response}"
     )
-    
-    # 返回包含新字段的字典
-    return {'text': formatted_text}
+
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text}
 
 def format_pubmedqa_example_qa(example):
     # 提取必要的信息
@@ -323,30 +352,40 @@ def format_pubmedqa_example_qa(example):
     return {'text': input_text, 'answer': response}
 
 def format_pubmedqa_example_raw(example):
-    # 提取必要字段
     context = example['CONTEXTS']
     question = example['QUESTION']
     final_decision = example['final_decision']
     
+    # 定义 instruction
+    instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
+    
+    # 构建 optional_input
+    optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
+    
     # 根据 final_decision 确定 trailing 文本
-    if final_decision == "yes":
+    if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
-    elif final_decision == "no":
+    elif final_decision.lower() == "no":
         trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
-    elif final_decision == "maybe":
+    elif final_decision.lower() == "maybe":
         trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
     else:
         trailing = "the answer is unknown."
     
-    # 根据提供的模板格式化文本
-    formatted_text = (
-        f"The abstract of a biomedical research article is '{context}'. "
-        f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
-        f"The answer is '{final_decision}', which indicates {trailing}"
+    # 生成 response
+    response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
+    
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n{response}"
     )
     
-    # 返回包含新字段的字典
-    return {'text': formatted_text}
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text}
 
 def format_pubmedqa_example_raw_qa(example):
     # 提取必要字段
@@ -384,6 +423,7 @@ def format_pubmedqa_example_raw_qa(example):
     
     # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
+
 
 def formatted_PubMedQA_dataset(num_samples=None, args=None):
     # 从 Hugging Face 加载医学领域的集合
