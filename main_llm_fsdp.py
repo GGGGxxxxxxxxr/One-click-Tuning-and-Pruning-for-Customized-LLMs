@@ -420,6 +420,10 @@ def main():
             # Ensure 'answer' key is present, otherwise handle it gracefully
             if 'answer' not in examples:
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
+            
+            if examples["text"] is None or examples["answer"] is None:
+                print("Example with None value:", examples)
+        
             inputs = tokenizer(examples["text"], padding=False)
             answers = tokenizer(examples["answer"], padding=False)
             
