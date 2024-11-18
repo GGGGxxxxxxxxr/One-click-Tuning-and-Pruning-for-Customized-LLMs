@@ -368,7 +368,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
             f"Write a response that appropriately completes the request.\n\n"
             f"### Instruction:\n{instruction}\n\n"
             f"### Input:\n{optional_input}\n\n"
-            f"### Response:\n"
+            f"### Response:\nThe summary of the patient's question is: '"
         )
 
         generated_summary = generate_summary(model, tokenizer, input_text, masks)
