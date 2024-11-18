@@ -257,7 +257,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         f"Write a response that appropriately completes the request.\n\n"
         f"### Instruction:\n{instruction}\n\n"
         f"### Input:\n{optional_input}\n\n"
-        f"### Response:\nTheir relationship is '"
+        f"### Response:\n"
     )
         
         #prediction_base = generate_predictions(model, tokenizer, input_text, masks)
