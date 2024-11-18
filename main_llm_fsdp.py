@@ -382,7 +382,7 @@ def main():
     elif args.dataset == 'AGNews':
         nlp_dataset, val_dataset = formatted_AGNews_dataset()
     elif args.dataset == 'medical':
-        nlp_dataset, val_dataset = create_medical_dataset()
+        nlp_dataset, val_dataset = create_medical_dataset(args=args)
     elif args.dataset == 'legal':
         nlp_dataset, val_dataset = create_legal_dataset(args=args)
         torch.backends.cuda.enable_flash_sdp(True)    # as legal-domain dataset are super long, we suggest a checking for flashattention availbility
