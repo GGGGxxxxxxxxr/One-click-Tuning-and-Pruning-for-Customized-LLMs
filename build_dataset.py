@@ -478,20 +478,26 @@ def formatted_intermedMed_dataset(num_samples=None):
 #-------------------- 合并数据集 --------------------#
 def create_medical_dataset(args=None):
     # 获取各个数据集的训练集和验证集
-    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000, args=args)
-    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500, args=args)
-    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000, args=args)
+    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
+    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
 
-    #inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
+    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
 
     # 合并训练集
     combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
     # 合并验证集
-    combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val])
+    combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
     
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
     return combined_train, combined_val
 #-----------------------------------------------------------------#
+
+
+
+
+
+
 
 #-----------------------------------------------------------------#
 # *************************************************************** #
