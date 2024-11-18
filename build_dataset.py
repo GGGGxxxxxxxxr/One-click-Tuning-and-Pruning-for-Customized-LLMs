@@ -241,14 +241,15 @@ def formatted_HQS_dataset(num_samples=None, args=None):
     num_random_val_samples = 1000
     indices = random.sample(range(len(training_dataset)), num_random_val_samples)
     extra_validation_dataset = training_dataset.select(indices)
-    extra_validation_dataset = extra_validation_dataset.map(format_hqs_example).remove_columns(["CHQ", "Summary"])
 
     if args.loss_on_answer:
         training_dataset = training_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
         validation_dataset = validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
+        extra_validation_dataset = extra_validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ", "Summary"])
     else:
         training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
         validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+        extra_validation_dataset = extra_validation_dataset.map(format_hqs_example).remove_columns(["CHQ", "Summary"])
 
     return training_dataset, extra_validation_dataset          #validation_dataset
 #-----------------------------------------------------------------#
