@@ -257,18 +257,18 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         f"Write a response that appropriately completes the request.\n\n"
         f"### Instruction:\n{instruction}\n\n"
         f"### Input:\n{optional_input}\n\n"
-        f"### Response:\n"
+        f"### Response:\nTheir relationship is '"
     )
         
-        #prediction_base = generate_predictions(model, tokenizer, input_text, masks)
-        generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
-        print(generated_text)
+        prediction_base = generate_predictions(model, tokenizer, input_text, masks)
+        #generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
+        #print(generated_text)
         
-        if "contradiction" in generated_text:
+        if "contr" in prediction_base:
             prediction_base = "contradiction"
-        elif "entailment" in generated_text:
+        elif "entai" in prediction_base:
             prediction_base = "entailment"
-        elif "neutral" in generated_text:
+        elif "neut" in prediction_base:
             prediction_base = "neutral"
         else:
             prediction_base = None
@@ -539,7 +539,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False, max_length
     return generated_summary
 
 def generate_predictions(model, tokenizer, input_text, masks):
-    model.train()
+    model.eval()
     generated_text = input_text
 
     model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")

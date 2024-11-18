@@ -31,10 +31,14 @@ from train_llm import llm_sp_train_one_epoch
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 
+## UPDATE VERSION 0.2: 
+#  (1) The Datasets are now formulated as [Alpaca] instruction tuning template
+#  (2) args.loss_on_answer would be processed in the [main_llm_fsdp.py / main_llm_lora.py] instead of inside the dataset building
+
 # ** MedicalDataset Collection ** #
 #-----------------------------------------------------------------#
 # MEDNLI
-# ** 构建具有指定文本模板和采样的 MedNLI 数据集
+# ** format MedNLI Dataset
 def format_mednli_example_qa(example):
     # extract the info pieces
     sentence1 = example['sentence1']
@@ -66,47 +70,14 @@ def format_mednli_example_qa(example):
     
     # return 'text' (question prompt) & 'answer' (expected response prompt)
     return {'text': input_text, 'answer': response}
-    
-
-def format_mednli_example(example):
-    # extract the info pieces
-    sentence1 = example['sentence1']
-    sentence2 = example['sentence2']
-    gold_label = example['gold_label']
-    
-    instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
-    optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
-
-    # determine the formatted response
-    if gold_label == "entailment":
-        trailing = "the hypothesis is true given the premise"
-    elif gold_label == "contradiction":
-        trailing = "the hypothesis is false given the premise"
-    elif gold_label == "neutral":
-        trailing = "the hypothesis is undetermined given the premise"
-    else:
-        trailing = "the relationship is unknown."
-    response = f"Their relationship is '{gold_label}', and this means {trailing}."
-
-    # follow Alpaca format to build the input
-    input_text = (
-        f"Below is an instruction that describes a task, paired with an input that provides further context. "
-        f"Write a response that appropriately completes the request.\n\n"
-        f"### Instruction:\n{instruction}\n\n"
-        f"### Input:\n{optional_input}\n\n"
-        f"### Response:\n{response}"
-    )
-    
-    # return 'text' (question prompt) & 'answer' (expected response prompt)
-    return {'text': input_text}
 
 def formatted_MedNLI_dataset(
-    train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl',
-    val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl',
     num_samples=None,
-    args=None,
 ):
-    # 加载数据集
+    train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl'
+    val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl'
+
+    # load local dataset
     train_set = load_dataset("json", data_files=train_data_file)['train']
     val_set   = load_dataset("json", data_files=val_data_file)['train']
     
@@ -118,26 +89,16 @@ def formatted_MedNLI_dataset(
     train_set = train_set.remove_columns(columns_to_remove)
     val_set   = val_set.remove_columns(columns_to_remove)
 
-    if args.loss_on_answer == True:
-        train_set = train_set.map(
-                    format_mednli_example_qa,
-                    remove_columns=["sentence1", "sentence2", "gold_label"]
+    train_set = train_set.map(
+                format_mednli_example_qa,
+                remove_columns=["sentence1", "sentence2", "gold_label"]
+                )
+    val_set   = val_set.map(
+                format_mednli_example_qa,
+                remove_columns=["sentence1", "sentence2", "gold_label"]
                     )
-        val_set   = val_set.map(
-                    format_mednli_example_qa,
-                    remove_columns=["sentence1", "sentence2", "gold_label"]
-                    )
-    else:
-        train_set = train_set.map(
-            format_mednli_example,
-            remove_columns=["sentence1", "sentence2", "gold_label"]
-        )
-        val_set   = val_set.map(
-            format_mednli_example,
-            remove_columns=["sentence1", "sentence2", "gold_label"]
-        )
 
-    # 如果指定了 num_samples，选择前 num_samples 条数据
+    # sample the first [num_samples] pieces of data from the training set
     if num_samples is not None:
         num_samples = min(num_samples, len(train_set))
         train_set = train_set.select(range(num_samples))
@@ -146,7 +107,7 @@ def formatted_MedNLI_dataset(
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
-# HealthQuestionSum 数据集
+# HealthQuestionSum [HQS Dataset]
 def extract_question(text):
     """
     从文本中提取问题，处理不同的格式。
@@ -197,33 +158,6 @@ def format_hqs_example_qa(example):
 
     # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
-
-
-def format_hqs_example(example):
-    # 提取必要的信息
-    question = extract_question(example['CHQ'])
-    summary = extract_question(example['Summary'])
-
-    # 定义 instruction
-    instruction = "Summarize the following question from a patient."
-
-    # 构建 optional_input
-    optional_input = f"Patient's question: '{question}'"
-
-    # 生成 response
-    response = f"The summary of the patient's question is: '{summary}'."
-
-    # 按照 Alpaca 模板格式化输入文本
-    input_text = (
-        f"Below is an instruction that describes a task, paired with an input that provides further context. "
-        f"Write a response that appropriately completes the request.\n\n"
-        f"### Instruction:\n{instruction}\n\n"
-        f"### Input:\n{optional_input}\n\n"
-        f"### Response:\n{response}"
-    )
-
-    # 返回包含格式化文本和答案的字典
-    return {'text': input_text}
 
 def formatted_HQS_dataset(num_samples=None, args=None):
     # 加载数据集并移除不需要的列
