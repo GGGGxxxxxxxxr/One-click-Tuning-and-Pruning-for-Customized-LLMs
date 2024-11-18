@@ -360,10 +360,15 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
 
         question = extract_message(original_question)
 
+        instruction = "Summarize the following question from a patient."
+        optional_input = f"Patient's question: '{question}'"
+
         input_text = (
-            f"A question posted by a patient is '{question}'. "
-            f"Please summary this bill."
-            f"The summary of the question is '"
+            f"Below is an instruction that describes a task, paired with an input that provides further context. "
+            f"Write a response that appropriately completes the request.\n\n"
+            f"### Instruction:\n{instruction}\n\n"
+            f"### Input:\n{optional_input}\n\n"
+            f"### Response:\n"
         )
 
         generated_summary = generate_summary(model, tokenizer, input_text, masks)
@@ -522,14 +527,6 @@ def generate_summary(model, tokenizer, input_text, masks, free=False, max_length
         generated_summary = generated_text[len(input_text):].strip()
     else:
         generated_summary = generated_text.strip()
-
-    # 移除引号
-    '''
-    if generated_summary.endswith("'"):
-        generated_summary = generated_summary[:-1].strip()
-    if generated_summary.startswith("'"):
-        generated_summary = generated_summary[1:].strip()
-    '''
 
     return generated_summary
 
