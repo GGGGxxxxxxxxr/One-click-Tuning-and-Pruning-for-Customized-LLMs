@@ -537,6 +537,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False, max_length
     return generated_summary
 
 def generate_predictions(model, tokenizer, input_text, masks):
+    model.train()
     generated_text = input_text
 
     model_inputs = tokenizer([generated_text], return_tensors="pt").to("cuda")
