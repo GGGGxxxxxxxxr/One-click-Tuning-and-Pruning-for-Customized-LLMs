@@ -404,18 +404,28 @@ def main():
     def tokenize_function(examples):
         if not args.loss_on_answer:
             # Tokenize with truncation enabled but without padding
-            tokens = tokenizer(examples["text"], truncation=True, padding=False)
+            inputs  = tokenizer(examples["text"], truncation=True, padding=False)
             
-            # Add the EOS token ID at the end of each tokenized input
-            eos_token_id = tokenizer.eos_token_id 
-            if eos_token_id is None:
-                raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+            if examples["answer"]:
+                answers = tokenizer(examples["answer"], truncation=True, padding=False)
+                # Add the EOS token ID at the end of each tokenized input
+                eos_token_id = tokenizer.eos_token_id 
+                if eos_token_id is None:
+                    raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+                input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
+                attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
+                labels = input_ids
+            else:
+                input_ids = inputs["input_ids"]
+                attention_mask = inputs["attention_mask"]
+                labels = input_ids
             
-            # Append the EOS token to each sequence and update the attention mask
-            tokens["input_ids"] = tokens["input_ids"] + [eos_token_id]
-            tokens["attention_mask"] = tokens["attention_mask"] + [1]
-
-            return tokens
+            return {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+                'labels': labels
+            }
+    
         else:
             # Ensure 'answer' key is present, otherwise handle it gracefully
             if 'answer' not in examples:

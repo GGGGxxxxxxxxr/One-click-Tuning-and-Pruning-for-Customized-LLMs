@@ -237,7 +237,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
 #-----------------------------------------------------------------#
 # step_wise forward() for hypernet() param_tuning
-def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target, total_params, args):
+def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio_target, total_params, args):
     '''
     ** depreciated version.0.1, the pruning ratio is now calculated via more accurate [remaining_parameters] / [total_params]
     ** previous implementation considers the PruningContribution of each [0] within different masking locations
@@ -268,7 +268,7 @@ def hypernet_step(hypernet, llm_model, val_ids, attn_mask, pruning_ratio_target,
 
     with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
         output      = llm_model(input_ids=val_ids, 
-                                labels=val_ids, 
+                                labels=labels, 
                                 return_dict=True, 
                                 use_cache=False,
                                 num_logits_to_keep=seq_len, 
@@ -422,6 +422,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     llm_model=target_llm, 
                     val_ids=val_inputs["input_ids"], 
                     attn_mask=val_inputs["attention_mask"], 
+                    labels=val_inputs["labels"],
                     pruning_ratio_target=pruning_ratio_target, 
                     #num_key_value=num_key_value, 
                     total_params=total_params,
@@ -492,16 +493,12 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
         # Step 2: LLM 权重更新
         optimizer_llm.zero_grad()
-        if 'labels' in text_input and text_input['labels'] is not None:
-            labels = text_input["labels"]
-        else:
-            labels = text_input["input_ids"]
 
         current_lr = optimizer_llm.param_groups[0]['lr']
         llm_loss, target_loss, gl_loss = target_llm_step(
             llm_model=target_llm, 
             input_ids=text_input["input_ids"], 
-            labels=labels,
+            labels=text_input["labels"],
             masks=masks, 
             attn_mask=text_input["attention_mask"], 
             epoch=epoch, 
