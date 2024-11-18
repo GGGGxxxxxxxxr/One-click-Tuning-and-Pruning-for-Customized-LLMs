@@ -404,10 +404,10 @@ def main():
     def tokenize_function(examples):
         if not args.loss_on_answer:
             # Tokenize with truncation enabled but without padding
-            inputs  = tokenizer(examples["text"], truncation=True, padding=False)
+            inputs  = tokenizer(examples["text"], padding=False)
 
             if examples["answer"]:
-                answers = tokenizer(examples["answer"], truncation=True, padding=False)
+                answers = tokenizer(examples["answer"], padding=False)
                 # Add the EOS token ID at the end of each tokenized input
                 eos_token_id = tokenizer.eos_token_id 
                 if eos_token_id is None:
