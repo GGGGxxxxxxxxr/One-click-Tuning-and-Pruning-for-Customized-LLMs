@@ -804,9 +804,9 @@ def formatted_alpaca_dataset(args=None, num_val_samples=5000):
     return dataset, val_dataset
 
 
-'''
-train, val = formatted_HQS_dataset(num_samples=1000)
+
+train, val = formatted_PubMedQA_dataset(num_samples=1000)
 print(train[0])
+print(val[0])
 a = 1 + 1
-'''
 

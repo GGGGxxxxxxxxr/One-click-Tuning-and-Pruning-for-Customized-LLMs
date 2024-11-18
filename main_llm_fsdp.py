@@ -385,6 +385,7 @@ def main():
         nlp_dataset, val_dataset = create_medical_dataset(args=args)
     elif args.dataset == 'legal':
         nlp_dataset, val_dataset = create_legal_dataset(args=args)
+        print(val_dataset)
         torch.backends.cuda.enable_flash_sdp(True)    # as legal-domain dataset are super long, we suggest a checking for flashattention availbility
     elif args.dataset == 'alpaca':
         nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
@@ -419,7 +420,6 @@ def main():
             # Ensure 'answer' key is present, otherwise handle it gracefully
             if 'answer' not in examples:
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
-            
             inputs = tokenizer(examples["text"], padding=False)
             answers = tokenizer(examples["answer"], padding=False)
             
