@@ -46,7 +46,7 @@ def format_mednli_example_qa(example):
     gold_label = example['gold_label']
     
     instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
-    optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
+    optional_input = f"Premise: '{sentence1}', Hypothesis: '{sentence2}'"
 
     # determine the formatted response
     if gold_label == "entailment":
