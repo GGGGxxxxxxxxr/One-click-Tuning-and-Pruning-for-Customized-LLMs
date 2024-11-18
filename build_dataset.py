@@ -35,6 +35,39 @@ from alignment_function_llm import Group_Lasso_regularization
 #-----------------------------------------------------------------#
 # MEDNLI
 # ** 构建具有指定文本模板和采样的 MedNLI 数据集
+def format_mednli_example_qa(example):
+    # extract the info pieces
+    sentence1 = example['sentence1']
+    sentence2 = example['sentence2']
+    gold_label = example['gold_label']
+    
+    instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
+    optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
+
+    # determine the formatted response
+    if gold_label == "entailment":
+        trailing = "the hypothesis is true given the premise"
+    elif gold_label == "contradiction":
+        trailing = "the hypothesis is false given the premise"
+    elif gold_label == "neutral":
+        trailing = "the hypothesis is undetermined given the premise"
+    else:
+        trailing = "the relationship is unknown."
+    response = f"Their relationship is '{gold_label}', and this means {trailing}."
+
+    # follow Alpaca format to build the input
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n"
+    )
+    
+    # return 'text' (question prompt) & 'answer' (expected response prompt)
+    return {'text': input_text, 'answer': response}
+    
+
 def format_mednli_example(example):
     # 提取必要字段
     sentence1 = example['sentence1']
@@ -63,7 +96,8 @@ def format_mednli_example(example):
 def formatted_MedNLI_dataset(
     train_data_file='nlp_dataset_collections/medNLI/mli_train_v1.jsonl',
     val_data_file='nlp_dataset_collections/medNLI/mli_dev_v1.jsonl',
-    num_samples=None
+    num_samples=None,
+    args=None,
 ):
     # 加载数据集
     train_set = load_dataset("json", data_files=train_data_file)['train']
@@ -76,17 +110,26 @@ def formatted_MedNLI_dataset(
     ]
     train_set = train_set.remove_columns(columns_to_remove)
     val_set   = val_set.remove_columns(columns_to_remove)
-    
-    # 应用格式化函数并移除原始列
-    train_set = train_set.map(
-        format_mednli_example,
-        remove_columns=["sentence1", "sentence2", "gold_label"]
-    )
-    val_set   = val_set.map(
-        format_mednli_example,
-        remove_columns=["sentence1", "sentence2", "gold_label"]
-    )
-    
+
+    if args.loss_on_answer == True:
+        train_set = train_set.map(
+                    format_mednli_example_qa,
+                    remove_columns=["sentence1", "sentence2", "gold_label"]
+                    )
+        val_set   = val_set.map(
+                    format_mednli_example_qa,
+                    remove_columns=["sentence1", "sentence2", "gold_label"]
+                    )
+    else:
+        train_set = train_set.map(
+            format_mednli_example,
+            remove_columns=["sentence1", "sentence2", "gold_label"]
+        )
+        val_set   = val_set.map(
+            format_mednli_example,
+            remove_columns=["sentence1", "sentence2", "gold_label"]
+        )
+
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         num_samples = min(num_samples, len(train_set))
@@ -122,6 +165,33 @@ def extract_question(text):
         question = text.strip()
     return question
 
+def format_hqs_example_qa(example):
+    # 提取必要的信息
+    question = extract_question(example['CHQ'])
+    summary = extract_question(example['Summary'])
+
+    # 定义 instruction
+    instruction = "Summarize the following question from a patient."
+
+    # 构建 optional_input
+    optional_input = f"Patient's question: '{question}'"
+
+    # 生成 response
+    response = f"The summary of the patient's question is: '{summary}'."
+
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n"
+    )
+
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text, 'answer': response}
+
+
 def format_hqs_example(example):
     # 提取问题
     question = extract_question(example['CHQ'])
@@ -136,12 +206,14 @@ def format_hqs_example(example):
     # 返回包含新字段的字典
     return {'text': formatted_text}
 
-def formatted_HQS_dataset(num_samples=None):
+def formatted_HQS_dataset(num_samples=None, args=None):
     # 加载数据集并移除不需要的列
     #training_dataset   = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
     training_dataset   = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_train.jsonl")['train']
     validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.jsonl")['train'].remove_columns("q_id")
 
+    '''
+    ** DEPRACIATED IN 0.2 version update, we find the online dataset requires cleaning, so we use the official HQS dataset only
     ## more data pieces for HealthQuestionSum
     extra_train_1 = load_dataset("lighteval/me_q_sum")
     extra_train_1 = concatenate_datasets([extra_train_1['train'], extra_train_1['validation'], extra_train_1['test']])
@@ -156,29 +228,36 @@ def formatted_HQS_dataset(num_samples=None):
         'Patient': 'CHQ'
     })
     training_dataset = concatenate_datasets([training_dataset, extra_train_1, extra_train_2])
+    '''
 
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
+        assert len(training_dataset) == num_samples == 1000, "we only use the official 1000 HQS instances for medical domain training, please check your implementation."
         num_samples = min(num_samples, len(training_dataset))
         training_dataset = training_dataset.select(range(num_samples))
 
-    num_random_val_samples = 500
+    # UPDATED in VERSION 0.2:
+    # for fairness purpose, the testing data is right now never exposed in the training process
+    num_random_val_samples = 1000
     indices = random.sample(range(len(training_dataset)), num_random_val_samples)
     extra_validation_dataset = training_dataset.select(indices)
     extra_validation_dataset = extra_validation_dataset.map(format_hqs_example).remove_columns(["CHQ", "Summary"])
 
-    # 应用格式化函数
-    training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
-    validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+    if args.loss_on_answer:
+        training_dataset = training_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
+        validation_dataset = validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
+    else:
+        training_dataset = training_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
+        validation_dataset = validation_dataset.map(format_hqs_example).remove_columns(["CHQ","Summary"])
 
-
-    return training_dataset, extra_validation_dataset #validation_dataset
+    return training_dataset, extra_validation_dataset          #validation_dataset
 #-----------------------------------------------------------------#
 
 
 #-----------------------------------------------------------------#
 # PubMedQA
 # ** 构建具有指定文本模板和采样的 PubMedQA 数据集
+
 def format_pubmedqa_example(example):
     # 提取必要字段
     context = example['context']['contexts']
@@ -204,6 +283,43 @@ def format_pubmedqa_example(example):
     
     # 返回包含新字段的字典
     return {'text': formatted_text}
+
+def format_pubmedqa_example_qa(example):
+    # 提取必要的信息
+    context = example['context']['contexts']
+    question = example['question']
+    final_decision = example['final_decision']
+
+    # 定义 instruction
+    instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
+
+    # 构建 optional_input
+    optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
+
+    # 根据 final_decision 确定 trailing 文本
+    if final_decision.lower() == "yes":
+        trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
+    elif final_decision.lower() == "no":
+        trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
+    elif final_decision.lower() == "maybe":
+        trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
+    else:
+        trailing = "the answer is unknown."
+
+    # 生成 response
+    response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
+
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n"
+    )
+
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text, 'answer': response}
 
 def format_pubmedqa_example_raw(example):
     # 提取必要字段
@@ -231,7 +347,44 @@ def format_pubmedqa_example_raw(example):
     # 返回包含新字段的字典
     return {'text': formatted_text}
 
-def formatted_PubMedQA_dataset(num_samples=None):
+def format_pubmedqa_example_raw_qa(example):
+    # 提取必要字段
+    context = example['CONTEXTS']
+    question = example['QUESTION']
+    final_decision = example['final_decision']
+    
+    # 定义 instruction
+    instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
+    
+    # 构建 optional_input
+    optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
+    
+    # 根据 final_decision 确定 trailing 文本
+    if final_decision.lower() == "yes":
+        trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
+    elif final_decision.lower() == "no":
+        trailing = "we do not support the phenomenon mentioned by the question based on the abstract."
+    elif final_decision.lower() == "maybe":
+        trailing = "we are uncertain whether the phenomenon mentioned by the question is supported by the abstract."
+    else:
+        trailing = "the answer is unknown."
+    
+    # 生成 response
+    response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
+    
+    # 按照 Alpaca 模板格式化输入文本
+    input_text = (
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\n"
+    )
+    
+    # 返回包含格式化文本和答案的字典
+    return {'text': input_text, 'answer': response}
+
+def formatted_PubMedQA_dataset(num_samples=None, args=None):
     # 从 Hugging Face 加载医学领域的集合
     # 修正数据集名称拼写错误，并分别加载训练集和验证集
     raw_training_path = 'nlp_dataset_collections/PubMedQA/pubMedQA_train.jsonl'
@@ -242,39 +395,62 @@ def formatted_PubMedQA_dataset(num_samples=None):
     training_dataset = load_dataset("qiaojin/PubMedQA", "pqa_artificial")['train'].remove_columns(["pubid", "long_answer"])
     validation_dataset = load_dataset("qiaojin/PubMedQA", "pqa_labeled")['train'].remove_columns(["pubid", "long_answer"])
     
-    num_random_val_samples = 500
+    num_random_val_samples = 1000
     indices = random.sample(range(len(training_dataset)), num_random_val_samples)
     extra_validation_dataset = training_dataset.select(indices)
-    extra_validation_dataset = extra_validation_dataset.map(
-        format_pubmedqa_example,
-        remove_columns=["context", "question", "final_decision"]
-    )
 
     # 如果指定了 num_samples，选择前 num_samples 条数据作为训练集
     if num_samples is not None:
         num_samples = min(num_samples, len(training_dataset))
         training_dataset = training_dataset.select(range(num_samples))
-
-    # 对训练集应用格式化函数并移除原始列
-    training_dataset = training_dataset.map(
-        format_pubmedqa_example,
-        remove_columns=["context", "question", "final_decision"]
-    )
-
-    # 对验证集应用格式化函数并移除原始列
-    validation_dataset = validation_dataset.map(
-        format_pubmedqa_example,
-        remove_columns=["context", "question", "final_decision"]
-    )
     
-    raw_training_dataset = raw_training_dataset.map(
-        format_pubmedqa_example_raw,
-        remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
-    )
+    if args.loss_on_answer == True:
+        extra_validation_dataset = extra_validation_dataset.map(
+            format_pubmedqa_example_qa,
+            remove_columns=["context", "question", "final_decision"]
+        )
+        # 对训练集应用格式化函数并移除原始列
+        training_dataset = training_dataset.map(
+            format_pubmedqa_example_qa,
+            remove_columns=["context", "question", "final_decision"]
+        )
+
+        # 对验证集应用格式化函数并移除原始列
+        validation_dataset = validation_dataset.map(
+            format_pubmedqa_example_qa,
+            remove_columns=["context", "question", "final_decision"]
+        )
+        
+        raw_training_dataset = raw_training_dataset.map(
+            format_pubmedqa_example_raw_qa,
+            remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
+        )
+    else:
+        extra_validation_dataset = extra_validation_dataset.map(
+            format_pubmedqa_example,
+            remove_columns=["context", "question", "final_decision"]
+        )
+        # 对训练集应用格式化函数并移除原始列
+        training_dataset = training_dataset.map(
+            format_pubmedqa_example,
+            remove_columns=["context", "question", "final_decision"]
+        )
+
+        # 对验证集应用格式化函数并移除原始列
+        validation_dataset = validation_dataset.map(
+            format_pubmedqa_example,
+            remove_columns=["context", "question", "final_decision"]
+        )
+        
+        raw_training_dataset = raw_training_dataset.map(
+            format_pubmedqa_example_raw,
+            remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
+        )
 
     training_dataset = concatenate_datasets([training_dataset, raw_training_dataset])
 
-    return training_dataset, extra_validation_dataset #validation_dataset
+    return training_dataset, extra_validation_dataset             #validation_dataset
+
 
 def formatted_intermedMed_dataset(num_samples=None):
     train_data_file='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
@@ -300,11 +476,13 @@ def create_medical_dataset():
     mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
     pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
     hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
-    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
+
+    #inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
+
     # 合并训练集
-    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train, inter_train])
+    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
     # 合并验证集
-    combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
+    combined_val = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val])
     
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
     return combined_train, combined_val
@@ -627,19 +805,8 @@ def formatted_alpaca_dataset(args=None, num_val_samples=5000):
 
 
 '''
-legal_train, legal_val = create_legal_dataset()
-text_lengths = [len(example['text']) for example in legal_train]
-
-# 转换为 Pandas Series 并查看描述统计信息
-text_length_series = pd.Series(text_lengths)
-print(text_length_series.describe())
+train, val = formatted_HQS_dataset(num_samples=1000)
+print(train[0])
+a = 1 + 1
 '''
-'''
-legal_train,legal_val = formatted_billsum_dataset(2000, args=None)
-legal_train_1,legal_val_2 = formatted_casehold_dataset(13000, args=None)
-train = concatenate_datasets([legal_train_1, legal_train])
-print(legal_train[1])
-'''
-
-
 
