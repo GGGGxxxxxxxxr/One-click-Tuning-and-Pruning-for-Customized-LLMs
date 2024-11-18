@@ -261,7 +261,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
     )
         
         #prediction_base = generate_predictions(model, tokenizer, input_text, masks)
-        generated_text = generate_summary(model, tokenizer, input_text, masks, True)
+        generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=3)
         print(generated_text)
         
         if "contradiction" in generated_text:
