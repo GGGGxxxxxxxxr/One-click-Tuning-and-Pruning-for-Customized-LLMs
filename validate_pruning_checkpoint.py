@@ -260,8 +260,9 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         f"### Response:\nTheir relationship is '"
     )
         
-        prediction_base = generate_predictions(model, tokenizer, input_text, masks)
-        print(prediction_base)
+        #prediction_base = generate_predictions(model, tokenizer, input_text, masks)
+        generated_text = generate_summary(model, tokenizer, input_text, masks, True)
+        print(generated_text)
         if "cont" in prediction_base:
             prediction_base = "contradiction"
         elif "ent" in prediction_base:
