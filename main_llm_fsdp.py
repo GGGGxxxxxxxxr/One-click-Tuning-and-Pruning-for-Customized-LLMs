@@ -480,9 +480,9 @@ def main():
     hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
-        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-3)
+        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 4e-4)
     else:
-        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-3)
+        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 4e-4)
     
     print("=====> Trainable parameters for HyperNet(): <=====")
     for name, param in hyper_net_ddp.named_parameters():
@@ -504,8 +504,8 @@ def main():
         optimizer_llm   = torch.optim.AdamW(filter(lambda p: p.requires_grad, llm_ddp.parameters()),lr = args.lr)
 
     # learning rate scheduler
-    scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=1e-6)
-    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-6)
+    scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=5e-5)
+    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=5e-5)
 
     print("=====> Trainable parameters for target_LLM: <=====")
     for name, param in llm_ddp.named_parameters():
