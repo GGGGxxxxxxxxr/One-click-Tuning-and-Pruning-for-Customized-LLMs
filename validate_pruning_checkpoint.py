@@ -249,10 +249,16 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         sentence2 = dataset[i]["sentence2"]
         gold_label = dataset[i]["gold_label"]
 
+        instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
+        optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
+
         input_text = (
-            f"Premise is '{sentence1}', and hypothesis is '{sentence2}'. "
-            f"Their relationship is '"
-        )
+        f"Below is an instruction that describes a task, paired with an input that provides further context. "
+        f"Write a response that appropriately completes the request.\n\n"
+        f"### Instruction:\n{instruction}\n\n"
+        f"### Input:\n{optional_input}\n\n"
+        f"### Response:\nTheir relationship is '"
+    )
         
         prediction_base = generate_predictions(model, tokenizer, input_text, masks)
         print(prediction_base)
