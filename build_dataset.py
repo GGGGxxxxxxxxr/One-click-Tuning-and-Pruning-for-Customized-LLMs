@@ -71,7 +71,7 @@ def format_mednli_example_qa(example):
     # return 'text' (question prompt) & 'answer' (expected response prompt)
     return {'text': input_text, 'answer': response}
 
-def format_mednli_example_raw_changed(example):
+def format_mednli_example_raw(example):
     sentence1 = example['sentence1']
     sentence2 = example['sentence2']
     gold_label = example['gold_label']
@@ -93,7 +93,7 @@ def format_mednli_example_raw_changed(example):
     
     # 构建答案，包括 gold_label 和 trailing
     response = (
-        f"Their relationship is '{gold_label}'."
+        f"Their relationship is '{gold_label}', which indicates {trailing}"
     )
     
     # 返回包含格式化文本和答案的字典
