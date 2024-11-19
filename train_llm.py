@@ -387,8 +387,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     gl_loss_threshold = 1.57
     gl_loss_consecutive_steps = 1000000   # if you are using lora, we recommend using epoch instead of specific step control, as overfitting is not that much heavy an issue
     terminate_training = False
-
+    
     print(f"skip_hypernet_training_status: {skip_hypernet_training}")
+
+    hyper_lr_reduced = False
 
     # step1: [pruning_MASK] selection (pre-fixed or newly-generated)
     if epoch >= (args.start_epoch_control + args.control_epochs) or skip_hypernet_training:
@@ -435,6 +437,21 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 torch.nn.utils.clip_grad_norm_(hyper_net.parameters(), 3.0)
                 optimizer_hyper.step()
                 
+                ## ** UPDATED in Verison 0.2, precise control of pruning mask
+                ## ** avoid the high variance of the generated mask due to different batches
+                if epoch ==  (args.start_epoch_control + args.control_epochs - 1) and not hyper_lr_reduced:
+                    total_iters = len(nlp_dataloader)
+                    threshold = int((2/3) * total_iters)
+                    if (i + 1) >= threshold:
+                        current_lrs = [param_group['lr'] for param_group in optimizer_hyper.param_groups]
+                        print(f"Epoch {epoch}, Iteration {i + 1}: current lr of hypernet: {current_lrs}. Reduce optimizer_hyper's learning to 1/5.")
+                        
+                        # 更新学习率为之前的 1/4
+                        for param_group in optimizer_hyper.param_groups:
+                            param_group['lr'] = param_group['lr'] * 0.2
+                        
+                        # 设置标志，确保只执行一次
+                        hyper_lr_reduced = True
 
                 # 生成新掩码供 LLM 训练使用
                 with torch.no_grad():
