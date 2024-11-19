@@ -141,7 +141,10 @@ def formatted_MedNLI_dataset(
     if num_samples is not None:
         num_samples = min(num_samples, len(train_set))
         train_set = train_set.select(range(num_samples))
-    
+
+    # select 200 examples from MedNLI
+    val_set = val_set.select(range(200))
+
     return train_set, val_set
 #-----------------------------------------------------------------#
 
@@ -261,6 +264,9 @@ def formatted_HQS_dataset(num_samples=None,
         training_dataset = training_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
         validation_dataset = validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
         extra_validation_dataset = extra_validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ", "Summary"])
+
+    # select 200 examples from MedNLI
+    validation_dataset = validation_dataset.select(range(200))
 
     return training_dataset, validation_dataset  #extra_validation_dataset
 #-----------------------------------------------------------------#
@@ -448,6 +454,8 @@ def formatted_PubMedQA_dataset(num_samples=None,
 
     training_dataset = concatenate_datasets([training_dataset, raw_training_dataset])
 
+    validation_dataset = validation_dataset.select(range(600))
+
     return training_dataset, validation_dataset             #validation_dataset
 
 
@@ -466,8 +474,12 @@ def formatted_intermedMed_dataset(num_samples=None):
         train_dataset = train_dataset.select(range(num_samples))
 
     # for convincing results, we no longer use testing data for validation
-    train_dataset = train_dataset.map(lambda x: {'answer': ""})
-    val_dataset   = val_dataset.map(lambda x: {'answer': ""})
+    train_dataset      = train_dataset.map(lambda x: {'answer': ""})
+    validation_dataset = validation_dataset.map(lambda x: {'answer': ""})
+    
+    #
+    validation_dataset = validation_dataset.select(range(200))
+
     return train_dataset, val_dataset          #extra_validation_dataset
 
 
