@@ -475,12 +475,12 @@ def formatted_intermedMed_dataset(num_samples=None):
 
     # for convincing results, we no longer use testing data for validation
     train_dataset      = train_dataset.map(lambda x: {'answer': ""})
-    validation_dataset = validation_dataset.map(lambda x: {'answer': ""})
+    validation_dataset = val_dataset.map(lambda x: {'answer': ""})
     
     #
     validation_dataset = validation_dataset.select(range(200))
 
-    return train_dataset, val_dataset          #extra_validation_dataset
+    return train_dataset, validation_dataset         #extra_validation_dataset
 
 
 
