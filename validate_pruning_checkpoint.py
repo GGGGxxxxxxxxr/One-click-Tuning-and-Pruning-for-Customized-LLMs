@@ -252,7 +252,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         input_text = (
             f"Premise is '{sentence1}', "
             f"and hypothesis is '{sentence2}'. "
-            f"Their relationship is "
+            f"Their relationship is '"
         )
         
         prediction_base = generate_predictions(model, tokenizer, input_text, masks)
