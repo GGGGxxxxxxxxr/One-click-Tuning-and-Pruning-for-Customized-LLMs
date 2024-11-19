@@ -369,7 +369,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
         f"The summary of the patient's question is: '"
         )
 
-        generated_summary = generate_summary(model, tokenizer, input_text, masks)
+        generated_summary = generate_summary(model, tokenizer, input_text, masks, False, 70)
 
         references.append(reference_summary)
         hypotheses.append(generated_summary)
@@ -466,7 +466,7 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
     return logits
 
 
-def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=20, top_p=0.9, temperature=0.7):
+def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.9):
     model.eval()
     generated = input_ids
     text = input_ids[0]
