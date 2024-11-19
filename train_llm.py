@@ -334,7 +334,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     alignment_loss          = (max_remaining_K_out_dim + max_remaining_V_out_dim) / 32
     
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss + 0.00005 * alignment_loss
+    hyper_loss = target_loss + 5 * ratio_loss #+ 0.00005 * alignment_loss
 
     hyper_loss.backward()
 
@@ -418,10 +418,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 val_inputs = next(nlp_hypernet_iter)
                 optimizer_hyper.zero_grad()
 
-                print(val_inputs["input_ids"])
-                print(val_inputs["attention_mask"])
-                print(val_inputs["labels"])
-                sys.exit()
                 # 调用 hypernet_step 进行超网训练
                 hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(
                     hypernet=hyper_net, 
