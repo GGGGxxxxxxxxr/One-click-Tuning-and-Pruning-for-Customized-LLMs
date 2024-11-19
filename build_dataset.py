@@ -30,7 +30,7 @@ from train_llm import llm_sp_train_one_epoch
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
-
+from datasets import Dataset
 ## UPDATE VERSION 0.2: 
 #  (1) The Datasets are now formulated as [Alpaca] instruction tuning template
 #  (2) args.loss_on_answer would be processed in the [main_llm_fsdp.py / main_llm_lora.py] instead of inside the dataset building
@@ -93,7 +93,7 @@ def format_mednli_example_raw(example):
     
     # 构建答案，包括 gold_label 和 trailing
     response = (
-        f"Their relationship is '{gold_label}', and this means {trailing}"
+        f"Their relationship is '{gold_label}'."
     )
     
     # 返回包含格式化文本和答案的字典
@@ -483,6 +483,30 @@ def formatted_intermedMed_dataset(num_samples=None):
     return train_dataset, validation_dataset         #extra_validation_dataset
 
 
+def formatted_c4_dataset(num_samples=1000, min_length=200, max_length=500):
+    en = load_dataset("allenai/c4", "en", streaming=True)
+
+    selected_samples = []
+    count = 0
+
+    for example in en["train"]:
+        text = example["text"].strip()
+
+        # 计算文本长度
+        text_length = len(text)
+
+        # 判断是否符合长度要求
+        if min_length <= text_length <= max_length:
+            selected_samples.append(text)
+            count += 1
+
+            # 达到所需数量，退出循环
+            if count >= num_samples:
+                break
+
+    validation_dataset = Dataset.from_dict({'text': selected_samples})
+    validation_dataset = validation_dataset.map(lambda x: {'answer': ""})
+    return validation_dataset
 
 #-------------------- 合并数据集 --------------------#
 def create_medical_dataset(args=None):
@@ -493,10 +517,15 @@ def create_medical_dataset(args=None):
 
     inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
 
+    open_domain_val = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
+
     # 合并训练集
     combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
     # 合并验证集
-    combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
+    combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val, open_domain_val])
+
+    # according to D-Pruner, adding open-domain calibration dataset would help to improve the generalization ability of the model
+    
     
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
     return combined_train, combined_val
@@ -825,8 +854,7 @@ def formatted_alpaca_dataset(args=None, num_val_samples=5000):
 
 
 '''
-train, val = formatted_HQS_dataset(num_samples=1000)
-print(train[0])
-print(val[0])
+val = formatted_c4_dataset(num_samples=500, min_length=600, max_length=1200)
+print(val[5])
 a = 1 + 1
-'''
+''''

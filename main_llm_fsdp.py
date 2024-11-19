@@ -430,24 +430,20 @@ def main():
             # Ensure 'answer' key is present, otherwise handle it gracefully
             if 'answer' not in examples:
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
-            
-            if examples["text"] is None or examples["answer"] is None:
-                print("Example with None value:", examples)
         
-            inputs = tokenizer(examples["text"], padding=False)
-            answers = tokenizer(examples["answer"], padding=False)
-            
-            # Get EOS token ID
-            eos_token_id = tokenizer.eos_token_id
-            if eos_token_id is None:
-                raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
-            
-            # Concatenate input and answer
-            input_ids = inputs['input_ids'] + answers['input_ids'] + [eos_token_id]
-            attention_mask = inputs['attention_mask'] + answers['attention_mask'] + [1]
-            
-            # Create labels where the input part is masked with ignore_index 32000, and add EOS token
-            labels = [32000] * len(inputs['input_ids']) + answers['input_ids'] + [eos_token_id]
+            if examples["answer"]:
+                answers = tokenizer(examples["answer"], padding=False)
+                # Add the EOS token ID at the end of each tokenized input
+                eos_token_id = tokenizer.eos_token_id 
+                if eos_token_id is None:
+                    raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+                input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
+                attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
+                labels = -100 * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
+            else:
+                input_ids = inputs["input_ids"]
+                attention_mask = inputs["attention_mask"]
+                labels = input_ids
             
             return {
                 'input_ids': input_ids,
