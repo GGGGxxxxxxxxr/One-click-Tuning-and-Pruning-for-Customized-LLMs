@@ -261,7 +261,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(mask_vec)
-    binary_mask = hypernet.module.transform_output(binary_mask)
+    binary_mask = hypernet.module.transform_output(binary_mask_vec)
     assert len(mask) == 3, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # c) masked_llm forward() with 'pruning_mask = mask'
