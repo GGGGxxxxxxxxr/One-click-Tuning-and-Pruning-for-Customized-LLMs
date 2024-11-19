@@ -88,15 +88,12 @@ def format_mednli_example_raw(example):
     
     # 构建 input_text，使用他人的模板，不包含 gold_label
     input_text = (
-        "Premise is '" + sentence1 +
-        "', and hypothesis is '" + sentence2 +
-        "'."
+        f"Premise is '{sentence1} and hypothesis is '{sentence2}."
     )
     
     # 构建答案，包括 gold_label 和 trailing
     response = (
-        "Their relationship is '" + gold_label +
-        "', and this means " + trailing
+        f"Their relationship is '{gold_label}', and this means {trailing}"
     )
     
     # 返回包含格式化文本和答案的字典
@@ -208,7 +205,7 @@ def format_hqs_example_raw(example):
 
     # 构建 input_text 使用新的模板
     input_text = (
-        "A question posted by a patient is '" + question + "'."
+        f"A question posted by a patient is '{question }'."
     )
 
     # 生成 response，假设模型需要输出摘要，这里可以调整根据需要

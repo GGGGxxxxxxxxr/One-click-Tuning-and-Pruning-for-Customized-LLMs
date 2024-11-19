@@ -211,8 +211,8 @@ class Group_Lasso_regularization(nn.Module):
             layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
             m_umlp = layer_wise_masks[-1]
             #m_out  = layer_wise_masks[-2]
-            m_K    = layer_wise_masks[0]
-            m_V    = layer_wise_masks[1]
+            m_K    = layer_wise_masks[-3]
+            m_V    = layer_wise_masks[-2]
             assert len(layer_wise_masks) == 3, 'check the implementation in [lora_forward]'
 
             # process MLP_up_mask for LoRA weights
