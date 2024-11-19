@@ -180,7 +180,7 @@ class LLM_HyperStructure_old(nn.Module):
     
 
 class LLM_HyperStructure(nn.Module):
-    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=8, num_heads=4):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=2, num_heads=4):
         super(LLM_HyperStructure, self).__init__()
 
         # >>>>> Configuration Setup <<<<<#
