@@ -251,8 +251,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         gold_label = dataset[i]["gold_label"]
 
         input_text = (
-            f"Premise is '{sentence1}', "
-            f"and hypothesis is '{sentence2}'. "
+            f"Premise is '{sentence1} and hypothesis is '{sentence2}."
             f"Their relationship is '"
         )
         
