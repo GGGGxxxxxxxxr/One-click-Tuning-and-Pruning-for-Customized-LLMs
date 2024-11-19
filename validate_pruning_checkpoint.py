@@ -256,15 +256,14 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
             f"Their relationship is '"
         )
         
-        prediction_base = generate_predictions(model, tokenizer, input_text, masks)
-        #generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
-        #print(generated_text)
+        #prediction_base = generate_predictions(model, tokenizer, input_text, masks)
+        generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
         
-        if "contr" in prediction_base:
+        if "contradiction" in generated_text:
             prediction_base = "contradiction"
-        elif "ent" in prediction_base:
+        elif "entailment" in generated_text:
             prediction_base = "entailment"
-        elif "neut" in prediction_base:
+        elif "neutral" in generated_text:
             prediction_base = "neutral"
         else:
             prediction_base = None
