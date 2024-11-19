@@ -637,6 +637,8 @@ class LlamaSdpaAttention(LlamaAttention):
 
         key_states   = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
+        
+        print(value_states)
 
         causal_mask = attention_mask
         if attention_mask is not None:
