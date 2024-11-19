@@ -249,16 +249,11 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         sentence2 = dataset[i]["sentence2"]
         gold_label = dataset[i]["gold_label"]
 
-        instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
-        optional_input = f"Premise: '{sentence1}'\nHypothesis: '{sentence2}'"
-
         input_text = (
-        f"Below is an instruction that describes a task, paired with an input that provides further context. "
-        f"Write a response that appropriately completes the request.\n\n"
-        f"### Instruction:\n{instruction}\n\n"
-        f"### Input:\n{optional_input}\n\n"
-        f"### Response:\nTheir relationship is '"
-    )
+            f"Premise is '{sentence1}', "
+            f"and hypothesis is '{sentence2}'. "
+            f"Their relationship is "
+        )
         
         prediction_base = generate_predictions(model, tokenizer, input_text, masks)
         #generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
@@ -367,9 +362,6 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
         reference_summary = dataset[i]['Summary']
 
         question = extract_message(original_question)
-
-        instruction = "Summarize the following question from a patient."
-        optional_input = f"Patient's question: '{question}'"
 
         input_text = (
             f"Below is an instruction that describes a task, paired with an input that provides further context. "
