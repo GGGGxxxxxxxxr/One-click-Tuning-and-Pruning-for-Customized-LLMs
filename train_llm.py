@@ -11,6 +11,7 @@ from alignment_function_llm import Group_Lasso_regularization
 import itertools
 from hypernet_llm import hard_concrete
 import random
+import sys
 
 #-----------------------------------------------------------------#
 # average computation for loss
@@ -417,6 +418,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 val_inputs = next(nlp_hypernet_iter)
                 optimizer_hyper.zero_grad()
 
+                print(val_inputs["input_ids"])
+                print(val_inputs["attention_mask"])
+                print(val_inputs["labels"])
+                sys.exit()
                 # 调用 hypernet_step 进行超网训练
                 hyper_loss, valid_loss, ratio_loss, alignment_loss = hypernet_step(
                     hypernet=hyper_net, 
