@@ -398,8 +398,8 @@ def main():
 
     # Print the 85th samples just for dataset cleaning verfication
     print("=====> The 85th Sequence Sample: <=====")
-    print(nlp_dataset[85])  
-    print(val_dataset[85])
+    print(nlp_dataset[5])  
+    print(val_dataset[165])
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
