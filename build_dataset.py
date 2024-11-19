@@ -88,7 +88,7 @@ def format_mednli_example_raw(example):
     
     # 构建 input_text，使用他人的模板，不包含 gold_label
     input_text = (
-        f"Premise is '{sentence1} and hypothesis is '{sentence2}."
+        f"Premise is '{sentence1}' and hypothesis is '{sentence2}'."
     )
     
     # 构建答案，包括 gold_label 和 trailing
@@ -853,8 +853,8 @@ def formatted_alpaca_dataset(args=None, num_val_samples=5000):
     return dataset, val_dataset
 
 
-'''
-val = formatted_c4_dataset(num_samples=500, min_length=600, max_length=1200)
+
+train, val = formatted_MedNLI_dataset(num_samples=500)
 print(val[5])
 a = 1 + 1
-'''
+
