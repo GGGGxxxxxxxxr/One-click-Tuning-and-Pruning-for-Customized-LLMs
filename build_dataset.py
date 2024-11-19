@@ -71,7 +71,7 @@ def format_mednli_example_qa(example):
     # return 'text' (question prompt) & 'answer' (expected response prompt)
     return {'text': input_text, 'answer': response}
 
-def format_mednli_example_raw(example):
+def format_mednli_example_raw_changed(example):
     sentence1 = example['sentence1']
     sentence2 = example['sentence2']
     gold_label = example['gold_label']
