@@ -258,9 +258,10 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     # *** use soft mask here for llm_structural_detection (no {hardconcrete} to binary)
     #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
     mask_vec = hypernet(dummy=0)                                                             #.module()
-    #binary_mask_vec = hard_concrete(mask_vec)
+    binary_mask_vec = hard_concrete(mask_vec)
     assert torch.all(torch.isfinite(mask_vec)), "NaN or Inf in mask_vec"
     mask = hypernet.module.transform_output(mask_vec)
+    binary_mask = hypernet.module.transform_output(binary_mask)
     assert len(mask) == 3, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # c) masked_llm forward() with 'pruning_mask = mask'
@@ -297,7 +298,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     
     mask_ratio  = mask_sum / total_count
     '''
-    remaining_params = caculate_remaining_parmams(pruning_masks=mask, args=args)
+    remaining_params = caculate_remaining_parmams(pruning_masks=binary_mask, args=args)
     mask_ratio       = remaining_params / total_params
     ratio_loss       = match_loss(mask_ratio, pruning_ratio_target)
 
@@ -323,8 +324,8 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     alignment_loss += process_tensor_list(mask_v)
     '''
     # [32, 4096] (to be more accurate, it is [32, 128] repeated num_kv_head times)
-    mask_k = mask[0] 
-    mask_v = mask[1]
+    mask_k = binary_mask[0] 
+    mask_v = binary_mask[1]
     remaining_K_out_dim     = torch.sum(mask_k, dim=1)  #[32,]
     remaining_V_out_dim     = torch.sum(mask_v, dim=1)  #[32,]
     max_remaining_K_out_dim = torch.max(remaining_K_out_dim)
