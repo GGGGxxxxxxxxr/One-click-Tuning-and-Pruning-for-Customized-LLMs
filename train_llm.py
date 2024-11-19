@@ -563,15 +563,16 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     f"Ratio Loss: {ratio_loss_ave.avg:.4f} | "
                     f"Alignment Loss: {alignment_loss_ave.avg:.4f}"
                 )
-                random_layers = random.sample(range(32), 5)
-                for layer_idx in random_layers:
-                    layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in masks]
-                    mlp_up_mask = layer_wise_masks[-1]
-                    print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
-                    mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
-                    print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
 
                 if epoch < (args.start_epoch_control + args.control_epochs):
+                    random_layers = random.sample(range(32), 5)
+                    for layer_idx in random_layers:
+                        layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in masks]
+                        mlp_up_mask = layer_wise_masks[-1]
+                        print(f"layer_{layer_idx}_mlp_up_mask_shape: {mlp_up_mask.size()}")
+                        mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
+                        print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
+
                     print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
                     print(f"Current AlignmentLoss: {reduced_align_loss}")
 

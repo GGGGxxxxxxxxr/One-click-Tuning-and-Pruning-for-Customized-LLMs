@@ -375,6 +375,7 @@ def main():
 
     #-----------------------------------------------------------------#
     # dataset initialization
+ 
     if args.dataset   == "wikitext":
         nlp_dataset, val_dataset = formatted_wikitext_dataset()
     elif args.dataset == 'MedNLI':
@@ -505,7 +506,7 @@ def main():
         print("FSDP wrapper with mixed precision has been enabled.")
     else:
         llm_ddp = DDP(model, device_ids=[device])
-        print("DDP wrappe has been enabled.")
+        print("DDP wrapper has been enabled.")
 
     #llm_ddp         = torch.compile(llm_ddp)
     if args.use_8bit_training == True:
