@@ -518,8 +518,8 @@ def main():
         optimizer_llm   = torch.optim.AdamW(filter(lambda p: p.requires_grad, llm_ddp.parameters()),  lr = args.lr)
 
     # learning rate scheduler
-    scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=5e-5)
-    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=5e-5)
+    scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=1e-4)
+    scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-4)
 
     print("=====> Trainable parameters for target_LLM: <=====")
     for name, param in llm_ddp.named_parameters():
