@@ -168,7 +168,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
                             labels=labels, 
                             return_dict=True, 
                             use_cache=False,
-                            num_logits_to_keep=seq_len, 
+                            #num_logits_to_keep=seq_len, 
                             pruning_mask=masks)
     else:
         output      = llm_model(input_ids=input_ids, 
@@ -176,7 +176,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
                                 labels=labels, 
                                 return_dict=True, 
                                 use_cache=False,
-                                num_logits_to_keep=seq_len, 
+                                #num_logits_to_keep=seq_len, 
                                 pruning_mask=None)
     target_loss = output["loss"]
     
@@ -189,7 +189,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
     if epoch >= args.start_epoch_regularization:
         if epoch == (args.epochs - 1):
-            gl_tensity = 1000000                               # force to set expected weights to ZERO
+            gl_tensity = 100000000000                               # force to set expected weights to ZERO
             gl_module.grad_mul = gl_tensity
         else: 
             gl_tensity = 0.3
@@ -271,7 +271,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
                                 labels=labels, 
                                 return_dict=True, 
                                 use_cache=False,
-                                num_logits_to_keep=seq_len, 
+                                #num_logits_to_keep=seq_len, 
                                 attention_mask=attn_mask,
                                 pruning_mask=mask)
     target_loss = output["loss"]
