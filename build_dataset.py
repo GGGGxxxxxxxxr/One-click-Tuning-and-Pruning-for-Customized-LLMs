@@ -265,8 +265,8 @@ def formatted_HQS_dataset(num_samples=None,
         validation_dataset = validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ","Summary"])
         extra_validation_dataset = extra_validation_dataset.map(format_hqs_example_qa).remove_columns(["CHQ", "Summary"])
 
-    # select 200 examples from MedNLI
-    validation_dataset = validation_dataset.select(range(200))
+    # select 100 examples from MedNLI
+    validation_dataset = validation_dataset.select(range(100))
 
     return training_dataset, validation_dataset  #extra_validation_dataset
 #-----------------------------------------------------------------#
