@@ -625,12 +625,19 @@ class LlamaSdpaAttention(LlamaAttention):
         # ** modified masked inference logic here
         # APPLY K, V (Q) mask here
         # apply ATO pruning mask if pruning_mask != None
+        # UPDATED in VERSION 0.2.1 (GroupQueryAttention Support Released! (adjusted formulation of computational mask) 
+        # Transformed Mask from Hypernet per layer: mK: [num_kv_head * head_dim], mV: [num_kv_head * head_dim], m_mlp: [intermediate_dim]
+        # reshape into Q,K,V,MLP compatible computational masks:
+        # mask_K: mK, mask_Q: repeated_kv(mK, self.num_key_value_groups)//
+        # so that we could align MHA together with GA within the same set of code.
         if self.training != True:
             if pruning_K_mask != None: #[4096,]
-                pruning_K_mask = pruning_K_mask.view(32, 128).unsqueeze(0).unsqueeze(2)  #[1, 32, 1, 128] (bsz, n_head, s_len, head_dim)
-                pruning_V_mask = pruning_V_mask.view(32, 128).unsqueeze(0).unsqueeze(2)
+                pruning_K_mask = pruning_K_mask.view(self.num_key_value_heads, self.head_dim).unsqueeze(0).unsqueeze(2)  #[1, 32, 1, 128] (bsz, n_head, s_len, head_dim)
+                pruning_V_mask = pruning_V_mask.view(self.num_key_value_heads, self.head_dim).unsqueeze(0).unsqueeze(2)
+                pruning_Q_mask = repeat_kv(pruning_K_mask, self.num_key_value_groups)
+                
 
-                query_states = query_states * pruning_K_mask
+                query_states = query_states * pruning_Q_mask
                 key_states   = key_states   * pruning_K_mask
                 value_states = value_states * pruning_V_mask
 
