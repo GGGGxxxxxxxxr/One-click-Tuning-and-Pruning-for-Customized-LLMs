@@ -366,14 +366,14 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     alignment_loss += process_tensor_list(mask_k)
     alignment_loss += process_tensor_list(mask_v)
     '''
-    # [32, 4096] (to be more accurate, it is [32, 128] repeated num_kv_head times)
+    # [32, 4096] for llama2-7b and [32, 1024] for llama3-8b (to be more accurate, it is [32, 128] repeated num_kv_head times)
     mask_k = binary_mask[0] 
     mask_v = binary_mask[1]
     remaining_K_out_dim     = torch.sum(mask_k, dim=1)  #[32,]
     remaining_V_out_dim     = torch.sum(mask_v, dim=1)  #[32,]
     max_remaining_K_out_dim = torch.max(remaining_K_out_dim)
     max_remaining_V_out_dim = torch.max(remaining_V_out_dim)
-    alignment_loss          = (max_remaining_K_out_dim + max_remaining_V_out_dim) / 32
+    alignment_loss          = (max_remaining_K_out_dim + max_remaining_V_out_dim) / args.num_key_values
     
     # e) sum the loss
     hyper_loss = target_loss + 5 * ratio_loss #+ 0.00005 * alignment_loss
