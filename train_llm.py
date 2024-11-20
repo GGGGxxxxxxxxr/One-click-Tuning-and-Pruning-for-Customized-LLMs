@@ -144,6 +144,45 @@ def caculate_remaining_parmams(pruning_masks, args):
 
         return total_remaining_params
     
+    elif args.model == "llama3-8b":
+        assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
+        m_K = pruning_masks[0] 
+        m_V = pruning_masks[1]
+        m_out = pruning_masks[2]
+
+        m_Q = m_K.repeat(1,4)
+        assert m_K.shape == (32, 1024), f"Expected shape of m_K (32, 1024), but got {m_K.shape}"
+        assert m_Q.shape == (32, 4096), f"Expected shape of m_Q (32, 4096), but got {m_K.shape}"
+        assert m_out.shape == (32, 14336), f"Expected shape of m_Out (32, 14336), but got {m_K.shape}"
+
+        # calculate q_proj, k_proj remaining params
+        # input dim is 4096 because the hidden_states of each layer is unpruned, as [down_proj] has no output pruning masks
+        # m_K [32, 4096] (repeated head-wise pruning mask [32, 128] for 32 times to expand into the linear mask)
+        dim_after_pruning_K_out = torch.sum(m_K, dim=1)
+        remaining_K_params  = 4096 * dim_after_pruning_K_out
+        remaining_K_params = torch.sum(remaining_K_params)
+        dim_after_pruning_Q_out = torch.sum(m_Q, dim=1)
+        remaining_Q_params = 4096 * dim_after_pruning_Q_out
+        remaining_Q_params = torch.sum(remaining_Q_params, dim=1)
+
+        # calculate v_proj remaining params
+        dim_after_pruning_V_out = torch.sum(m_V, dim=1)
+        remaining_V_params = torch.sum(4096 * dim_after_pruning_V_out)
+
+        # calculate out_proj remaining params
+        remaining_out_params = torch.sum(4096 * dim_after_pruning_V_out)
+
+        # calculate mlp_up / gate remaining params
+        dim_after_pruning_up_out = torch.sum(m_out, dim=1)
+        remaining_up_gate_params = 2 * torch.sum(4096 * dim_after_pruning_up_out)
+
+        # calculate mlp_down remaining params
+        remaining_down_params = torch.sum(4096 * dim_after_pruning_up_out)
+
+        total_remaining_params = remaining_K_params + remaining_Q_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
+
+        return total_remaining_params
+    
     else:
         raise NotImplementedError
 
