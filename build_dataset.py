@@ -541,40 +541,6 @@ def create_medical_dataset(args=None):
 # *************************************************************** #
 # LEGAL DOMAIN DATASET #
 #-----------------------------------------------------------------#
-def format_casehold_example(example):
-    # 提取输入数据中的内容
-    citing_prompt = example['citing_prompt']
-    holding_statements = [
-        example.get(f'holding_{i}', '') for i in range(5)
-    ]
-    label = example['label']
-    
-    # 确定索引名称
-    idx_mapping = {
-        "0": "first",
-        "1": "second",
-        "2": "third",
-        "3": "fourth",
-        "4": "fifth"
-    }
-    idx = idx_mapping.get(str(label), None)
-    if idx is None:
-        raise ValueError("Label out of expected range.")
-
-    # 根据模板格式化文本
-    formatted_text = (
-        f"A citing text consisting of the context and legal citation text is '{citing_prompt}'. "
-        f"Holding statement 0 is '{holding_statements[0]}', "
-        f"holding statement 1 is '{holding_statements[1]}', "
-        f"holding statement 2 is '{holding_statements[2]}', "
-        f"holding statement 3 is '{holding_statements[3]}', "
-        f"and holding statement 4 is '{holding_statements[4]}'. "
-        f"Choose the correct corresponding holding statement. "
-        f"The correct answer is holding statement {label}, which is the {idx} statement."
-    )
-
-    return {'text': formatted_text}
-
 def format_casehold_example_qa(example):
     citing_prompt = example['citing_prompt']
     holding_statements = [example.get(f'holding_{i}', '') for i in range(5)]
@@ -599,7 +565,6 @@ def format_casehold_example_qa(example):
         f"holding statement 2 is '{holding_statements[2]}', "
         f"holding statement 3 is '{holding_statements[3]}', "
         f"and holding statement 4 is '{holding_statements[4]}'. "
-        f"Choose the correct corresponding holding statement. "
     )
     
     # The correct answer
@@ -609,25 +574,23 @@ def format_casehold_example_qa(example):
     return {'text': formatted_text, 'answer': answer_text}
 
 
-def formatted_casehold_dataset(num_samples=None, args=None):
+def formatted_casehold_dataset(num_samples=None, 
+                               args=None):
     raw_train_2000 = load_dataset('json', data_files="nlp_dataset_collections/CaseHold/casehold_train_clean_2000.jsonl", split='train')
     
     # 应用格式化函数到模板数据集并获取最大长度
-    formatted_raw_train_2000 = raw_train_2000.map(format_casehold_example)
+    formatted_raw_train_2000 = raw_train_2000.map(format_casehold_example_qa)
     max_length = max(len(example['text']) for example in formatted_raw_train_2000)
     print(f"Maximum formatted string length in CaseHold raw_train_2000: {max_length}")
 
     # 加载 CaseHold 数据集
-    ds = load_dataset("casehold/casehold", "all")['train']
+    ds     = load_dataset("casehold/casehold", "all")['train']
     ds_val = load_dataset("casehold/casehold", "all")['validation']
 
     # 应用格式化函数并过滤训练集，保留格式化后文本长度不超过 max_length 的样本
-    if args!=None and args.loss_on_answer == False:
-        filtered_train_dataset = ds.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
-        filtered_val_dataset   = ds_val.map(format_casehold_example).filter(lambda x: len(x['text']) <= max_length)
-    else:
-        filtered_train_dataset = ds.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
-        filtered_val_dataset   = ds_val.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+
+    filtered_train_dataset = ds.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
+    filtered_val_dataset   = ds_val.map(format_casehold_example_qa).filter(lambda x: (len(x['text']) + len(x['answer'])) <= max_length)
 
     # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
@@ -646,51 +609,38 @@ def formatted_casehold_dataset(num_samples=None, args=None):
     return train_dataset, val_dataset
 
 
-def format_billsum_example(example):
-    # 使用模板格式化文本
-    formatted_text = (
-        f"A bill text is '{example['source']}'. "
-        f"The summary of the bill is '{example['summary']}'."
-    )
-    return {'text': formatted_text}
 
+#-----------------------------------------------------------------#
 def format_billsum_example_qa(example):
     # 使用模板格式化文本
     formatted_text = (
-        f"A bill text is '{example['source']}'. "
-        f"Please summary this bill."
+        f"A legal bill text is '{example['source']}'. "
     )
     answer = (
-        f"The summary of the bill is '{example['summary']}'."
+        f"The summary of this legal bill is '{example['summary']}'."
     )
 
     return {'text': formatted_text, 'answer': answer}
 
 
-def formatted_billsum_dataset(num_samples=None, args=None):
+def formatted_billsum_dataset(num_samples=None, 
+                              args=None):
     ds = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_train_2000.jsonl")['train']
     ds_val = load_dataset("json", data_files="nlp_dataset_collections/BillSum/billsum_test_200.jsonl")['train']
 
     if num_samples is not None:
         ds = ds.select(range(min(num_samples, len(ds))))
     
-    if args!=None and args.loss_on_answer == False:
-        # apply string formatted-function
-        train_dataset = ds.map(format_billsum_example).remove_columns(
-            ['source', 'summary']
-        )
-        val_dataset   = ds_val.map(format_billsum_example).remove_columns(
-            ['source', 'summary']
-        )
-    else:
-        train_dataset = ds.map(format_billsum_example_qa).remove_columns(
-            ['source', 'summary']
-        )
-        val_dataset   = ds_val.map(format_billsum_example_qa).remove_columns(
-            ['source', 'summary']
-        )
+    
+    train_dataset = ds.map(format_billsum_example_qa).remove_columns(
+        ['source', 'summary']
+    )
+    val_dataset   = ds_val.map(format_billsum_example_qa).remove_columns(
+        ['source', 'summary']
+    )
 
     return train_dataset, val_dataset
+#-----------------------------------------------------------------#
 
 
 def formatted_multilegalpile_dataset(args=None, num_samples=None):
@@ -706,34 +656,35 @@ def formatted_multilegalpile_dataset(args=None, num_samples=None):
     
     return val_dataset
 
+
 def create_legal_dataset(args):
     # 加载数据集
-    billsum_train, billsum_val = formatted_billsum_dataset(num_samples=2000, args=args)
+    billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000, args=args)
     casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000, args=args)
-    perplexity_val = formatted_multilegalpile_dataset(args=args)
+    perplexity_val               = formatted_multilegalpile_dataset(args=args)
+    open_domain_val              = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
 
     # 合并训练集和验证集
     combined_train = concatenate_datasets([billsum_train, casehold_train])
-    combined_val = concatenate_datasets([billsum_val, casehold_val, perplexity_val])
+    combined_val = concatenate_datasets([billsum_val, casehold_val, perplexity_val, open_domain_val])
     
     # 确保训练集大小正确
     assert len(combined_train) == 15000, f"Combined train dataset size mismatch: {len(combined_train)} != 15000"
 
-    # 从训练集中随机抽取 2000 条样本，并将其添加到验证集中
-    random_sample_indices = random.sample(range(len(combined_train)), 2000)
+    # 从训练集中随机抽取 500 条样本，并将其添加到验证集中
+    random_sample_indices = random.sample(range(len(combined_train)), 500)
     train_samples_for_val = combined_train.select(random_sample_indices)
     
     # 将抽取的样本添加到验证集中
     combined_val = concatenate_datasets([combined_val, train_samples_for_val])
 
     # 检查数据集大小
-    assert len(combined_val) == (len(billsum_val) + len(casehold_val) + len(perplexity_val) + 2000), \
+    assert len(combined_val) == (len(billsum_val) + len(casehold_val) + len(perplexity_val) + 500 + 500), \
         f"Combined val dataset size mismatch after sampling: {len(combined_val)} != expected size"
 
     return combined_train, combined_val
 
     
-
 
 #-----------------------------------------------------------------#
 # WIKITEXT
