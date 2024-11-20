@@ -22,11 +22,11 @@ def transform_output(inputs):
         start = end
     return arch_vector
 
-def transform_output_layer_uniform(inputs, model=None):
-    if model == 'llama2-7b':
+def transform_output_layer_uniform(inputs, model_name=None):
+    if model_name  == 'llama2-7b':
         lw_structure = [128] * 2 + [11008]
         num_kv_heads = 32
-    elif model == 'llama3-8b':
+    elif model_name == 'llama3-8b':
         lw_structure = [128] * 2 + [14336]
         num_kv_heads = 8
 
@@ -44,12 +44,12 @@ def transform_output_layer_uniform(inputs, model=None):
         start = end
     return arch_vector
 
-def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None, model=None):
+def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None, model_name=None):
     ckpt_path = input_ckpt_path
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
-    if model == 'llama2-7b':
+    if model_name == 'llama2-7b':
         print("Initializing LLaMA 2-7B model.")
         api_token = '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'
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
@@ -62,7 +62,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             token=api_token
         ).cuda()
         model.resize_token_embeddings(len(tokenizer))
-    elif model == 'llama3-8b':
+    elif model_name == 'llama3-8b':
         print("Initializing LLaMA 3-8B model.")
         api_token = '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'
         model_cfg = AutoConfig.from_pretrained("meta-llama/Meta-Llama-3-8B", token=api_token)
@@ -108,7 +108,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     if not base:
         print("Getting current mask vector.")
         cur_mask_vec = checkpoint["mask_vec"].to("cuda")
-        masks = transform_output_layer_uniform(cur_mask_vec, model=model)
+        masks = transform_output_layer_uniform(cur_mask_vec, model_name=model_name)
 
         # Include weight mask observation parts
         observe_weight_masks(model, model_cfg, masks)
@@ -743,7 +743,7 @@ if __name__ == "__main__":
     else:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
 
-    model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model=model_name)
+    model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model_name=model_name)
 
     while True:
         dataset_name = input("Enter the dataset to evaluate (PubMedQA/MedNLI/HQS/Harrison) or type 'exit' to quit: ").strip().lower()
