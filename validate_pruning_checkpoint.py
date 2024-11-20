@@ -113,6 +113,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     return model, tokenizer, None
 
 def observe_weight_masks(model, model_cfg, masks):
+    num_key_values = model_cfg.num_key_value_heads
     # Check weights of the first layer's MLP
     print("Checking weights of the first layer's MLP:")
     print("gate_proj.lora_A:")
@@ -140,8 +141,8 @@ def observe_weight_masks(model, model_cfg, masks):
     attn_k_mask = masks[0]
     attn_v_mask = masks[1]
     #attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
-    attn_k_after_pruning = torch.sum(attn_k_mask, dim=1) / 32
-    attn_v_after_pruning = torch.sum(attn_v_mask, dim = 1) / 32
+    attn_k_after_pruning = torch.sum(attn_k_mask, dim=1) / num_key_values
+    attn_v_after_pruning = torch.sum(attn_v_mask, dim = 1) / num_key_values
     print(attn_v_mask[23])
     #attn_v_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
     print(f"attn_k_pruning_pattern: {attn_k_after_pruning}")
