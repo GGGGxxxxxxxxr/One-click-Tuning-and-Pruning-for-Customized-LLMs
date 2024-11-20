@@ -318,6 +318,17 @@ def evaluate_casehold(model, tokenizer, masks):
         prediction = generate_summary(model, tokenizer, input_text, masks)
         # Map prediction to one of the labels
 
+        if '0' in prediction:
+            prediction = '0'
+        elif '1' in prediction:
+            prediction = '1'
+        elif '2' in prediction:
+            prediction = '2'
+        elif '3' in prediction:
+            prediction = '3'
+        elif '4' in prediction:
+            prediction = '4'
+
         true_labels.append(label)
         pred_labels.append(prediction)
 
