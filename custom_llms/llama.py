@@ -592,7 +592,8 @@ class LlamaSdpaAttention(LlamaAttention):
 
         else:
             if pruning_K_mask != None:
-                query_states = self.q_proj(hidden_states, pruning_K_mask)
+                pruning_Q_mask = pruning_K_mask.repeat(1, self.num_key_value_groups)
+                query_states = self.q_proj(hidden_states, pruning_Q_mask)
                 key_states   = self.k_proj(hidden_states, pruning_K_mask)
                 value_states = self.v_proj(hidden_states, pruning_V_mask)
             else:
