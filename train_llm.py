@@ -163,7 +163,7 @@ def caculate_remaining_parmams(pruning_masks, args):
         remaining_K_params = torch.sum(remaining_K_params)
         dim_after_pruning_Q_out = torch.sum(m_Q, dim=1)
         remaining_Q_params = 4096 * dim_after_pruning_Q_out
-        remaining_Q_params = torch.sum(remaining_Q_params, dim=1)
+        remaining_Q_params = torch.sum(remaining_Q_params)
 
         # calculate v_proj remaining params
         dim_after_pruning_V_out = torch.sum(m_V, dim=1)
@@ -177,7 +177,7 @@ def caculate_remaining_parmams(pruning_masks, args):
         remaining_up_gate_params = 2 * torch.sum(4096 * dim_after_pruning_up_out)
 
         # calculate mlp_down remaining params
-        remaining_down_params = torch.sum(4096 * dim_after_pruning_up_out)
+        remaining_down_params  = torch.sum(4096 * dim_after_pruning_up_out)
 
         total_remaining_params = remaining_K_params + remaining_Q_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
 
