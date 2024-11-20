@@ -151,9 +151,11 @@ def caculate_remaining_parmams(pruning_masks, args):
         m_out = pruning_masks[2]
 
         m_Q = m_K.repeat(1,4)
+        m_attn_out = m_V.repeat(1,4)
         assert m_K.shape == (32, 1024), f"Expected shape of m_K (32, 1024), but got {m_K.shape}"
-        assert m_Q.shape == (32, 4096), f"Expected shape of m_Q (32, 4096), but got {m_K.shape}"
-        assert m_out.shape == (32, 14336), f"Expected shape of m_Out (32, 14336), but got {m_K.shape}"
+        assert m_Q.shape == (32, 4096), f"Expected shape of m_Q (32, 4096), but got {m_Q.shape}"
+        assert m_attn_out.shape == (32, 4096), f"Expected shape of m_Out (32, 14336), but got {m_attn_out.shape}"
+        assert m_out.shape == (32, 14336), f"Expected shape of m_Out (32, 14336), but got {m_out.shape}"
 
         # calculate q_proj, k_proj remaining params
         # input dim is 4096 because the hidden_states of each layer is unpruned, as [down_proj] has no output pruning masks
@@ -170,7 +172,8 @@ def caculate_remaining_parmams(pruning_masks, args):
         remaining_V_params = torch.sum(4096 * dim_after_pruning_V_out)
 
         # calculate out_proj remaining params
-        remaining_out_params = torch.sum(4096 * dim_after_pruning_V_out)
+        dim_after_pruning_out_in = torch.sum(m_attn_out, dim=1)
+        remaining_out_params     = torch.sum(4096 * dim_after_pruning_out_in)
 
         # calculate mlp_up / gate remaining params
         dim_after_pruning_up_out = torch.sum(m_out, dim=1)
