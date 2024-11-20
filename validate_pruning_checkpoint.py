@@ -22,9 +22,14 @@ def transform_output(inputs):
         start = end
     return arch_vector
 
-def transform_output_layer_uniform(inputs):
-    lw_structure = [128] * 2 + [11008]
-    num_kv_heads = 8
+def transform_output_layer_uniform(inputs, model=None):
+    if model == 'llama2-7b':
+        lw_structure = [128] * 2 + [11008]
+        num_kv_heads = 32
+    elif model == 'llama3-8b':
+        lw_structure = [128] * 2 + [14336]
+        num_kv_heads = 8
+
     arch_vector = []
     start = 0
     for i, size in enumerate(lw_structure):
@@ -103,7 +108,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     if not base:
         print("Getting current mask vector.")
         cur_mask_vec = checkpoint["mask_vec"].to("cuda")
-        masks = transform_output_layer_uniform(cur_mask_vec)
+        masks = transform_output_layer_uniform(cur_mask_vec, model=model)
 
         # Include weight mask observation parts
         observe_weight_masks(model, model_cfg, masks)
