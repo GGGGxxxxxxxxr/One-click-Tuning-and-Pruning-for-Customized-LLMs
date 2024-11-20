@@ -242,7 +242,7 @@ class Group_Lasso_regularization(nn.Module):
             # a) concate V_split_masks into mask for original WV
             V_mask = m_V
             V_mask_repeated = V_mask.repeat(self.num_groups)
-            print(V_mask_repeated.shape)
+            
             # b) compute gl for v_weight, v_bias, out_weight
             attn_v_lora_B   = cur_layer.self_attn.v_proj.lora_B
             attn_out_lora_A = cur_layer.self_attn.o_proj.lora_A
@@ -255,10 +255,10 @@ class Group_Lasso_regularization(nn.Module):
             # a) concate K_split_masks into mask for original WK
             K_mask = m_K
             Q_mask = K_mask.repeat(self.num_groups)
-            print(Q_mask.shape)
+            
             attn_k_lora_B = cur_layer.self_attn.k_proj.lora_B
             attn_q_lora_B = cur_layer.self_attn.q_proj.lora_B
-            print(attn_q_lora_B.shape)
+            
             gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                           + ((1 - Q_mask).unsqueeze(1) * attn_q_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                           #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
