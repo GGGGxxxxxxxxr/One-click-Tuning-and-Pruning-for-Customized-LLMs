@@ -75,8 +75,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             token=api_token
         ).cuda()
         model.resize_token_embeddings(len(tokenizer))
-
-
+        print(model)
     if lora == True:
         print("intialize LoRA insertions.")
         if base == True:
