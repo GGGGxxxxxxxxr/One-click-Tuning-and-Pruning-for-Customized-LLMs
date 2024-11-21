@@ -645,9 +645,6 @@ class LlamaSdpaAttention(LlamaAttention):
         key_states   = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        if torch.all(value_states == 0):
-            print("error detected.")
-
         causal_mask = attention_mask
         if attention_mask is not None:
             causal_mask = causal_mask[:, :, :, : key_states.shape[-2]]
@@ -672,9 +669,6 @@ class LlamaSdpaAttention(LlamaAttention):
             is_causal=is_causal,
         )
 
-        if torch.all(attn_output == 0):
-            print("error detected.")
-
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
 
@@ -689,7 +683,7 @@ class LlamaSdpaAttention(LlamaAttention):
                 attn_output = self.o_proj(attn_output, pruning_out_mask)
             else:
                 attn_output = self.o_proj(attn_output)
-
+        assert torch.all(attn_output == 0) == False, "error detected!!"
         return attn_output, None, past_key_value
 
 
