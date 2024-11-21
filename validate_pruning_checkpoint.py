@@ -175,7 +175,7 @@ def observe_weight_masks(model, model_cfg, masks):
 
     total_remain_params = params_Q + params_K + params_V + params_out + params_up_gate + params_down
     print(f"current remaining params: {total_remain_params}")
-    
+
     '''
     # Validate Group Lasso regularization
     print("Validating Group Lasso regularization.")
@@ -560,6 +560,7 @@ def generate_summary(model, tokenizer, input_text, masks, free=False, max_length
 
     generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
+    print(generated_text)
     # 提取摘要
     if generated_text.startswith(input_text):
         generated_summary = generated_text[len(input_text):].strip()
