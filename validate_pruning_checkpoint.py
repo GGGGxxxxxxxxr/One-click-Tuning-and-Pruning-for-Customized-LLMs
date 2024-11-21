@@ -172,7 +172,7 @@ def observe_weight_masks(model, model_cfg, masks):
     params_up_gate = torch.sum(torch.sum(mlp_mask, dim=1) * 4096) * 2
     params_down = torch.sum(torch.sum(mlp_mask, dim=1) * 4096)
 
-    total_remain_params = params_Q + params_K + params_V + params_out + params_up_gate + params_down
+    total_remain_params = params_Q + params_K + params_V + params_out + params_up_gate + params_down + 2 * 4096 * 128527 + 4096 * 2 * 32
     print(f"current remaining params: {total_remain_params}")
 
     total_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) * 32 + 2 * 4096 * 128527 + 4096 * 2 * 32
