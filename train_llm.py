@@ -144,6 +144,8 @@ def caculate_remaining_parmams(pruning_masks, args):
 
         return total_remaining_params
     
+    # UPDATED IN VERSION 0.2.1
+    # we further added the unpruned parameters (embeddings, lm_head, ...) to achieve more accurate pruning control
     elif args.model == "llama3-8b":
         assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
         m_K = pruning_masks[0] 
@@ -183,6 +185,8 @@ def caculate_remaining_parmams(pruning_masks, args):
         remaining_down_params  = torch.sum(4096 * dim_after_pruning_up_out)
 
         total_remaining_params = remaining_K_params + remaining_Q_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
+        total_remaining_params += 2 * 4096 * 128527 + 4096 * 2 * 32 
+
 
         return total_remaining_params
     
