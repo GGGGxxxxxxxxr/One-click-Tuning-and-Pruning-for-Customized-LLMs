@@ -683,7 +683,7 @@ class LlamaSdpaAttention(LlamaAttention):
                 attn_output = self.o_proj(attn_output, pruning_out_mask)
             else:
                 attn_output = self.o_proj(attn_output)
-        assert torch.all(attn_output == 0) == False, "error detected!!"
+
         return attn_output, None, past_key_value
 
 
