@@ -175,7 +175,7 @@ def observe_weight_masks(model, model_cfg, masks):
     total_remain_params = params_Q + params_K + params_V + params_out + params_up_gate + params_down
     print(f"current remaining params: {total_remain_params}")
 
-    total_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) * 32
+    total_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) * 32 + 4096 * 128527
     print(f"total params of the model: {total_params}")
     '''
     # Validate Group Lasso regularization
