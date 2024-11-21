@@ -647,7 +647,7 @@ class LlamaSdpaAttention(LlamaAttention):
 
         if torch.all(value_states == 0):
             print("error detected.")
-            
+
         causal_mask = attention_mask
         if attention_mask is not None:
             causal_mask = causal_mask[:, :, :, : key_states.shape[-2]]
@@ -671,6 +671,9 @@ class LlamaSdpaAttention(LlamaAttention):
             dropout_p=self.attention_dropout if self.training else 0.0,
             is_causal=is_causal,
         )
+
+        if torch.all(attn_output == 0):
+            print("error detected.")
 
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
