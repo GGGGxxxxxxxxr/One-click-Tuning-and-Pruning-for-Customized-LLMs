@@ -317,7 +317,7 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
         print(tokenizer.pad_token)
-        
+
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
