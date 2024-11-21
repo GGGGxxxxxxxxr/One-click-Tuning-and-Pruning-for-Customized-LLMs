@@ -548,6 +548,9 @@ def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None,
             # Check if the generated token is the EOS token
             if next_token_id.item() == tokenizer.eos_token_id:
                 break
+    
+    # remove the prompt_ids 
+    text = text[input_ids.shape[1]:] 
 
     return text
 
@@ -560,14 +563,15 @@ def generate_summary(model, tokenizer, input_text, masks, free=False, max_length
 
     generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-    print(generated_text)
+    '''
     # 提取摘要
     if generated_text.startswith(input_text):
         generated_summary = generated_text[len(input_text):].strip()
     else:
         generated_summary = generated_text.strip()
+    '''
 
-    return generated_summary
+    return generated_text
 
 def generate_predictions(model, tokenizer, input_text, masks):
     model.eval()
