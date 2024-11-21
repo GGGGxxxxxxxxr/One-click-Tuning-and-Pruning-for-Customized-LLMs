@@ -226,9 +226,6 @@ def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
         assert replacement_count == 7, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
 
     trainable_params = [(name, param) for name, param in llm_model.named_parameters() if param.requires_grad]
-    print("Trainable parameters after LoRA Infusion:")
-    for name, param in trainable_params:
-        print(f"{name}: {param.shape}")
 
     print("All Linear layers in decoder have been replaced with LoRALinear.")
 
