@@ -145,6 +145,7 @@ def observe_weight_masks(model, model_cfg, masks):
     print("Viewing current pruning pattern.")
     attn_k_mask = masks[0]
     attn_v_mask = masks[1]
+    mlp_mask    = masks[2]
     #attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
     attn_k_after_pruning = torch.sum(attn_k_mask, dim=1) / num_key_values
     attn_v_after_pruning = torch.sum(attn_v_mask, dim = 1) / num_key_values
@@ -164,6 +165,17 @@ def observe_weight_masks(model, model_cfg, masks):
         mlp_up_mask_ratio = (1 - mlp_up_mask).sum() / mlp_up_mask.numel()
         print(f"mlp_up_mask_ratio: {mlp_up_mask_ratio}")
 
+    # compute the current params remaining
+    params_Q = torch.sum(torch.sum(attn_k_mask, dim=1) * 4096) * 4
+    params_K = torch.sum(torch.sum(attn_k_mask, dim=1) * 4096)
+    params_V = torch.sum(torch.sum(attn_v_mask, dim=1) * 4096)
+    params_out = torch.sum(torch.sum(attn_v_mask, dim=1) * 4096) * 4
+    params_up_gate = torch.sum(torch.sum(mlp_mask, dim=1) * 4096) * 2
+    params_down = torch.sum(torch.sum(mlp_mask, dim=1) * 4096)
+
+    total_remain_params = params_Q + params_K + params_V + params_out + params_up_gate + params_down
+    print(f"current remaining params: {total_remain_params}")
+    
     '''
     # Validate Group Lasso regularization
     print("Validating Group Lasso regularization.")
@@ -495,7 +507,7 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
 
 
 def generate_text_custom(model, tokenizer, input_ids, max_length=50, masks=None, free=False, top_k=50, top_p=0.9, temperature=0.9):
-    model.train()
+    model.eval()
     generated = input_ids
     text = input_ids[0]
 
