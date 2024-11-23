@@ -164,7 +164,7 @@ def count_trainable_parameters(model):
 
 def count_total_prunable_params(model_name):
     if model_name == 'llama3-8b':
-        num_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) + 4096 * 2 * 32
+        num_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) * 32 + 4096 * 2 * 32
     elif model_name == 'llama2-7b':
         num_params = (4096 * 4096 * 4 + 4096 * 11008 * 3) + 4096 * 2 * 32
     else:
