@@ -486,7 +486,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 ## ** avoid the high variance of the generated mask due to different batches
                 if epoch ==  (args.start_epoch_control + args.control_epochs - 1) and not hyper_lr_reduced:
                     total_iters = len(nlp_dataloader)
-                    threshold = int((2/3) * total_iters)
+                    threshold = int((4/5) * total_iters)
                     if (i + 1) >= threshold:
                         current_lrs = [param_group['lr'] for param_group in optimizer_hyper.param_groups]
                         print(f"Epoch {epoch}, Iteration {i + 1}: current lr of hypernet: {current_lrs}. Reduce optimizer_hyper's learning to 1/5.")
