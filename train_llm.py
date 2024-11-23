@@ -186,8 +186,6 @@ def caculate_remaining_parmams(pruning_masks, args):
         remaining_down_params  = torch.sum(4096 * dim_after_pruning_up_out)
 
         total_remaining_params = remaining_K_params + remaining_Q_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
-        total_remaining_params += 2 * 4096 * 128527 + 4096 * 2 * 32 
-
 
         return total_remaining_params
     
@@ -237,7 +235,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
     if epoch >= args.start_epoch_regularization:
         if epoch == (args.epochs - 1):
-            gl_tensity = 100000000000                               # force to set expected weights to ZERO
+            gl_tensity = 100000                              # force to set expected weights to ZERO
             gl_module.grad_mul = gl_tensity
         else: 
             gl_tensity = 0.3

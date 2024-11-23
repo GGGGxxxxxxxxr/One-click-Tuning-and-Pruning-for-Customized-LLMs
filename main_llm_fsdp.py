@@ -44,7 +44,7 @@ import bitsandbytes as bnb
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding, DataCollatorForSeq2Seq
 from datasets import load_dataset
 from peft import LoftQConfig, LoraConfig, get_peft_model
-from util_llm import count_llm_p_structures, count_total_params, count_trainable_parameters
+from util_llm import count_llm_p_structures, count_total_params, count_trainable_parameters, count_total_prunable_params
 from util_llm import pruning_ratio_contribution
 from util_llm import LoRALinear, customized_lora_substitution
 from hypernet_llm import LLM_HyperStructure
@@ -557,10 +557,13 @@ def main():
     #pruning_contribution = pruning_ratio_contribution(model_cfg=model_cfg)
     #print("=====> Pruning_Contribution: <=====\n")
     #print(pruning_contribution)
-    total_params           = count_total_params(model)
-    total_trainable_params = count_trainable_parameters(model)
-    print(f"LLM total params: {total_params}, total trainable params:{total_trainable_params}, ratio = {total_trainable_params / total_params}")
+    total_params            = count_total_params(model)
+    total_prunable_params   = count_total_prunable_params(model_name=args.model)
+    total_trainable_params  = count_trainable_parameters(model)
+
+    print(f"LLM total params: {total_params}, total_prunable_params: {total_prunable_params}, total trainable params:{total_trainable_params}, ratio = {total_trainable_params / total_params}")
     #-----------------------------------------------------------------#
+    
     #-----------------------------------------------------------------#
     # Training Process
     print("=====> Begin Training: <=====\n")
@@ -585,7 +588,7 @@ def main():
             # train for one epoch
             cur_maskVec, skip_hyper_training, training_termination = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
                                                 hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
-                                                grouplasso_module=grouplasso_module, args=args, scaler=scaler_llm, scaler_hyper=scaler_hyper, total_params=total_params, skip_hyper_training=skip_hyper_training)
+                                                grouplasso_module=grouplasso_module, args=args, scaler=scaler_llm, scaler_hyper=scaler_hyper, total_params=total_prunable_params, skip_hyper_training=skip_hyper_training)
             
             # learing rate update
             scheduler_llm.step()

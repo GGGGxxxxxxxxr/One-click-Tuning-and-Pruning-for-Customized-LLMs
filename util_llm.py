@@ -162,6 +162,17 @@ def count_trainable_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
+def count_total_prunable_params(model_name):
+    if model_name == 'llame3-8b':
+        num_params = (4096 * 4096 + 4096 * 1024 * 2 + 4096 * 4096 + 14336 * 4096 * 3) + 4096 * 2 * 32
+    elif model_name == 'llama2-7b':
+        num_params = (4096 * 4096 * 4 + 4096 * 11008 * 3) + 4096 * 2 * 32
+    else:
+        raise NotImplementedError
+
+    return num_params
+
+
 class LoRALinear(nn.Module):
     def __init__(self, linear_module, r=8, dropout=0.1):
         super(LoRALinear, self).__init__()
@@ -231,7 +242,7 @@ def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
     for name, param in trainable_params:
         print(f"{name}: {param.shape}")
     '''
-    
+
     print("All Linear layers in decoder have been replaced with LoRALinear.")
 
 

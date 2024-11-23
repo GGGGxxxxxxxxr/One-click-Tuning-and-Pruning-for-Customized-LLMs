@@ -146,7 +146,7 @@ def observe_weight_masks(model, model_cfg, masks):
     attn_v_mask = masks[1]
     mlp_mask    = masks[2]
     #attn_k_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_k_mask]
-    attn_k_after_pruning = torch.sum(attn_k_mask, dim=1) / num_key_values
+    attn_k_after_pruning = torch.sum(attn_k_mask, dim = 1) / num_key_values
     attn_v_after_pruning = torch.sum(attn_v_mask, dim = 1) / num_key_values
     print(attn_v_mask[23])
     #attn_v_pruning_dim = [(1 - inv_mask).sum(dim=1) for inv_mask in attn_v_mask]
