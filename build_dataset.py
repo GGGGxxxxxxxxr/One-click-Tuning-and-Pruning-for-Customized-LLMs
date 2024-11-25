@@ -657,7 +657,7 @@ def formatted_multilegalpile_dataset(args=None, num_samples=None):
     return val_dataset
 
 
-def create_legal_dataset(args):
+def create_legal_dataset(args=None):
     # 加载数据集
     billsum_train, billsum_val   = formatted_billsum_dataset(num_samples=2000, args=args)
     casehold_train, casehold_val = formatted_casehold_dataset(num_samples=13000, args=args)
