@@ -647,8 +647,8 @@ def formatted_multilegalpile_dataset(args=None, num_samples=None):
     ds = load_dataset("json", data_files='nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl')['train']
     val_dataset = ds.remove_columns(["language", 'type', 'jurisdiction'])
 
-    if args.loss_on_answer:
-        val_dataset = val_dataset.map(lambda example: {'answer': ''})
+    #if args.loss_on_answer:
+    val_dataset = val_dataset.map(lambda example: {'answer': ''})
     
     # If num_samples is specified, limit the dataset size
     if num_samples is not None:
