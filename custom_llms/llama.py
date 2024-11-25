@@ -582,6 +582,12 @@ class LlamaSdpaAttention(LlamaAttention):
             key_states   = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
 
+            # trail for proper mask location
+            pruning_Q_mask = pruning_K_mask.repeat(self.num_key_value_groups)
+            query_states = query_states * pruning_Q_mask
+            key_states   = key_states   * pruning_K_mask
+            value_states = value_states * pruning_V_mask
+
         # training logic
         # LinearOutput = Original_Linear * mask + LoRA, LoRA is regularized via GroupLasso to approach the mask shape
         # e.g, mask = [0, 1, 0, 1], [normal] indicate activations within normal range, 
@@ -631,6 +637,7 @@ class LlamaSdpaAttention(LlamaAttention):
         # reshape into Q,K,V,MLP compatible computational masks:
         # mask_K: mK, mask_Q: repeated_kv(mK, self.num_key_value_groups)//
         # so that we could align MHA together with GA within the same set of code.
+        '''
         if self.training != True:
             if pruning_K_mask != None: #[4096,]
                 pruning_K_mask = pruning_K_mask.view(self.num_key_value_heads, self.head_dim).unsqueeze(0).unsqueeze(2)  #[1, 32, 1, 128] (bsz, n_head, s_len, head_dim)
@@ -641,7 +648,7 @@ class LlamaSdpaAttention(LlamaAttention):
                 query_states = query_states * pruning_Q_mask
                 key_states   = key_states   * pruning_K_mask
                 value_states = value_states * pruning_V_mask
-
+        '''
         key_states   = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
@@ -668,7 +675,7 @@ class LlamaSdpaAttention(LlamaAttention):
             dropout_p=self.attention_dropout if self.training else 0.0,
             is_causal=is_causal,
         )
-        print(attn_output)
+        
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
 
