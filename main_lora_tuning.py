@@ -41,7 +41,7 @@ from torch.distributed.fsdp.wrap import (
 import bitsandbytes as bnb
 
 # llm-related library import
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding, DataCollatorForSeq2Seq
 from datasets import load_dataset
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures
@@ -288,14 +288,17 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", torch_dtype=torch.bfloat16, attn_implementation="sdpa", token = api_token).to(device)
+        tokenizer.padding_side = 'left'
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
+
     elif args.model == 'llm-pruner':
         pruned_dict = torch.load('/home/sgao1/llm_pruner/LLM-Pruner/prune_log/llama_prune/pytorch_model.bin', map_location='cpu')
         tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = 32
+
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
@@ -351,27 +354,64 @@ def main():
     print("=====> Tokenized 85th Sequence Sample: <=====")
     # tokenize the NLP dataset
     def tokenize_function(examples):
-        # Tokenize with truncation enabled but without padding
-        tokens = tokenizer(examples["text"], truncation=True, padding=False)
-        
-        # Add the EOS token ID at the end of each tokenized input
-        eos_token_id = tokenizer.eos_token_id  # Ensure your tokenizer has an EOS token
-        if eos_token_id is None:
-            raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
-        
-        # Append the EOS token to each sequence and update the attention mask
-        tokens["input_ids"] = [ids + [eos_token_id] for ids in tokens["input_ids"]]
-        tokens["attention_mask"] = [mask + [1] for mask in tokens["attention_mask"]]
+        if not args.loss_on_answer:
+            # Tokenize with truncation enabled but without padding
+            inputs  = tokenizer(examples["text"], padding=False)
 
-        return tokens
+            if examples["answer"]:
+                answers = tokenizer(examples["answer"], padding=False)
+                # Add the EOS token ID at the end of each tokenized input
+                eos_token_id = tokenizer.eos_token_id 
+                if eos_token_id is None:
+                    raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+                input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
+                attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
+                labels = input_ids
+            else:
+                input_ids = inputs["input_ids"]
+                attention_mask = inputs["attention_mask"]
+                labels = input_ids
+            
+            return {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+                'labels': labels
+            }
     
-    tokenized_datasets = nlp_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
-    tokenized_valsets  = val_dataset.map(tokenize_function, batched=True).remove_columns(["text"])
+        else:
+            # Ensure 'answer' key is present, otherwise handle it gracefully
+            if 'answer' not in examples:
+                raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
+        
+            if examples["answer"]:
+                answers = tokenizer(examples["answer"], padding=False)
+                # Add the EOS token ID at the end of each tokenized input
+                eos_token_id = tokenizer.eos_token_id 
+                if eos_token_id is None:
+                    raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
+                input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
+                attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
+                labels = -100 * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
+            else:
+                input_ids = inputs["input_ids"]
+                attention_mask = inputs["attention_mask"]
+                labels = input_ids
+            
+            return {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+                'labels': labels
+            }
+    
+
+    tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+    tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+
     print(tokenized_datasets[85])
     print(tokenized_valsets[85])
     print("=====> NLP Dataset Initialization Done. <=====")
     # config training dataloader
-    data_collator  = DataCollatorWithPadding(tokenizer=tokenizer, padding='longest')
+    data_collator  = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
 
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)

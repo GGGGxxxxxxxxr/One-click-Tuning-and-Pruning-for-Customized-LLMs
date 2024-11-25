@@ -772,6 +772,7 @@ def llm_tuning_train_one_epoch(
         llm_loss, target_loss, _ = target_llm_step(
             llm_model=target_llm, 
             input_ids=text_input["input_ids"], 
+            labels=text_input["labels"],
             masks=None, 
             attn_mask=text_input["attention_mask"], 
             epoch=epoch, 

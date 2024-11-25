@@ -584,9 +584,9 @@ class LlamaSdpaAttention(LlamaAttention):
 
             # trail for proper mask location
             pruning_Q_mask = pruning_K_mask.repeat(self.num_key_value_groups)
-            query_states = query_states * pruning_Q_mask
-            key_states   = key_states   * pruning_K_mask
-            value_states = value_states * pruning_V_mask
+            query_states   = query_states * pruning_Q_mask
+            key_states     = key_states   * pruning_K_mask
+            value_states   = value_states * pruning_V_mask
 
         # training logic
         # LinearOutput = Original_Linear * mask + LoRA, LoRA is regularized via GroupLasso to approach the mask shape
