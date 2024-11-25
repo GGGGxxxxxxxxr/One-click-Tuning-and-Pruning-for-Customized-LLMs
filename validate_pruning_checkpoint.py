@@ -753,13 +753,13 @@ def evaluate_instruction(model, tokenizer, masks):
         print(f"Answer:\n{response}\n")
 
 if __name__ == "__main__":
-    base = False
+    base = True
     lora = True
-    model_name = 'llama3-8b'
+    model_name = 'llama2-7b'
     if base != True:
         ckpt_path = "/orange/yonghui.wu/sgao1/llama3_8b_4.5b_3epochs_1control_medical_entire.pth.tar"
     else:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_base_lora.pth.tar"
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruner_lora.pth.tar"
 
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model_name=model_name)
 
