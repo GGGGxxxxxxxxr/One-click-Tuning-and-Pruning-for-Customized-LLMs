@@ -346,7 +346,6 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     '''
     remaining_params = caculate_remaining_parmams(pruning_masks=binary_mask, args=args)
     mask_ratio       = remaining_params / total_params
-    print(mask_ratio)
     ratio_loss       = match_loss(mask_ratio, pruning_ratio_target)
 
 
