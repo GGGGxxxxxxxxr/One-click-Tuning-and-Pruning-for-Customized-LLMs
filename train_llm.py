@@ -200,10 +200,10 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
     llm_model.train()
     #uniform device
     cur_device = next(llm_model.parameters()).device
-    input_ids = input_ids.to(cur_device)
-    attn_mask = attn_mask.to(cur_device)
-    labels    = labels.to(cur_device)
-    seq_len = input_ids.shape[1]
+    input_ids  = input_ids.to(cur_device)
+    attn_mask  = attn_mask.to(cur_device)
+    labels     = labels.to(cur_device)
+    seq_len    = input_ids.shape[1]
 
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
     #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):

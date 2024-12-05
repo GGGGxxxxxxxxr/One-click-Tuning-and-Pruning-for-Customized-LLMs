@@ -294,6 +294,18 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
 
+    elif args.model == 'llama3-8b':
+        api_token = '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'
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Meta-Llama-3-8B",  token = api_token)
+        print(f"pretraining_tp: {model_cfg.pretraining_tp}")
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", token = api_token)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.padding_side = 'left'
+        model     = LlamaForCausalLM.from_pretrained("meta-llama/Meta-Llama-3-8B", attn_implementation="sdpa", torch_dtype=torch.bfloat16, token = api_token).to(init_device)
+        model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = model_cfg.num_key_value_heads
+        print(tokenizer.pad_token)
+        
     elif args.model == 'llm-pruner':
         pruned_dict = torch.load('/home/sgao1/llm_pruner/LLM-Pruner/prune_log/llama_prune/pytorch_model.bin', map_location='cpu')
         tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
