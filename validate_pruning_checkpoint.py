@@ -755,7 +755,7 @@ def evaluate_instruction(model, tokenizer, masks):
 if __name__ == "__main__":
     base = True
     lora = True
-    model_name = 'llama2-7b'
+    model_name = 'llama3-8b'
     if base != True:
         ckpt_path = "/orange/yonghui.wu/sgao1/llama3_8b_4.5b_3epochs_1control_medical_entire.pth.tar"
     else:
