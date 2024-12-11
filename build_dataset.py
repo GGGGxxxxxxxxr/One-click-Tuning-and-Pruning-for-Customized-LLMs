@@ -509,7 +509,7 @@ def formatted_c4_dataset(num_samples=1000, min_length=200, max_length=500):
     return validation_dataset
 
 #-------------------- 合并数据集 --------------------#
-def create_medical_dataset(args=None):
+def create_medical_dataset(args=None, open_domain=False):
     # 获取各个数据集的训练集和验证集
     mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
     pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
@@ -517,12 +517,14 @@ def create_medical_dataset(args=None):
 
     inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
 
-    open_domain_val = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
-
-    # 合并训练集
-    combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
-    # 合并验证集
-    combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val, open_domain_val])
+    if open_domain:
+        open_domain_val = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
+        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val, open_domain_val])
+    else:
+        # 合并训练集
+        combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
+        # 合并验证集
+        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
 
     # according to D-Pruner, adding open-domain calibration dataset would help to improve the generalization ability of the model
     
