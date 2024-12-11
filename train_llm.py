@@ -570,10 +570,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             gl_module=grouplasso_module, 
             scaler=scaler
         )
-        scaler.unscale_(optimizer_llm)
-        torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
-        scaler.step(optimizer_llm)
-        scaler.update()
+        #scaler.unscale_(optimizer_llm)
+        #torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
+        #scaler.step(optimizer_llm)
+        #scaler.update()
 
         # 更新 LLM 损失到训练记录
         reduced_llm_loss = reduce_loss(llm_loss)
