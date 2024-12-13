@@ -753,11 +753,21 @@ def evaluate_instruction(model, tokenizer, masks):
         print(f"Answer:\n{response}\n")
 
 if __name__ == "__main__":
+    import argparse
+    
     base = False
     lora = True
     model_name = 'llama2-7b'
+
+    parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
+    parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
+    args = parser.parse_args()
+
+    # Use the user-defined checkpoint path
+    ckpt_path = args.ckpt_path
+
     if base != True:
-        ckpt_path = "/orange/yonghui.wu/sgao1/saved_ato_models/llama2_7b_0.5_alpaca.pth.tar"
+        print(f"Using checkpoint path: {ckpt_path}")
     else:
         ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruner_lora.pth.tar"
 
