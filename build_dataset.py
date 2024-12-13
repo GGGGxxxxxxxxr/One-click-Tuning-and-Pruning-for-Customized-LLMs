@@ -521,9 +521,7 @@ def create_medical_dataset(args=None, open_domain=False):
         open_domain_val = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
         combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val, open_domain_val])
     else:
-        # 合并训练集
         combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
-        # 合并验证集
         combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
 
     # according to D-Pruner, adding open-domain calibration dataset would help to improve the generalization ability of the model
