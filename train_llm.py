@@ -599,10 +599,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
         
-        loss_logs["llm_loss"].append(reduced_llm_loss)
-        loss_logs["target_loss"].append(reduced_target_loss)
-        loss_logs["group_lasso_loss"].append(reduced_gl_loss)
-        
+        loss_logs["llm_loss"].append(reduced_llm_loss.item())
+        loss_logs["target_loss"].append(reduced_target_loss.item())
+        loss_logs["group_lasso_loss"].append(reduced_gl_loss.item())
+
         if reduced_gl_loss <= gl_loss_threshold:
             gl_loss_counter += 1
         else:
