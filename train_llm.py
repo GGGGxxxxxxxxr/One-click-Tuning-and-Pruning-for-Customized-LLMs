@@ -534,6 +534,11 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 ratio_loss_ave.update(reduced_ratio_loss.item(), 1)
                 alignment_loss_ave.update(reduced_align_loss.item(), 1)
 
+                loss_logs["hypernet_loss"].append(reduced_hyper_loss.item())
+                loss_logs["valid_loss"].append(reduced_valid_loss.item())
+                loss_logs["ratio_loss"].append(reduced_ratio_loss.item())
+                loss_logs["alignment_loss"].append(reduced_align_loss.item())
+
                 # ** automatic determination of stop hypernet() training
                 if reduced_ratio_loss.item() <= ratio_loss_threshold:
                     ratio_loss_counter +=1
@@ -594,6 +599,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         target_loss_ave.update(reduced_target_loss.item(), text_input["input_ids"].size(0))
         gl_loss_ave.update(reduced_gl_loss.item(), 1)
         
+        loss_logs["llm_loss"].append(reduced_llm_loss)
+        loss_logs["target_loss"].append(reduced_target_loss)
+        loss_logs["group_lasso_loss"].append(reduced_gl_loss)
+        
         if reduced_gl_loss <= gl_loss_threshold:
             gl_loss_counter += 1
         else:
@@ -621,14 +630,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             gl_loss = grouplasso_module(target_llm = target_llm.module, pruning_masks = masks, epoch=epoch)
             print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
-        
-        loss_logs["llm_loss"].append(reduced_llm_loss)
-        loss_logs["target_loss"].append(reduced_target_loss)
-        loss_logs["group_lasso_loss"].append(reduced_gl_loss)
-        loss_logs["hypernet_loss"].append(reduced_hyper_loss)
-        loss_logs["valid_loss"].append(reduced_valid_loss)
-        loss_logs["ratio_loss"].append(reduced_ratio_loss)
-        loss_logs["alignment_loss"].append(reduced_align_loss)
 
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:
