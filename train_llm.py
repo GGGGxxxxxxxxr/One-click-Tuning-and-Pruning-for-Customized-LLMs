@@ -379,7 +379,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     alignment_loss          = (max_remaining_K_out_dim + max_remaining_V_out_dim) / args.num_key_values
     
     # e) sum the loss
-    hyper_loss = target_loss + 5 * ratio_loss #+ 0.00005 * alignment_loss
+    hyper_loss = target_loss + 10 * ratio_loss #+ 0.00005 * alignment_loss
 
     hyper_loss.backward()
 
