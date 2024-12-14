@@ -419,6 +419,17 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     ratio_loss_ave     = AverageMeter()
     alignment_loss_ave = AverageMeter()
 
+    # intialize step-wise loss change holder for visualization purpose
+    loss_logs = {
+    "llm_loss": [],
+    "target_loss": [],
+    "group_lasso_loss": [],
+    "hypernet_loss": [],
+    "valid_loss": [],
+    "ratio_loss": [],
+    "alignment_loss": []
+    }
+    
     pruning_ratio_target = args.pruning_ratio_target
     num_key_value        = args.num_key_values
 
@@ -611,6 +622,14 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             print(f"group lasso loss after projection: {gl_loss}")
         ###############################################
         
+        loss_logs["llm_loss"].append(reduced_llm_loss)
+        loss_logs["target_loss"].append(reduced_target_loss)
+        loss_logs["group_lasso_loss"].append(reduced_gl_loss)
+        loss_logs["hypernet_loss"].append(reduced_hyper_loss)
+        loss_logs["valid_loss"].append(reduced_valid_loss)
+        loss_logs["ratio_loss"].append(reduced_ratio_loss)
+        loss_logs["alignment_loss"].append(reduced_align_loss)
+
         # Step 3: 打印训练日志（仅限主进程）
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
@@ -637,7 +656,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                         print(f"layer_{layer_idx}_mlp_up_mask_ratio: {mlp_up_mask_ratio}")
 
                     print(f"Current PruningRatioLoss: {reduced_ratio_loss}")
-                    print(f"Current AlignmentLoss: {reduced_align_loss}")
+                    print(f"Current validation loss: {reduced_valid_loss}")
+                    print(f"Current TargetLoss: {reduced_target_loss}")
+                    print(f"Current GroupLassoLoss: {reduced_gl_loss}")
+                    #print(f"Current AlignmentLoss: {reduced_align_loss}")
 
                 start_time = time.time()
 
@@ -658,7 +680,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             f"Alignment Loss (Avg): {alignment_loss_ave.avg:.4f}\n"
         )
 
-    return return_mask, skip_hypernet_training, terminate_training
+    return return_mask, skip_hypernet_training, terminate_training, loss_logs
 
     '''
     for i, text_input in enumerate(nlp_dataloader):

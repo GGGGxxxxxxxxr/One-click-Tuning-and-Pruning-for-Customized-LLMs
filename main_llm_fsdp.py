@@ -577,6 +577,7 @@ def main():
 
     skip_hyper_training  = False
     training_termination = False
+
     for epoch in range(start_epoch, args.epochs):
         if training_termination == True:
             break
@@ -586,9 +587,14 @@ def main():
             ddp_sampler1.set_epoch(epoch)
 
             # train for one epoch
-            cur_maskVec, skip_hyper_training, training_termination = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
+            cur_maskVec, skip_hyper_training, training_termination, loss_log = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
                                                 hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
                                                 grouplasso_module=grouplasso_module, args=args, scaler=scaler_llm, scaler_hyper=scaler_hyper, total_params=total_prunable_params, skip_hyper_training=skip_hyper_training)
+            
+            # save the training log per epoch
+            import json
+            with open(f"loss_logs_epoch_{epoch}.json", "w") as log_file:
+                json.dump(loss_log, log_file)
             
             # learing rate update
             scheduler_llm.step()
