@@ -234,6 +234,10 @@ class LoRALinear(nn.Module):
             U_truncated = U[:, :r]
             S_truncated = S[:r]
             Vh_truncated = Vh[:r, :]
+            if out_features == 11008:
+                print(U_truncated.shape)
+                print(S_truncated.shape)
+                print(Vh_truncated.shape)
             # Calculate the low-rank approximation (LoRA contribution)
             lora_contribution = torch.mm(U_truncated, torch.mm(torch.diag(S_truncated), Vh_truncated))
             # Calculate the remaining weight (residual part)
