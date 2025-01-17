@@ -12,6 +12,8 @@
 #    - ATP model --> final compressed model conversion
 # 2) QLoRA for ATP's upscaling towards 13B or even 30B
 
+# to run this script:
+# CUDA_VISIBLE_DEVICES=0,1,2, ..  torchrun --nproc_per_node=n main_llm_atp_disp.py --model llama2-7b --tuning-method lora --pruning-method DISP --lr 1e-4 --lora-rank 32 --epochs 2 --control-epochs 1 --svd-init
 import argparse
 import os
 import copy
