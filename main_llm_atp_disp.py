@@ -1,3 +1,17 @@
+# official implementation for "All-in-One Tuning and Structural Pruning for Domain-specific LLMs"
+# https://arxiv.org/abs/2412.14426
+
+# version2.0 main updates:
+# 1) more choices for pruning space
+# 2) reimplemented group lasso approximation solution, subsitutional from direct grouplasso loss
+# 3) serve for more general purpose deployment
+
+# waiting for updates:
+# 1) final compressed model inference:
+#    - trition kernel for index selection addition
+#    - ATP model --> final compressed model conversion
+# 2) QLoRA for ATP's upscaling towards 13B or even 30B
+
 import argparse
 import os
 import copy
@@ -24,36 +38,21 @@ from torch.distributed.fsdp import MixedPrecision
 from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 from functools import partial
 
-mixed_precision_policy = MixedPrecision(
-    param_dtype=torch.bfloat16,
-    reduce_dtype=torch.bfloat16,
-    buffer_dtype=torch.bfloat16
-)
-
-from torch.distributed.fsdp.wrap import (
-    transformer_auto_wrap_policy,
-    _module_wrap_policy,
-    enable_wrap,
-    wrap,
-)
-
 # 8bit optimizer for memory efficent training
 import bitsandbytes as bnb
 
 # llm-related library import
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorWithPadding, DataCollatorForSeq2Seq
+from transformers import AutoTokenizer, AutoConfig, DataCollatorForSeq2Seq
 from datasets import load_dataset
-from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures, count_total_params, count_trainable_parameters, count_total_prunable_params
-from util_llm import pruning_ratio_contribution
-from util_llm import LoRALinear, customized_lora_substitution
+from util_llm import customized_lora_substitution
 from hypernet_llm import LLM_HyperStructure
-from train_llm import llm_sp_train_one_epoch
+from train_llm_disp import llm_sp_train_one_epoch
 from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset, formatted_alpaca_dataset
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
-from custom_llms.llama import LlamaForCausalLM
-from alignment_function_llm import Group_Lasso_regularization
+from custom_llms.llama_disp import LlamaForCausalLM
+from alignment_function_llm import Group_Lasso_regularization_DISP
 from custom_llms.llama import LlamaDecoderLayer
 
 ''''
@@ -110,7 +109,15 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
 parser.add_argument('--seed', default=0, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--log-interval', default=20, type=int,
-                    help='training log intervals of STEPs')
+                    help='training log intervals of ATP steps')
+parser.add_argument('--log-loss', action='store_true',
+                    help='Enable logging of the training loss per step')
+parser.add_argument('--log-interval', default=20, type=int,
+                    help='training log intervals of ATP steps')
+parser.add_argument('--valid-interval', default=40, type=int,
+                    help='validation intervals on the fixed pruning decisions')
+parser.add_argument('--gltrack-interval', default=20, type=int,
+                    help='group lasso loss tracking intervals')
 parser.add_argument('--loss-on-answer', action='store_true', 
                     help='If set, calculate loss on the entire input including the context')
 #-----------------------------------------------------------------#
@@ -119,9 +126,9 @@ parser.add_argument('--loss-on-answer', action='store_true',
 # methdology-related args
 parser.add_argument('--dataset', default='MedNLI', type=str,
                     help='specify the domain-specifc dataset for LLM pararm tuning, **build-in ready2use selections: wikitext, MedNLI, AGNews, legal, medical, alpaca')
-parser.add_argument('--pruning-method', default='inner', type=str,
-                    help='head-wise MHA pruning **[head_wise], layer-aware-uniform head pruning **[layer_uniform_attn] or more fine-grained within attention-head pruning **[inner]')
-parser.add_argument('--tuning-method',  default='full', type=str,
+parser.add_argument('--pruning-method', default='DISP', type=str,
+                    help='head-wise MHA pruning **[head_wise], layer-aware-uniform head pruning **[layer_uniform_attn], more fine-grained within attention-head pruning **[inner], or stronger pruning space **[DISP]')
+parser.add_argument('--tuning-method',  default='lora', type=str,
                     help='lora tuning **[lora] or full param tuning **[full]')
 parser.add_argument('--pruning-ratio-target', default=0.5, type=float,
                     help='Pruning Rate')
@@ -133,6 +140,10 @@ parser.add_argument('--control-step', default=1, type=int,
                     help='HyperNet() param update gap, default = 1')
 parser.add_argument('--start-epoch-regularization', default=0, type=int,
                     help='which epoch to start the loss of group-sparsity-related constratins')
+parser.add_argument('--svd-init', action='store_true', 
+                    help='whether to use SVD initialization for LoRA layers')
+parser.add_argument('--lora-rank', default=32, type=int,
+                    help='rank of the low-rank matrices in LoRA layers')
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
@@ -260,8 +271,18 @@ def main():
     device = torch.device(f'cuda:{local_rank}')
     setup_for_distributed(rank==0)
     
-    print("Welcome to the ATO's one-step tuning & structural pruning for LLMs!\n")
-    print("=====> DDP Training ENV Initialization Done. <=====\n")
+    print("""
+                  ██████████
+              ████          ████
+          ████       ATP:       ████
+       ████   All-in-One Tuning     ████
+       ████    & Structural Pruning ████
+          ████    version2.0    ████
+              ████          ████
+                  ██████████
+    """)
+
+    print("\n=====> DDP Training ENV Initialization Done. <=====")
     #-----------------------------------------------------------------#
     args = parser.parse_args()
     
@@ -274,65 +295,88 @@ def main():
     #-----------------------------------------------------------------#
     # pre-trained LLM initialization
     # Huggingface support is pulled to make sure the generalization ability of our scripts.
-    # ** current support: {qwen2-0.5b, llama2-7b}
+    # ** current support: {qwen2-0.5b, llama2-7b, llama3-8b}
     if args.tuning_method == 'lora':
-        print("LoRA has been enabled for tuning, DDP mode is selected.")
+        print("\n[INFO] Tuning Method: LoRA")
+        print("LoRA has been enabled for tuning. Distributed Data Parallel (DDP) mode is selected.")
         init_device = device
     else:
-        print("Full-param tuning has been enabled, FSDP mode is selected.")
+        print("\n[INFO] Tuning Method: Full-Parameter")
+        print("Full-parameter tuning has been enabled. Fully Sharded Data Parallel (FSDP) mode is selected.")
         init_device = 'cpu'
 
-    print("=====> Intialization pre-trained: '{}' from Huggingface <=====".format(args.model))
+    print(f"\n[INFO]=====> Initializing pre-trained model: '{args.model}' from Huggingface <=====")
     if args.model == 'qwen-0.5b':
+        # Qwen-0.5B Model Initialization
         model_cfg = AutoConfig.from_pretrained("Qwen/Qwen2-0.5B")
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B")
-        model     = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B").to(init_device)
+        model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B").to(init_device)
         args.num_key_values = model_cfg.num_key_value_heads
 
-        print("=====> Model structure: <=====")
+        print("\n[INFO]=====> Model structure for 'qwen-0.5b': <=====")
         print(model)
-        print("=====> Structure End. <=====\n")
+        print("[INFO]=====> Model structure ends. <=====\n")
 
-    # llama2-7b initialization from Huggingface
-    # ** llama tokenizer does not have a specific PAD token, so a special pad token is appended here for string length alignment
     elif args.model == 'llama2-7b':
+        # LLaMA 2-7B Model Initialization
+        print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
         api_token = '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'
-        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf",  token = api_token)
-        print(f"pretraining_tp: {model_cfg.pretraining_tp}")
-        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token = api_token)
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+        print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+        
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         tokenizer.padding_side = 'left'
-        model     = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", attn_implementation="sdpa", torch_dtype=torch.bfloat16, token = api_token).to(init_device)
+        
+        model = LlamaForCausalLM.from_pretrained(
+            "meta-llama/Llama-2-7b-hf",
+            attn_implementation="sdpa",
+            torch_dtype=torch.bfloat16,
+            token=api_token
+        ).to(init_device)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
 
     elif args.model == 'llama3-8b':
+        # LLaMA 3-8B Model Initialization
+        print("\n[INFO] LLaMA 3-8B detected. Initializing with API token...")
         api_token = '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'
-        model_cfg = AutoConfig.from_pretrained("meta-llama/Meta-Llama-3-8B",  token = api_token)
-        print(f"pretraining_tp: {model_cfg.pretraining_tp}")
-        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", token = api_token)
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Meta-Llama-3-8B", token=api_token)
+        print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+        
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         tokenizer.padding_side = 'left'
-        model     = LlamaForCausalLM.from_pretrained("meta-llama/Meta-Llama-3-8B", attn_implementation="sdpa", torch_dtype=torch.bfloat16, token = api_token).to(init_device)
+        
+        model = LlamaForCausalLM.from_pretrained(
+            "meta-llama/Meta-Llama-3-8B",
+            attn_implementation="sdpa",
+            torch_dtype=torch.bfloat16,
+            token=api_token
+        ).to(init_device)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
-        print(tokenizer.pad_token)
+        print(f"[INFO] Padding Token: {tokenizer.pad_token}")
 
     else:
-        print("=====> Model not implemented yet! System Exit. <=====\n")
+        # Model Not Implemented
+        print("\n[INFO]=====> Model not implemented yet! Exiting the system. <=====")
         sys.exit()
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
     # counting prunable structures for LLMs
     if args.pruning_method == 'inner':
-        print("=====> Fine-grained pruning is ENABLED. Pruning would be conducted within MHA. <=====\n")
+        print("\n[INFO]=====> Fine-grained pruning is ENABLED. Pruning would be conducted within MHA. <=====")
         p_structures = count_llm_p_structures(model = model, model_config = model_cfg, pruning_scheme = args.pruning_method)
     elif args.pruning_method == 'layer_uniform_attn':
-        print("=====> Layer-uniform attn pruning is ENABLED. Pruning would be conducted within MHA but the layer-wise pruning pattern would be shared across all heads. <=====\n")
+        print("\n[INFO]=====> Layer-uniform attn pruning is ENABLED. Pruning would be conducted within MHA but the layer-wise pruning pattern would be shared across all heads. <=====")
+        p_structures = count_llm_p_structures(model = model, model_config = model_cfg, pruning_scheme = args.pruning_method)
+    elif args.pruning_method == 'DISP':
+        print("\n[INFO]=====> DISP pruning space is ENABLED. Pruning would be conducted within MHA but on the input dimension. Refer to DISP for more detailed implementation. <=====")
         p_structures = count_llm_p_structures(model = model, model_config = model_cfg, pruning_scheme = args.pruning_method)
     else:
-        print("=====> AttentionHead pruning is ENABLED. Pruning would be conducted head-wisely on Query. <=====")
+        print("\n[INFO]=====> AttentionHead pruning is ENABLED. Pruning would be conducted head-wisely on Query. <=====")
         print("CURRENTLY NOT SUPPORTED!")
     #-----------------------------------------------------------------#
 
@@ -341,9 +385,9 @@ def main():
     # currently we use full-param, LoRA feature would be developed later
     if args.tuning_method == 'lora':
         '''
-        ** in order to fit LoRA with AllInOnce Implementation, customized LoRALinear with mask capability is required
+        ** in order to fit LoRA with ATP Implementation, customized LoRALinear with mask capability is required
         ** thus instead of Peft library, we customize LoRA Infusion.
-        print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====\n")
+        print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====")
         lora_config = LoraConfig(
                         r=8,
                         lora_alpha=8,
@@ -362,15 +406,21 @@ def main():
         print("=====> LoRA infusion done. <=====\n")
         model.print_trainable_parameters()
         '''
-        customized_lora_substitution(model, rank=8, dropout=0.1)
-        print("=====> LoRA infusion done. <=====\n")
+        customized_lora_substitution(model, rank=args.lora_rank, dropout=0.1, svd_init=args.svd_init)
+
+        if args.svd_init == True:
+            print(f"\n[INFO]=====> LoRA initialization with SVD decomposition with top_r: {args.lora_rank} <=====")
+        else:
+            print(f"\n[INFO]=====> LoRA initialization with common solution with rank: {args.lora_rank}. <=====")
+
+        print("\n[INFO]=====> LoRA infusion done. <=====")
     else:
-        print("=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====\n")
+        print("\n[INFO]=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====")
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
     # build controllernetwork for mask generation
-    print("=====> Initialize Mask ControllerNetwork (Hypernet) based on [prunable_structure, temperature, base]. <=====\n")
+    print("\n[INFO]=====> Initialize Pruning_Decision_Generator(PDG) based on [prunable_structure, temperature, base]. <=====")
     hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(dtype=torch.bfloat16).to(device)
     cur_maskVec = hyper_net(dummy=0)
     cur_mask_init = hyper_net.transform_output(cur_maskVec)
@@ -379,42 +429,48 @@ def main():
     initialized maskVec
     '''
     number_of_zeros = (cur_maskVec == 0).sum().item()
-    print(f"initialized binary mask has {number_of_zeros} masked dimension within the vector.")
+    print(f"\n[DEBUG]: initialized binary mask has {number_of_zeros} masked dimension within the vector.")
 
-    print("random initialized Mask:\n", cur_maskVec, cur_maskVec.size())
-    print("random initialized Mask for LLM Inference:\n", cur_mask_init)
-    print("=====> Mask ControllerNetwork Initialization Done. <=====\n")
+    print("\n[DEBUG]random initialized Mask:\n", cur_maskVec, cur_maskVec.size())
+    print("\n[DEBUG]random initialized Mask for LLM Inference:\n", cur_mask_init)
+    print("\n[INFO]=====> Pruning_Decision_Generator Initialization Done. <=====")
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
-    # dataset initialization
- 
+    # user-specified dataset selection & initialization
+    torch.backends.cuda.enable_flash_sdp(True)
+    ## general purpose dataset
     if args.dataset   == "wikitext":
         nlp_dataset, val_dataset = formatted_wikitext_dataset()
-    elif args.dataset == 'MedNLI':
-        nlp_dataset, val_dataset = formatted_MedNLI_dataset()
+    
     elif args.dataset == 'AGNews':
         nlp_dataset, val_dataset = formatted_AGNews_dataset()
+    
+    elif args.dataset == 'alpaca':
+        nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
+        assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
+
+    ## domain-specific dataset
+    elif args.dataset == 'MedNLI':
+        nlp_dataset, val_dataset = formatted_MedNLI_dataset()
     elif args.dataset == 'medical':
         nlp_dataset, val_dataset = create_medical_dataset(args=args)
         print(val_dataset)
     elif args.dataset == 'legal':
         nlp_dataset, val_dataset = create_legal_dataset(args=args)
-        torch.backends.cuda.enable_flash_sdp(True)    # as legal-domain dataset are super long, we suggest a checking for flashattention availbility
-    elif args.dataset == 'alpaca':
-        nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
-        assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
 
-    print("=====> Dataset Config & Sample Check: <=====\n")
+    print(f"\n[INFO] Dataset Selection: {args.dataset}")
+    print("\n[INFO]=====> templated dataset config: <=====\n")
     print(nlp_dataset)
     print(val_dataset)
 
     # Print the 85th samples just for dataset cleaning verfication
-    print("=====> The 85th Sequence Sample: <=====")
+    print("\n[INFO]=====> sequence samples: <=====")
     print(nlp_dataset[5])  
     print(val_dataset[165])
-    print("=====> Tokenized 85th Sequence Sample: <=====")
+
     # tokenize the NLP dataset
+    # ** please determine whether to model loss on 'answer' or 'entire sentences'
     def tokenize_function(examples):
         if not args.loss_on_answer:
             # Tokenize with truncation enabled but without padding
@@ -465,18 +521,17 @@ def main():
                 'labels': labels
             }
     
-    if args.loss_on_answer:
-        tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
-        tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
-    else:
-        tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
-        tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
-
+    tokenized_datasets = nlp_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+    tokenized_valsets  = val_dataset.map(tokenize_function).remove_columns(["text", 'answer'])
+    print("\n[INFO]=====> tokenized dataset config: <=====")
     print(tokenized_datasets)
     print(tokenized_valsets)
+    print("\n[INFO]=====> tokenized samples: <=====")
     print(tokenized_datasets[85])
     print(tokenized_valsets[85])
-    print("=====> NLP Dataset Initialization Done. <=====")
+    print("\n[INFO]=====> NLP Datasets Initialization Done. <=====")
+
+
     # config training dataloader
     data_collator  = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
@@ -491,7 +546,7 @@ def main():
                         batch_size=args.bsz,
                         sampler=ddp_sampler1,
                         collate_fn=data_collator)
-    print("=====> NLP DDP_DataLoader Initialization Done. <=====\n")
+    print("\n[INFO]=====> NLP DDP_DataLoader Initialization Done. <=====")
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
@@ -508,7 +563,7 @@ def main():
     else:
         optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-3)
     
-    print("=====> Trainable parameters for HyperNet(): <=====")
+    print("\n[INFO]=====> Trainable parameters for Pruning_Decision_Generator: <=====")
     for name, param in hyper_net_ddp.named_parameters():
         if param.requires_grad:
             print(f"Parameter name: {name}, Shape: {param.shape}")
@@ -516,10 +571,10 @@ def main():
     # b) optimzer for target LLM
     if args.tuning_method != 'lora':
         llm_ddp = FSDP(model, device_id=device, auto_wrap_policy=llama_auto_wrap_policy, use_orig_params=False, mixed_precision=mixed_precision_policy)
-        print("FSDP wrapper with mixed precision has been enabled.")
+        print("[INFO]FSDP wrapper with mixed precision has been enabled.")
     else:
         llm_ddp = DDP(model, device_ids=[device])
-        print("DDP wrapper has been enabled.")
+        print("[INFO]DDP wrapper has been enabled.")
 
     #llm_ddp         = torch.compile(llm_ddp)
     if args.use_8bit_training == True:
@@ -531,25 +586,21 @@ def main():
     scheduler_llm   = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_llm, T_max=args.epochs, eta_min=1e-4)
     scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-4)
 
-    print("=====> Trainable parameters for target_LLM: <=====")
+    print("\n[INFO]=====> Trainable parameters for target_LLM: <=====")
     for name, param in llm_ddp.named_parameters():
         if param.requires_grad:
             print(f"Parameter name: {name}, Shape: {param.shape}")
 
-    print("=====> Training Optimizers and Schedulers Initialization Done. <=====\n")
+    print("\n[INFO]=====> Training Optimizers and Schedulers Initialization Done. <=====")
     #-----------------------------------------------------------------#
     if args.tuning_method != "lora":
-        print("schardedGradScaler has been intialized for FSDP.")
+        print("[INFO]ShardedGradScaler has been intialized for FSDP.")
         scaler = ShardedGradScaler()
-    else:
-        print("AMP is initialized for LoRA Finetuning.")
-        scaler_llm   = torch.amp.GradScaler()
-        scaler_hyper = torch.amp.GradScaler()
 
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
-    grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures, fsdp_scaler=scaler_llm)
-    print("=====> Group_Lasso Sparsity Module Initialization Done. <=====\n")
+    grouplasso_module = Group_Lasso_regularization_DISP(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures).to(device=init_device)
+    print("\n[INFO]=====> Group_Lasso Sparsity Module Initialization Done. <=====")
     #-----------------------------------------------------------------#
 
     #-----------------------------------------------------------------#
@@ -561,52 +612,47 @@ def main():
     total_prunable_params   = count_total_prunable_params(model_name=args.model)
     total_trainable_params  = count_trainable_parameters(model)
 
-    print(f"LLM total params: {total_params}, total_prunable_params: {total_prunable_params}, total trainable params:{total_trainable_params}, ratio = {total_trainable_params / total_params}")
+    print(f"\n[INFO]LLM total params: {total_params - total_trainable_params}, total_prunable_params: {total_prunable_params}, total trainable params:{total_trainable_params}, ratio = {total_trainable_params / (total_params-total_trainable_params)}")
     #-----------------------------------------------------------------#
     
     #-----------------------------------------------------------------#
     # Training Process
-    print("=====> Begin Training: <=====\n")
+    print("[PROCESS]=====> Begin Training: <=====\n")
     if args.resume != None:
-        print(f"=====> Resume Training from {args.resume}: <=====\n")
+        print(f"[PROCESS]=====> Resume Training from {args.resume}: <=====\n")
         epoch, cur_maskVec = load_checkpoint(model=llm_ddp.module, hyper_net=hyper_net_ddp.module, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, filename="checkpoint.pth.tar")
         start_epoch = epoch + 1
     else:
-        print(f"=====> New Training Progress Launched. <=====\n")
+        print(f"[PROCESS]=====> New Training Progress Launched. <=====\n")
         start_epoch = args.start_epoch
 
-    skip_hyper_training  = False
-    training_termination = False
-
     for epoch in range(start_epoch, args.epochs):
-        if training_termination == True:
-            break
-        else:
-            # data shuffle epoch-wisely
-            ddp_sampler.set_epoch(epoch)
-            ddp_sampler1.set_epoch(epoch)
+        # data shuffle epoch-wisely
+        ddp_sampler.set_epoch(epoch)
+        ddp_sampler1.set_epoch(epoch)
 
-            # train for one epoch
-            cur_maskVec, skip_hyper_training, training_termination, loss_log = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
-                                                hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
-                                                grouplasso_module=grouplasso_module, args=args, scaler=scaler_llm, scaler_hyper=scaler_hyper, total_params=total_prunable_params, skip_hyper_training=skip_hyper_training)
-            
-            # save the training log per epoch
+        # train for one epoch
+        cur_maskVec, loss_log = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
+                                            hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
+                                            grouplasso_module=grouplasso_module, args=args, total_params=total_prunable_params, log_loss=args.log_loss)
+        
+        # save the training log per epoch -- Optional
+        if loss_log != None:
             import json
             with open(f"loss_logs_epoch_{epoch}.json", "w") as log_file:
                 json.dump(loss_log, log_file)
-            
-            # learing rate update
-            scheduler_llm.step()
-            scheduler_hyper.step()
+        
+        # learing rate update
+        scheduler_llm.step()
+        scheduler_hyper.step()
 
-            if args.tuning_method != 'lora':
-                save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
-            else:
-                save_checkpoint(epoch=epoch, cur_mask_vec=cur_maskVec, model=llm_ddp)
+        if args.tuning_method != 'lora':
+            save_fsdp_checkpoint(epoch=epoch, model=llm_ddp, cur_mask_vec=cur_maskVec)
+        else:
+            save_checkpoint(epoch=epoch, cur_mask_vec=cur_maskVec, model=llm_ddp)
 
-            torch.cuda.empty_cache()
-            print(f"cuda cache cleaned for epoch {epoch}")
+        torch.cuda.empty_cache()
+        print(f"cuda cache cleaned for epoch {epoch}")
 
     print("=====> Training Done. <=====\n")
     training_cleanup()

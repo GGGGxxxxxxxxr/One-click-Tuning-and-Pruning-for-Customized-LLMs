@@ -13,6 +13,7 @@ import math
 # head-wise counting rules:
 # each Q-split is recognized as a prunable head! 
 # such design is to align MHA and its variant GroupAttention in structure pruning.
+
 # >>>>> ---------------------------------------------------- <<<<<#
 # fine-grained counting rules:
 # Q, K mask is equivalent thus only WK mask is considered.
@@ -21,16 +22,24 @@ import math
 # Besides, WV, WOut, MLPUp is considered as prunable structure.
 # RMSNorm has a trainable weight (1, hiddenDim), but its mask is equivalent to the WFFDown, thus we dont count it.
 # **MLP_DownProjection is not considered as a prunable structure so that we could make sure the output dimension of each DecoderLayer is still [hidden_dim], only the inner block dimension would be changed.
+
 # >>>>> ---------------------------------------------------- <<<<<#
 # We follow the ATO's design to configure the output Prunable_Structure as a List[] of int, indicating the prunbale dimension for each structure.
 # E.g:
 # for 1-layer traditional MHA with Head = 2, head-dim = 64, MLPMultiplier = 4
 # p_structures = [64, 64, 64, 64, 64, 64*4] (indicating WK_1, WK_2, WV_1, WV_2, WOut, MLPUp) (with fine-grained pruning)
 # p_structures = [2, 64, 64*4]              (indicating Q-head-wise-prune, WOut, MLPUp)      (with head-wise pruning)
+
 # ****************************
 # ** modified function (10/22): 
 # ** add new feature of pruning_scheme selection as 'LAYER_UNIFORM_ATTN'!
 # ** a unified layer-specific K_head (or V_head) mask would be generated and all attn_heads within this layer would share this exact same mask to ensure the attention uniform shape 
+
+# ** version2.0: ** updated pruning space derived from 'DISP-LLM':
+# The attention pruning scheme has been updated towards PRUNE THE INPUT DIMENSION, NOT OUTPUT DIMENSION.
+# We revisited this in order to avoid the ROPE issue where PRUNE OUTPUT DIMENSION would lead to mismatch between ATP & final compressed model
+# Besides, DISP's pruning space could be potentionally stronger than ATP version1 :)
+
 def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_scheme: str) -> List[int]:
     num_layers   = model_config.num_hidden_layers       # num_of_layers
     num_heads    = model_config.num_attention_heads     # num_of_Q_Splits
@@ -67,8 +76,9 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_s
         # c) MLP_Up
         lw_structure.append(intermediate_size)
         
-        print("=====> Prunable Structure for One-Layer: <=====")
+        f"=====> Prunable Structure for one-DecoderLayer according to {pruning_scheme}: <====="
         print(lw_structure)
+
     elif pruning_scheme == 'layer_uniform_attn':
         print("=====> Counting Layer_Uniform_Attn Prunable Structures. <=====")
         # a) [Unified K_split] [Unified V_split]
@@ -83,17 +93,34 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_s
         # c) MLP_Up
         lw_structure.append(intermediate_size)
 
-        print("=====> Prunable Structure for One-Layer: <=====")
+        print(f"=====> Prunable Structure for one-DecoderLayer according to {pruning_scheme}: <=====")
         print(lw_structure)
+    
+    # **version2.0: DISP pruning space 
+    elif pruning_scheme == 'DISP':
+        # a) s1, s2 for attention (s1 for head-wise input-dim pruning, s2 for WO output pruning)
+        lw_structure.append(head_dim)
+        lw_structure.append(hidden_size)
+
+        # b) s3 for res dimension pruning (mlp input dimension)
+        lw_structure.append(hidden_size)
+        # c) s4, s5 for mlp up/down pruning
+        lw_structure.append(intermediate_size)
+        lw_structure.append(hidden_size)
+        print(f"=====> Prunable Structure for one-DecoderLayer according to {pruning_scheme}: <=====")
     else:
         print("=====> Not implemented yet!. <=====")
 
     # 3. combine as pruning indicator
     p_structure.append(lw_structure)
 
-    # 4. [Optional] if 'layer_uniform_attn', we attach the {num_of_kv_heads} at the tail for future access
+    # 4. [Optional]:
+    # if 'layer_uniform_attn', we attach the {num_of_kv_heads} at the tail for future access; 
+    # for 'DISP', we simply expand S1_h into S1 with 'num_heads' times;
     if pruning_scheme == 'layer_uniform_attn':
         p_structure.append(num_kv_heads)
+    elif pruning_scheme == 'DISP':
+        p_structure.append(num_heads)
 
     print("=====> LLM p_structure counting finished. <=====")
     print("Prunable Structure:", p_structure)
@@ -152,6 +179,7 @@ def pruning_ratio_contribution(model_cfg):
 
 #-----------------------------------------------------------------#
 
+#-----------------------------------------------------------------#
 ## ** UPDATED
 # version.0.2: we now use more accurate param counting for sparsity control, as number of params is our main pruning focus.
 # this function is for the total params counting 
@@ -171,50 +199,80 @@ def count_total_prunable_params(model_name):
         raise NotImplementedError
 
     return num_params
+#-----------------------------------------------------------------#
 
 
+#-----------------------------------------------------------------#
+## ** Customized LoRA Module Insertion into the LLM
+## Customized LoRA Forward for Training & Evaluation Purposes
+# Version 2.0: Now using SVD or LoRA initialization to mitigate the negative effects of zeros caused by the Group Lasso 
 class LoRALinear(nn.Module):
-    def __init__(self, linear_module, r=8, dropout=0.1):
+    def __init__(self, linear_module, r=32, dropout=0.1, svd_init=True):
         super(LoRALinear, self).__init__()
-        # 保留原始的 Linear 层
+        # keep the original Linear module
         self.linear = linear_module
         in_features = linear_module.in_features
         out_features = linear_module.out_features
-        data_type = linear_module.weight.dtype  # 确保 dtype 一致
-        cur_device = linear_module.weight.device  # 确保 device 一致
+        data_type = linear_module.weight.dtype  
+        cur_device = linear_module.weight.device 
         
-        # 初始化 LoRA 参数
-        self.lora_A = nn.Parameter(torch.empty(r, in_features, device=cur_device))
-        init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  # 使用 Kaiming Uniform 初始化
-        
-        # lora_B 零初始化
-        self.lora_B = nn.Parameter(torch.zeros(out_features, r, device=cur_device))
-        
+        # lora initialization 
+        # 1) common initialization for LoRA
+        if svd_init != True:
+            self.lora_A = nn.Parameter(torch.empty(in_features, r, device=cur_device))
+            init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  
+            self.lora_B = nn.Parameter(torch.zeros(r, out_features, device=cur_device))
+        # 2) SVD initialization for LoRA
+        else:
+            # acquire original linear weight
+            original_weight = self.linear.weight.data
+            # svd decomposition
+            U, S, Vh = torch.linalg.svd(original_weight, full_matrices=False)
+            U_truncated = U[:, :r]
+            S_truncated = S[:r]
+            Vh_truncated = Vh[:r, :]
+            # Calculate the low-rank approximation (LoRA contribution)
+            lora_contribution = torch.mm(U_truncated, torch.mm(torch.diag(S_truncated), Vh_truncated))
+            # Calculate the remaining weight (residual part)
+            remaining_weight = original_weight - lora_contribution
+            # Update the original linear layer with the residual weight
+            with torch.no_grad():
+                self.linear.weight.copy_(remaining_weight)
+            # assign lora weights
+            # Initialize LoRA matrices
+            w_A = U_truncated.to(device=cur_device, dtype=data_type)
+            w_B = torch.mm(torch.diag(S_truncated), Vh_truncated).to(device=cur_device, dtype=data_type)
+            self.lora_A = nn.Parameter(w_A)
+            self.lora_B = nn.Parameter(w_B)
+
         # dropout for LoRA
         self.lora_dropout = nn.Dropout(dropout)
 
     def forward(self, x, mask=None):
-        # 原始 Linear 层输出 + LoRA 路径
+        # non-mask: unchanged
         if mask == None:
             original_output = self.linear(x)
-            lora_output = self.lora_dropout(x @ self.lora_A.T) @ self.lora_B.T
+            lora_output = self.lora_dropout(x @ self.lora_A) @ self.lora_B
             return original_output + lora_output
         else:
             original_output = self.linear(x) * mask
-            lora_output = self.lora_dropout(x @ self.lora_A.T) @ self.lora_B.T
+            lora_output = self.lora_dropout(x @ self.lora_A) @ self.lora_B
             return original_output + lora_output
+#-----------------------------------------------------------------#
 
-# 递归替换 decoder_layer 中的所有 Linear 层为 LoRALinear
-def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1):
-    replacement_count = 0  # 记录每层替换的 Linear 数量
+#-----------------------------------------------------------------#
+# version2.0: **customized lora injection functions
+# Recursively replace all Linear layers in the decoder_layer with LoRALinear
+def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1, svd_init=False):
+    replacement_count = 0  # Record the number of Linear layers replaced in each layer
     
-    # 使用 named_modules() 递归查找所有子模块
+    # Use named_modules() to recursively find all submodules
     for name, module in decoder_layer.named_modules():
         if isinstance(module, nn.Linear):
-            # 替换为自定义的 LoRALinear
-            lora_linear = LoRALinear(module, r=rank, dropout=dropout)
+            # Replace with the custom LoRALinear
+            lora_linear = LoRALinear(module, r=rank, dropout=dropout, svd_init=svd_init)
             
-            # 获取父模块，并将该 Linear 层替换为 LoRALinear
+            # Get the parent module and replace the Linear layer with LoRALinear
             parent_module = dict(decoder_layer.named_modules())[name.rsplit('.', 1)[0]]
             setattr(parent_module, name.split('.')[-1], lora_linear)
             
@@ -222,18 +280,18 @@ def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1):
 
     return replacement_count
 
-# 主函数：冻结整个模型，并将 Linear 替换为 LoRALinear
-def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
-    # 1. 冻结整个模型的参数
+# Main function: Freeze the entire model and replace Linear layers with LoRALinear
+def customized_lora_substitution(llm_model, rank=8, dropout=0.1, svd_init=False):
+    # 1. Freeze all parameters of the model
     for param in llm_model.parameters():
         param.requires_grad = False
 
-    # 2. 遍历每个 decoder 层，替换 Linear 为 LoRALinear
+    # 2. Iterate through each decoder layer and replace Linear layers with LoRALinear
     for layer_idx, decoder_layer in enumerate(llm_model.model.layers):
-        # 替换当前层的 Linear 模块为 LoRALinear，并获取该层的替换数量
-        replacement_count = replace_linear_with_lora(decoder_layer, rank=rank, dropout=dropout)
+        # Replace Linear modules in the current layer with LoRALinear and get the count of replacements
+        replacement_count = replace_linear_with_lora(decoder_layer, rank=rank, dropout=dropout, svd_init=svd_init)
         
-        # 每个 decoder layer 中应有 7 个 Linear，进行断言
+        # Each decoder layer should have 7 Linear layers; perform an assertion
         assert replacement_count == 7, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
 
     '''
@@ -243,8 +301,8 @@ def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
         print(f"{name}: {param.shape}")
     '''
 
-    print("All Linear layers in decoder have been replaced with LoRALinear.")
-
+    print("All Linear layers in the decoder have been replaced with LoRALinear.")
+#-----------------------------------------------------------------#
 
 
 

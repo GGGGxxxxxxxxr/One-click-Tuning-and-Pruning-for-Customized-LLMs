@@ -79,6 +79,10 @@ class custom_grad_weight(torch.autograd.Function):
 # so that each layer in LLMs would have it individual input mask params
 # the forked input would share a List[] of LinearProjection into Layer-wise weight mask
 # >>>>> ---------------------------------------------------- <<<<<#
+# **notice: currently we employ seperate linear projections for each prunable linear, 
+# but we would further investigate whether it is possible to delopy a uniform projection for each decoderlayer
+
+## ** depreciated: GRU-based hypernet() is discarded right now, please refer to the following encoderblock-based design.
 class LLM_HyperStructure_old(nn.Module):
     def __init__(self, p_structure=None, T=0.4, base=3, args=None):
         super(LLM_HyperStructure, self).__init__()
@@ -187,7 +191,9 @@ class LLM_HyperStructure(nn.Module):
         self.pruning_scheme = args.pruning_method
         self.num_layers     = p_structure[0]  # Number of layers in the LLM
         self.lw_structure   = p_structure[1]  # Structure of each layer's mask
-        if self.pruning_scheme == 'layer_uniform_attn':
+
+        # notice: 'num_kv_heads' is not the apporiate term for 'DISP', but we just use it for simplity :)
+        if self.pruning_scheme in ['layer_uniform_attn', 'DISP']:
             assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
             self.num_kv_heads = p_structure[-1]
 
@@ -209,6 +215,7 @@ class LLM_HyperStructure(nn.Module):
         self.ln = nn.LayerNorm(64)
 
         # Layer-wise Mask Projection
+        # version2.0: currently disabled, would investigate in the future 
         '''
         self.mh_fc = nn.ModuleList([
             nn.Sequential(
@@ -243,6 +250,7 @@ class LLM_HyperStructure(nn.Module):
         outputs = [fc(norm_out) for fc in self.mh_fc]
         out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
         '''
+
         outputs = []
         for layer_idx in range(self.num_layers):
             layer_out = norm_out[layer_idx].unsqueeze(0)  # Shape: (1, 64)
@@ -264,6 +272,7 @@ class LLM_HyperStructure(nn.Module):
 
         return out
 
+    # convert output vector into applicable masks for LLM maksed inference
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
         if self.pruning_scheme == 'inner':
@@ -276,7 +285,7 @@ class LLM_HyperStructure(nn.Module):
 
             return arch_vector
         
-        elif self.pruning_scheme == 'layer_uniform_attn':
+        elif self.pruning_scheme == 'atp_layer_uniform_attn':
             arch_vector = []
             start = 0
             for i, size in enumerate(self.lw_structure):
@@ -296,7 +305,28 @@ class LLM_HyperStructure(nn.Module):
                 start = end
             assert len(arch_vector) == 3, "K(Q), V , MLP_up(Gate) masks are expected, 3 seperate masks in total, please check."
             return arch_vector
+        
+        # version2.0: DISP mask conversion
+        elif self.pruning_scheme == 'DISP':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
 
+                ## ** in DISP pruning space, S1 is applicable for EACH head-attention input dimension(Q,K,V), thus we simply repeat head-wise S1 into S1 x num_heads
+                ## notice: this logic is different from 'layer_uniform_attn'!
+                if i == 0:  
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+            assert len(arch_vector) == 5, "S1(extened), S2, S3, S4, S5 masks are expected, 5 seperate masks in total, please check."
+            return arch_vector
+                
+    
+    # depricated right now, refer to func: 'transform_output'
     def vector2mask(self, inputs):
         """(Deprecated) Transform vector to mask - not used in current ATO's application."""
         return None

@@ -114,6 +114,9 @@ def dim_alignment_loss(mask, num_key_value, match_loss):
 #-----------------------------------------------------------------#
 
 def caculate_remaining_parmams(pruning_masks, args):
+    assert args.pruning_method == 'layer_uniform_attn', \
+    f"Invalid pruning method: {args.pruning_method}. Expected 'layer_uniform_attn'."
+
     if args.model == 'llama2-7b':
         assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
         m_K = pruning_masks[0]
@@ -191,6 +194,7 @@ def caculate_remaining_parmams(pruning_masks, args):
     
     else:
         raise NotImplementedError
+
 
         
 
@@ -311,14 +315,11 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     assert len(mask) == 3, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # c) masked_llm forward() with 'pruning_mask = mask'
-    seq_len = val_ids.shape[1]
-
     with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
         output      = llm_model(input_ids=val_ids, 
                                 labels=labels, 
                                 return_dict=True, 
                                 use_cache=False,
-                                #num_logits_to_keep=seq_len, 
                                 attention_mask=attn_mask,
                                 pruning_mask=mask)
     target_loss = output["loss"]

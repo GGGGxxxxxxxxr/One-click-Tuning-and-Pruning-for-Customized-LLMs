@@ -17,6 +17,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# ***
+# this script is for customized ATP forward for LlaMA family according to [DISP] pruning space
+# the 'llama.py' is for ATP v1
+# we would consider in the future to register different foward() for nn.Module to merge these two together :)
+# ***
+
 import math
 from typing import List, Optional, Tuple, Union
 
@@ -238,7 +245,9 @@ class LlamaMLP(nn.Module):
 
     def forward(self, 
                 x: torch.Tensor,
-                mask_up: Optional[torch.Tensor] = None):
+                m_s4: Optional[torch.Tensor] = None,
+                m_s5: Optional[torch.Tensor] = None):
+        
         if self.config.pretraining_tp > 1:
             slice = self.intermediate_size // self.config.pretraining_tp
             gate_proj_slices = self.gate_proj.weight.split(slice, dim=0)
@@ -256,19 +265,18 @@ class LlamaMLP(nn.Module):
             ]
             down_proj = sum(down_proj)
 
+        # for currently supported 7B and 8B models 
         else:
             if self.training != True:
-                if mask_up != None:
-                    # structured_pruning computation
-                    mask_up   = torch.pow(mask_up,2)
-                    temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * mask_up
-                    down_proj = self.down_proj(temp)
+                if m_s4 != None:
+                    temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * m_s4
+                    down_proj = self.down_proj(temp) * m_s5                                      # Alg.1.5
                 else:
                     down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
             else:
-                if mask_up != None:
-                    temp = self.act_fn(self.gate_proj(x, mask_up)) * self.up_proj(x, mask_up)
-                    down_proj = self.down_proj(temp)
+                if m_s4 != None:
+                    temp = self.act_fn(self.gate_proj(x, m_s4)) * self.up_proj(x, m_s4)
+                    down_proj = self.down_proj(temp, m_s5)                                       # Alg.1.5
                 else:
                     temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x)
                     down_proj = self.down_proj(temp)
@@ -551,9 +559,7 @@ class LlamaSdpaAttention(LlamaAttention):
         use_cache: bool = False,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # will become mandatory in v4.46
-        pruning_out_mask: Optional[torch.Tensor] = None,
-        pruning_K_mask: Optional[torch.Tensor] = None,
-        pruning_V_mask: Optional[torch.Tensor] = None,
+        m_s2: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if output_attentions:
@@ -576,41 +582,13 @@ class LlamaSdpaAttention(LlamaAttention):
         bsz, q_len, _ = hidden_states.size()
 
         # inference logic
-        # the mask would be applied after RotaryEmbedding to make sure there is no additional information remaining
-        if self.training != True:
-            query_states = self.q_proj(hidden_states)
-            key_states   = self.k_proj(hidden_states)
-            value_states = self.v_proj(hidden_states)
-
-            # trail for proper mask location
-            if pruning_K_mask != None:
-                pruning_Q_mask = pruning_K_mask.repeat(self.num_key_value_groups)
-                query_states   = query_states * pruning_Q_mask
-                key_states     = key_states   * pruning_K_mask
-                value_states   = value_states * pruning_V_mask
-
-        # training logic
-        # LinearOutput = Original_Linear * mask + LoRA, LoRA is regularized via GroupLasso to approach the mask shape
-        # e.g, mask = [0, 1, 0, 1], [normal] indicate activations within normal range, 
-        # e-10/-11 indicates the protion where LoRA weight has been heavily regularized close to zero
-        # LinearOutput = [0, a, 0, b]      [e-10, normal, e-10, normal]
-        #                [0, a, 0, b]  +   [e-12, normal, e-12, normal]
-        #                [0, a, 0, b]      [e-11, normal, e-11, normal]
-
-        else:
-            if pruning_K_mask != None:
-                pruning_Q_mask = pruning_K_mask.repeat(self.num_key_value_groups)
-                query_states = self.q_proj(hidden_states, pruning_Q_mask)
-                key_states   = self.k_proj(hidden_states, pruning_K_mask)
-                value_states = self.v_proj(hidden_states, pruning_V_mask)
-            else:
-                query_states = self.q_proj(hidden_states)
-                key_states   = self.k_proj(hidden_states)
-                value_states = self.v_proj(hidden_states)
-
+        # [ATP_DISP]: in the ATP simulation stage, the input 'hidden_states' is alreadly masked, thus no additional processing is required here :)
+        query_states = self.q_proj(hidden_states)
+        key_states   = self.k_proj(hidden_states)
+        value_states = self.v_proj(hidden_states)
 
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        key_states   = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
         if position_embeddings is None:
@@ -630,26 +608,6 @@ class LlamaSdpaAttention(LlamaAttention):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        # ** modified masked inference logic here
-        # APPLY K, V (Q) mask here
-        # apply ATO pruning mask if pruning_mask != None
-        # UPDATED in VERSION 0.2.1 (GroupQueryAttention Support Released! (adjusted formulation of computational mask) 
-        # Transformed Mask from Hypernet per layer: mK: [num_kv_head * head_dim], mV: [num_kv_head * head_dim], m_mlp: [intermediate_dim]
-        # reshape into Q,K,V,MLP compatible computational masks:
-        # mask_K: mK, mask_Q: repeated_kv(mK, self.num_key_value_groups)//
-        # so that we could align MHA together with GA within the same set of code.
-        '''
-        if self.training != True:
-            if pruning_K_mask != None: #[4096,]
-                pruning_K_mask = pruning_K_mask.view(self.num_key_value_heads, self.head_dim).unsqueeze(0).unsqueeze(2)  #[1, 32, 1, 128] (bsz, n_head, s_len, head_dim)
-                pruning_V_mask = pruning_V_mask.view(self.num_key_value_heads, self.head_dim).unsqueeze(0).unsqueeze(2)
-                pruning_Q_mask = repeat_kv(pruning_K_mask, self.num_key_value_groups)
-                
-
-                query_states = query_states * pruning_Q_mask
-                key_states   = key_states   * pruning_K_mask
-                value_states = value_states * pruning_V_mask
-        '''
         key_states   = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
@@ -680,15 +638,15 @@ class LlamaSdpaAttention(LlamaAttention):
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
 
-        # ** apply output mask here
+        # [ATP_DISP]: apply s2 to the attention_output projection      Alg.1.2
         if self.training != True:
-            if pruning_out_mask != None:
-                attn_output = self.o_proj(attn_output) * pruning_out_mask
+            if m_s2 != None:
+                attn_output = self.o_proj(attn_output) * m_s2
             else:
                 attn_output = self.o_proj(attn_output)     
         else:
-            if pruning_out_mask != None:
-                attn_output = self.o_proj(attn_output, pruning_out_mask)
+            if m_s2 != None:
+                attn_output = self.o_proj(attn_output, m_s2)
             else:
                 attn_output = self.o_proj(attn_output)
 
@@ -749,32 +707,30 @@ class LlamaDecoderLayer(nn.Module):
                 Arbitrary kwargs to be ignored, used for FSDP and other methods that injects code
                 into the model
         """
-        # extract pruning mask for the corresponding DecoderLayer
-        # in the reverse order of <UProj&GateProj, OutProj, V*head, K*head>
+        # [ATP_DISP]:
+        # extract pruning diag vectors for the corresponding DecoderLayer for S1-S5 selection matrics
         if pruning_mask != None:
             layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_mask]
-            assert len(layer_wise_masks) == 3, "make sure your input [mask_vec] has K, V, MLP_Up masks only, or fit with the version.0.2 implementation logic."
-            m_umlp = layer_wise_masks[-1]
-            m_out  = None 
-            m_V    = layer_wise_masks[-2]
-            m_K    = layer_wise_masks[-3]
-            
-            #m_umlp = layer_wise_masks[-1]
-            #m_out  = layer_wise_masks[-2]   ** no out_proj mask anymore for dimensional matching
-            #m_out  = None 
-            #m_K    = layer_wise_masks[:self.self_attn.num_key_value_heads]
-            #m_V    = layer_wise_masks[self.self_attn.num_key_value_heads : 2 * self.self_attn.num_key_value_heads]
-
+            assert len(layer_wise_masks) == 5, "make sure your input [mask_vec] has diag vector corresponding to s1-s5 to fit with the [DISP]."
+            m_s1 = layer_wise_masks[0]
+            m_s2 = layer_wise_masks[1]
+            m_s3 = layer_wise_masks[2]
+            m_s4 = layer_wise_masks[3]
+            m_s5 = layer_wise_masks[4]
         else:
-            m_out = m_umlp = m_K = m_V = None
+            # [None] equivalent to the origianal unaffected forward() implementation
+            m_s1 = m_s2 = m_s3 = m_s4 = m_s5 = None
 
         # official forward() implementation
-        residual = hidden_states
+        
+        # [ATP_DISP]: 1. apply s1 before attn_block
+        residual = hidden_states.clone()   # store the original hidden_states :)
 
-        hidden_states = self.input_layernorm(hidden_states)
+        hidden_states = hidden_states * m_s1   
+        hidden_states = self.input_layernorm(hidden_states)    # Alg.1.1
 
         # Self Attention
-        # infuse mask_attn into self.attention.forward()
+        # [ATP_DISP]: 2. infuse s2 into self.attention.forward()
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -784,19 +740,21 @@ class LlamaDecoderLayer(nn.Module):
             use_cache=use_cache,
             cache_position=cache_position,
             position_embeddings=position_embeddings,
-            pruning_out_mask=m_out,
-            pruning_K_mask=m_K,
-            pruning_V_mask=m_V,
+            m_s2=m_s2,
             **kwargs,
-        )
-        hidden_states = residual + hidden_states
+        )                                                      # Alg.1.2
+
+        hidden_states = residual + hidden_states               # Alg.1.3 (**notice: hidden_states here is theoratically a sparse tensor with several dim masked out)
 
         # Fully Connected
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
-        # infuse mlp_masks into mlp.forward()
-        hidden_states = self.mlp(hidden_states, m_umlp)
-        hidden_states = residual + hidden_states
+        residual = hidden_states.clone()
+        # [ATP_DISP]: 3. apply s3 before MLP_block
+        hidden_states = hidden_states * m_s3
+        hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
+
+        # [ATP_DISP]: 4. infuse s4, s5 into self.mlp.forward()        
+        hidden_states = self.mlp(hidden_states, m_s4, m_s5)           # Alg.1.5
+        hidden_states = residual + hidden_states                      # Alg.1.6 (**notice: same as the previous residual addition)
 
         outputs = (hidden_states,)
 
@@ -978,6 +936,7 @@ class LlamaModel(LlamaPreTrainedModel):
         cache_position: Optional[torch.LongTensor] = None,
         pruning_mask: Optional[torch.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
+        
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1032,8 +991,10 @@ class LlamaModel(LlamaPreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
-        # layer_index for layer-wise mask extraction
+
+        # ATP_modifications: layer_index for layer-wise mask extraction
         layer_idx = 0
+
         for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
@@ -1215,8 +1176,14 @@ class LlamaModel(LlamaPreTrainedModel):
 
         return causal_mask
     
-# similar to Qwen2
-# modified for ATP's masked forward(), extra 'mask' input
+
+# the LlamaForCausalLM is similar to 'llama.py' for ATP v1 implementation, where here we employ S1-S5 according to [DISP] pruning space
+# modified for ATP v2's masked forward, taking in 5 selection decisions for each decoder layer
+# s1: attention input-dim pruning / s2: attention out out-dim pruning / s3: mlp in-dim pruning / s4: mlp up&gate out-dim pruning / s5: mlp down pruning
+# the masked inference logic please refer to Alg.1 in 'DISP' :)
+
+# **notice: the ignore_index is the default -100 which aligns with our tokenize func in 'main_llm_atp.py'
+
 class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -1276,6 +1243,10 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
                 Calculate logits for the last `num_logits_to_keep` tokens. If `0`, calculate logits for all
                 `input_ids` (special case). Only last token logits are needed for generation, and calculating them only for that
                 token can save memory, which becomes pretty significant for long sequences or large vocabulary size.
+            
+            ** ATP's special input:
+            pruning_mask ('list' of 'torch.Tensor', *optional):
+                equaivalent to selection diagnoal matrics s1-s5 for [DISP] pruning space.
 
         Returns:
 
@@ -1295,6 +1266,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states

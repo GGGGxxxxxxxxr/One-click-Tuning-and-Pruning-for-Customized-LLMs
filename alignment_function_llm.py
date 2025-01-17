@@ -31,8 +31,10 @@ class custom_grad_weight(torch.autograd.Function):
 
 #  **note: nn.Linear.weight.shape: [out_dim, in_dim]!
 #  **note: within in Qwen2 Attn, q \ k \ v_proj has BIAS. o_proj & MLP_linears have NO BIAS. (BIAS ought to be pruned out if existing!)
+
+# Version2.0 update: add GroupLassoRegularization for [DISP] pruning space
 class Group_Lasso_regularization(nn.Module):
-    def __init__(self, args, target_llm_cfg, prunable_structure, fsdp_scaler):
+    def __init__(self, args, target_llm_cfg, prunable_structure):
         super().__init__()
         self.grad_mul = args.grad_mul if args else 1
         self.lam = args.gl_lam if args else 1000
@@ -40,7 +42,7 @@ class Group_Lasso_regularization(nn.Module):
         self.model       = None
         self.cfg         = target_llm_cfg
         self.num_groups  = int(self.cfg.num_attention_heads / self.cfg.num_key_value_heads)
-        self.scaler      = fsdp_scaler
+        self.scheme      = args.pruning_method
 
     '''
     def forward(self, target_llm, pruning_masks):
@@ -112,7 +114,7 @@ class Group_Lasso_regularization(nn.Module):
     # ** where GroupLasso requires the fullparam of a certain weight on each GPU, however, the [gl_loss] would retain the whole graph,
     # ** thus CUDAmem allocation would be larger and larger
     # ** this func only works with FSDP mode, and this func only works as a [verification] of the progress 
-    def forward(self, target_llm, pruning_masks, epoch):
+    def forward(self, target_llm, pruning_masks):
         self.model = target_llm
         gl_list = []
 
@@ -673,8 +675,221 @@ class Group_Lasso_regularization(nn.Module):
                 
         return True
 
-        
 
+# [ATP_DISP]: optimized GroupLasso implementation tailored for DISP pruning space
+class Group_Lasso_regularization_DISP(nn.Module):
+    def __init__(self, args, target_llm_cfg, prunable_structure):
+        super().__init__()
+        self.grad_mul = args.grad_mul if args else 1
+        self.lam = args.gl_lam if args else 1000
+        self.p_structure = prunable_structure
+        self.model       = None
+        self.cfg         = target_llm_cfg
+        self.num_groups  = int(self.cfg.num_attention_heads / self.cfg.num_key_value_heads)
+        self.scheme      = args.pruning_method
+        self.lr          = None
+
+    ## Version2.0 updated: groupproximal + group_lasso_loss_tracker for [DISP] pruning space
+    ## **notice: we recommend to directly perform GroupLasso projection after weight update, and using gl_loss periodially just for sparsity convergenecy tracker
+    def project_weight_lora_DISP(self, target_llm, pruning_masks):
+        self.model = target_llm
+
+        # Calculate ratio
+        ## **notice: the ratio is utilized to approximate the different contributions of corresponding rows / columns,
+        ## those groups with relatively larger overall impact would be penalized through approximal more hard;
+        N_t = 0
+        for msk in pruning_masks:
+            N_t += (1 - msk).sum()
+
+        with torch.no_grad():                                                         # Ensure no gradients are recorded
+            # Iterate over each layer for GroupLassoProximal
+            for layer_idx in range(self.cfg.num_hidden_layers):
+                # Extract corresponding LLM decoder layer & masks
+                cur_layer = self.model.model.layers[layer_idx]
+
+                # Extract s1-s5 for the current layer
+                layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
+                m_s1 = layer_wise_masks[0]
+                m_s2 = layer_wise_masks[1]
+                m_s3 = layer_wise_masks[2]
+                m_s4 = layer_wise_masks[3]
+                m_s5 = layer_wise_masks[4]
+
+                # [ATP_DISP]: 1. process s1
+                ratio = (1 - m_s1).sum() / N_t
+
+                if ratio > 0:
+                    # acquire current weight tensors
+                    attn_q_lA = cur_layer.self_attn.q_proj.lora_A
+                    attn_k_lA = cur_layer.self_attn.k_proj.lora_A
+                    attn_v_lA = cur_layer.self_attn.v_proj.lora_A
+
+                    # calculate grouped w_norm
+                    m_s1 = (m_s1 == 0)
+                    w_norm = attn_q_lA[m_s1, :].pow(2).sum(1) + \
+                             attn_k_lA[m_s1, :].pow(2).sum(1) + \
+                             attn_v_lA[m_s1, :].pow(2).sum(1)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    attn_q_lA.copy_(self.groupproximal(attn_q_lA, m_s1, ratio, w_norm, 'in_dim'))
+                    attn_k_lA.copy_(self.groupproximal(attn_k_lA, m_s1, ratio, w_norm, 'in_dim'))
+                    attn_v_lA.copy_(self.groupproximal(attn_v_lA, m_s1, ratio, w_norm, 'in_dim'))
+                    
+                # [ATP_DISP]: 2. process s2
+                ratio = (1 - m_s2).sum() / N_t
+                if ratio > 0:
+                    attn_o_lB = cur_layer.self_attn.o_proj.lora_B
+
+                    m_s2 = (m_s2 == 0)
+                    w_norm = attn_o_lB[:, m_s2].pow(2).sum(0) + \
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    attn_o_lB.copy_(self.groupproximal(attn_o_lB, m_s2, ratio, w_norm, 'out_dim'))
+
+                # [ATP_DISP]: 3. process s3
+                ratio = (1 - m_s3).sum() / N_t
+                if ratio > 0:
+                    m_s3 = (m_s3 == 0)
+            
+                    mlp_u_lA = cur_layer.mlp.up_proj.lora_A
+                    mlp_g_lA = cur_layer.mlp.gate_proj.lora_A
+
+                    w_norm = mlp_u_lA[m_s3, :].pow(2).sum(1) + \
+                             mlp_g_lA[m_s3, :].pow(2).sum(1)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    mlp_u_lA.copy_(self.groupproximal(mlp_u_lA, m_s3, ratio, w_norm, 'in_dim'))
+                    mlp_g_lA.copy_(self.groupproximal(mlp_g_lA, m_s3, ratio, w_norm, 'in_dim'))
+
+                # [ATP_DISP]: 4. process s4
+                ratio = (1 - m_s4).sum() / N_t
+                if ratio > 0:
+                    m_s4 = (m_s4 == 0)
+            
+                    mlp_u_lB = cur_layer.mlp.down_proj.lora_B
+                    mlp_g_lB = cur_layer.mlp.gate_proj.lora_B 
+
+                    w_norm = mlp_u_lB[:, m_s4].pow(2).sum(0) + \
+                             mlp_g_lB[:, m_s4].pow(2).sum(0)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    mlp_u_lB.copy_(self.groupproximal(mlp_u_lB, m_s4, ratio, w_norm, 'out_dim'))
+                    mlp_g_lB.copy_(self.groupproximal(mlp_g_lB, m_s4, ratio, w_norm, 'out_dim'))
+                
+                # [ATP_DISP]: 5. process s5
+                ratio = (1 - m_s5).sum() / N_t
+                if ratio > 0:
+                    m_s3 = (m_s5 == 0)
+            
+                    mlp_d_lB = cur_layer.mlp.down_proj.lora_A
+
+                    w_norm = mlp_d_lB[m_s5, :].pow(2).sum(1)
+                    w_norm = w_norm.add(1e-8).pow(0.5)
+
+                    mlp_d_lB.copy_(self.groupproximal(mlp_d_lB, m_s5, ratio, w_norm, 'out_dim'))
+            
+        return True
+
+
+    # group_lasso_proximal_solution for a single matrics
+    def groupproximal(self, weight, m_s, ratio, w_norm, dim):
+        if dim == 'in_dim':
+            weight[m_s, :]   = weight[m_s, :] / w_norm
+            scale            = - self.grad_mul * ratio * self.lr + w_norm
+            scale[scale < 0] = 0
+            weight[m_s, :]   = weight[m_s, :] * scale
+        else:
+            weight[:, m_s]   = weight[:, m_s] / w_norm
+            scale            = - self.grad_mul * ratio * self.lr + w_norm
+            scale[scale < 0] = 0
+            weight[:, m_s]   = weight[:, m_s] * scale
+        
+        return weight
+
+    # for current structural sparsity degree tracking purpose
+    # ** in version2.0, we dont use it for training
+    def lora_DISP_forward(self, target_llm, pruning_masks):
+        self.model = target_llm
+        gl_list    = []
+
+        with torch.no_grad():                                                         # Ensure no gradients are recorded
+            # Iterate over each layer for GroupLassoProximal
+            for layer_idx in range(self.cfg.num_hidden_layers):
+                # Extract corresponding LLM decoder layer & masks
+                cur_layer = self.model.model.layers[layer_idx]
+
+                # Extract s1-s5 for the current layer
+                layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in pruning_masks]
+                m_s1 = layer_wise_masks[0]
+                m_s2 = layer_wise_masks[1]
+                m_s3 = layer_wise_masks[2]
+                m_s4 = layer_wise_masks[3]
+                m_s5 = layer_wise_masks[4]
+
+                # [ATP_DISP]: 1. process s1
+                # acquire current weight tensors
+                attn_q_lA = cur_layer.self_attn.q_proj.lora_A
+                attn_k_lA = cur_layer.self_attn.k_proj.lora_A
+                attn_v_lA = cur_layer.self_attn.v_proj.lora_A
+
+                # calculate grouped w_norm
+                m_s1 = (m_s1 == 0)
+                w_norm = attn_q_lA[m_s1, :].pow(2).sum(1) + \
+                            attn_k_lA[m_s1, :].pow(2).sum(1) + \
+                            attn_v_lA[m_s1, :].pow(2).sum(1)
+                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                gl_list.append(w_norm)
+                    
+                # [ATP_DISP]: 2. process s2
+                attn_o_lB = cur_layer.self_attn.o_proj.lora_B
+
+                m_s2 = (m_s2 == 0)
+                w_norm = attn_o_lB[:, m_s2].pow(2).sum(0) + \
+                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                gl_list.append(w_norm)
+
+                # [ATP_DISP]: 3. process s3
+                m_s3 = (m_s3 == 0)
+        
+                mlp_u_lA = cur_layer.mlp.up_proj.lora_A
+                mlp_g_lA = cur_layer.mlp.gate_proj.lora_A
+
+                w_norm = mlp_u_lA[m_s3, :].pow(2).sum(1) + \
+                            mlp_g_lA[m_s3, :].pow(2).sum(1)
+                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                gl_list.append(w_norm)
+
+                # [ATP_DISP]: 4. process s4
+                m_s4 = (m_s4 == 0)
+        
+                mlp_u_lB = cur_layer.mlp.down_proj.lora_B
+                mlp_g_lB = cur_layer.mlp.gate_proj.lora_B 
+
+                w_norm = mlp_u_lB[:, m_s4].pow(2).sum(0) + \
+                            mlp_g_lB[:, m_s4].pow(2).sum(0)
+                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                gl_list.append(w_norm)
+                
+                # [ATP_DISP]: 5. process s5
+                m_s5 = (m_s5 == 0)
+    
+                mlp_d_lB = cur_layer.mlp.down_proj.lora_A
+
+                w_norm = mlp_d_lB[m_s5, :].pow(2).sum(1)
+                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                gl_list.append(w_norm)
+
+        # return averaged current structural sparsity degree
+        ave_gl = sum(gl_list) / len(gl_list)
+
+        return ave_gl
+
+
+
+
+
+
+        
 
 
 
