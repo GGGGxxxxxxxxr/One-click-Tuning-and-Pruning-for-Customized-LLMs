@@ -57,24 +57,6 @@ from custom_llms.llama_disp import LlamaForCausalLM
 from alignment_function_llm import Group_Lasso_regularization_DISP
 from custom_llms.llama import LlamaDecoderLayer
 
-''''
-llama_auto_wrap_policy = partial(
-        transformer_auto_wrap_policy,
-        transformer_layer_cls={
-            LlamaDecoderLayer,
-        },
-    )
-'''
-
-llama_auto_wrap_policy = partial(
-            _module_wrap_policy,
-            module_classes ={
-                LlamaDecoderLayer,
-                nn.Embedding,
-                nn.Linear
-            }
-        )
-
 parser = argparse.ArgumentParser(description='PyTorch Implementation for ATO on LLM LoRA & Structure Pruning')
 #-----------------------------------------------------------------#
 # training-related args
