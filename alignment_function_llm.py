@@ -844,7 +844,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 attn_o_lB = cur_layer.self_attn.o_proj.lora_B
 
                 m_s2 = (m_s2 == 0)
-                w_norm = attn_o_lB[:, m_s2].pow(2).sum(0) + \
+                w_norm = attn_o_lB[:, m_s2].pow(2).sum(0)
                 w_norm = w_norm.add(1e-8).pow(0.5).sum()
                 gl_list.append(w_norm)
 
