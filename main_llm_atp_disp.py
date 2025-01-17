@@ -92,8 +92,6 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--seed', default=0, type=int,
                     help='seed for initializing training. ')
-parser.add_argument('--log-interval', default=20, type=int,
-                    help='training log intervals of ATP steps')
 parser.add_argument('--log-loss', action='store_true',
                     help='Enable logging of the training loss per step')
 parser.add_argument('--log-interval', default=20, type=int,
