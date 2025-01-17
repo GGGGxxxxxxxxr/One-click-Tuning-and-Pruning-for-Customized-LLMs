@@ -226,6 +226,9 @@ class LoRALinear(nn.Module):
         else:
             # acquire original linear weight
             original_weight = self.linear.weight.data
+            # Check if the data type is bfloat16 and upcast for SVD
+            if original_weight.dtype == torch.bfloat16:
+                original_weight = original_weight.to(torch.float32)
             # svd decomposition
             U, S, Vh = torch.linalg.svd(original_weight, full_matrices=False)
             U_truncated = U[:, :r]
@@ -237,7 +240,7 @@ class LoRALinear(nn.Module):
             remaining_weight = original_weight - lora_contribution
             # Update the original linear layer with the residual weight
             with torch.no_grad():
-                self.linear.weight.copy_(remaining_weight)
+                self.linear.weight.copy_(remaining_weight.to(self.linear.weight.dtype))
             # assign lora weights
             # Initialize LoRA matrices
             w_A = U_truncated.to(device=cur_device, dtype=data_type)
