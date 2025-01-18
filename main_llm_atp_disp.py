@@ -456,7 +456,7 @@ def main():
     def tokenize_function(examples):
         # Tokenize with truncation enabled but without padding
         inputs  = tokenizer(examples["text"], padding=False)
-        
+
         if not args.loss_on_answer:
             if examples["answer"]:
                 answers = tokenizer(examples["answer"], padding=False)
@@ -491,7 +491,7 @@ def main():
                     raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
                 input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
                 attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
-                labels = -100 * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
+                labels = [-100] * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
             else:
                 input_ids = inputs["input_ids"]
                 attention_mask = inputs["attention_mask"]
