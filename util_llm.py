@@ -246,7 +246,7 @@ class LoRALinear(nn.Module):
             # assign lora weights
             # Initialize LoRA matrices
             w_A = Vh_truncated.to(device=cur_device, dtype=data_type).T
-            w_B = torch.mm(U_truncated, torch.diag(S_truncated)).to(device=cur_device, dtype=data_type)
+            w_B = torch.mm(U_truncated, torch.diag(S_truncated)).to(device=cur_device, dtype=data_type).T
             self.lora_A = nn.Parameter(w_A)
             self.lora_B = nn.Parameter(w_B)
 
