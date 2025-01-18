@@ -304,7 +304,7 @@ def main():
         print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
         api_token = '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'
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
-        print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+        print(f"\n[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
         
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
@@ -454,10 +454,10 @@ def main():
     # tokenize the NLP dataset
     # ** please determine whether to model loss on 'answer' or 'entire sentences'
     def tokenize_function(examples):
+        # Tokenize with truncation enabled but without padding
+        inputs  = tokenizer(examples["text"], padding=False)
+        
         if not args.loss_on_answer:
-            # Tokenize with truncation enabled but without padding
-            inputs  = tokenizer(examples["text"], padding=False)
-
             if examples["answer"]:
                 answers = tokenizer(examples["answer"], padding=False)
                 # Add the EOS token ID at the end of each tokenized input
