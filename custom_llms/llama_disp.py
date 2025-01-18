@@ -583,7 +583,6 @@ class LlamaSdpaAttention(LlamaAttention):
 
         # inference logic
         # [ATP_DISP]: in the ATP simulation stage, the input 'hidden_states' is alreadly masked, thus no additional processing is required here :)
-        hidden_states = hidden_states.to(torch.bfloat16)
         query_states = self.q_proj(hidden_states)
         key_states   = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
@@ -753,6 +752,7 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = hidden_states * m_s3
         hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
 
+        assert hidden_states.dtype == torch.bfloat16, "check dtype error!"
         # [ATP_DISP]: 4. infuse s4, s5 into self.mlp.forward()        
         hidden_states = self.mlp(hidden_states, m_s4, m_s5)           # Alg.1.5
         hidden_states = residual + hidden_states                      # Alg.1.6 (**notice: same as the previous residual addition)
