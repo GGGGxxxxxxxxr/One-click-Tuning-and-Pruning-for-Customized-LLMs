@@ -217,7 +217,6 @@ class LoRALinear(nn.Module):
         out_features = linear_module.out_features
         data_type = linear_module.weight.dtype  
         cur_device = linear_module.weight.device 
-        print(data_type)
         
         # lora initialization 
         # 1) common initialization for LoRA
