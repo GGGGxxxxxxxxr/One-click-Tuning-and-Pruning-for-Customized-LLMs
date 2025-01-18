@@ -206,6 +206,8 @@ def count_total_prunable_params(model_name):
 ## ** Customized LoRA Module Insertion into the LLM
 ## Customized LoRA Forward for Training & Evaluation Purposes
 # Version 2.0: Now using SVD or LoRA initialization to mitigate the negative effects of zeros caused by the Group Lasso 
+# updated: original linear weight [out_features, in_features] 
+# after r-ranked SVD decomposition, U [out_feature, r] S[r] V[r, in_features]
 class LoRALinear(nn.Module):
     def __init__(self, linear_module, r=32, dropout=0.1, svd_init=True):
         super(LoRALinear, self).__init__()
@@ -234,10 +236,6 @@ class LoRALinear(nn.Module):
             U_truncated = U[:, :r]
             S_truncated = S[:r]
             Vh_truncated = Vh[:r, :]
-            if out_features == 11008:
-                print(U_truncated.shape)
-                print(S_truncated.shape)
-                print(Vh_truncated.shape)
             # Calculate the low-rank approximation (LoRA contribution)
             lora_contribution = torch.mm(U_truncated, torch.mm(torch.diag(S_truncated), Vh_truncated))
             # Calculate the remaining weight (residual part)
@@ -247,8 +245,8 @@ class LoRALinear(nn.Module):
                 self.linear.weight.copy_(remaining_weight.to(self.linear.weight.dtype))
             # assign lora weights
             # Initialize LoRA matrices
-            w_A = U_truncated.to(device=cur_device, dtype=data_type)
-            w_B = torch.mm(torch.diag(S_truncated), Vh_truncated).to(device=cur_device, dtype=data_type)
+            w_A = Vh_truncated.to(device=cur_device, dtype=data_type).T
+            w_B = torch.mm(U_truncated, torch.diag(S_truncated)).to(device=cur_device, dtype=data_type)
             self.lora_A = nn.Parameter(w_A)
             self.lora_B = nn.Parameter(w_B)
 
