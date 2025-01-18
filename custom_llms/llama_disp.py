@@ -584,6 +584,8 @@ class LlamaSdpaAttention(LlamaAttention):
         # inference logic
         # [ATP_DISP]: in the ATP simulation stage, the input 'hidden_states' is alreadly masked, thus no additional processing is required here :)
         hidden_states = hidden_states.to(torch.bfloat16)
+        if self.q_proj.lora_A.dtype != torch.bfloat16:
+            print("data type error!")
         query_states = self.q_proj(hidden_states)
         key_states   = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
