@@ -267,6 +267,7 @@ class LlamaMLP(nn.Module):
 
         # for currently supported 7B and 8B models 
         else:
+            print(f"mlp input dtype:{x.dtype}")
             if self.training != True:
                 if m_s4 != None:
                     temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * m_s4
