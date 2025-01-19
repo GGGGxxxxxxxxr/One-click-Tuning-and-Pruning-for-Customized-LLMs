@@ -269,7 +269,7 @@ class LLM_HyperStructure(nn.Module):
         # Convert to Binary Mask in Evaluation Mode
         if not self.training:
             out = hard_concrete(out)
-
+        print(out.dtype)
         return out
 
     # convert output vector into applicable masks for LLM maksed inference
