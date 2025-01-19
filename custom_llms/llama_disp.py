@@ -643,8 +643,6 @@ class LlamaSdpaAttention(LlamaAttention):
         if self.training != True:
             if m_s2 != None:
                 attn_output = self.o_proj(attn_output) * m_s2
-                print(m_s2.dtype)
-                print(attn_output.dtype)
             else:
                 attn_output = self.o_proj(attn_output)     
         else:
