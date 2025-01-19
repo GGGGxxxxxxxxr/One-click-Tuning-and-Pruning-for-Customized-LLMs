@@ -728,7 +728,7 @@ class LlamaDecoderLayer(nn.Module):
 
         hidden_states = hidden_states * m_s1   
         hidden_states = self.input_layernorm(hidden_states)    # Alg.1.1
-
+        assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
         # Self Attention
         # [ATP_DISP]: 2. infuse s2 into self.attention.forward()
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -743,18 +743,14 @@ class LlamaDecoderLayer(nn.Module):
             m_s2=m_s2,
             **kwargs,
         )                                                      # Alg.1.2
-
+        assert hidden_states.dtype == torch.bfloat16, "check dtype error -2 !"
         hidden_states = residual + hidden_states               # Alg.1.3 (**notice: hidden_states here is theoratically a sparse tensor with several dim masked out)
 
         # Fully Connected
         residual = hidden_states.clone()
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
         # [ATP_DISP]: 3. apply s3 before MLP_block
         hidden_states = hidden_states * m_s3
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error -2!"
         hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error! -3"
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error! -4"
         # [ATP_DISP]: 4. infuse s4, s5 into self.mlp.forward()        
         hidden_states = self.mlp(hidden_states, m_s4, m_s5)           # Alg.1.5
         hidden_states = residual + hidden_states                      # Alg.1.6 (**notice: same as the previous residual addition)
