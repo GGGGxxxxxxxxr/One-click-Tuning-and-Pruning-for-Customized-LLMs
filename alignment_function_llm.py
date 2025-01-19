@@ -766,22 +766,24 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 if ratio > 0:
                     m_s4 = (m_s4 == 0)
             
-                    mlp_u_lB = cur_layer.mlp.down_proj.lora_B
+                    mlp_u_lB = cur_layer.mlp.up_proj.lora_B
                     mlp_g_lB = cur_layer.mlp.gate_proj.lora_B 
-
+                    mlp_d_lA = cur_layer.mlp.down_proj.lora_A
                     w_norm = mlp_u_lB[:, m_s4].pow(2).sum(0) + \
-                             mlp_g_lB[:, m_s4].pow(2).sum(0)
+                             mlp_g_lB[:, m_s4].pow(2).sum(0) + \
+                             mlp_d_lA[m_s4, :].pow(2).sum(0)
                     w_norm = w_norm.add(1e-8).pow(0.5)
 
                     mlp_u_lB.copy_(self.groupproximal(mlp_u_lB, m_s4, ratio, w_norm, 'out_dim'))
                     mlp_g_lB.copy_(self.groupproximal(mlp_g_lB, m_s4, ratio, w_norm, 'out_dim'))
+                    mlp_d_lA.copy_(self.groupproximal(mlp_d_lA, m_s4, ratio, w_norm, 'in_dim'))
                 
                 # [ATP_DISP]: 5. process s5
                 ratio = (1 - m_s5).sum() / N_t
                 if ratio > 0:
                     m_s3 = (m_s5 == 0)
             
-                    mlp_d_lB = cur_layer.mlp.down_proj.lora_A
+                    mlp_d_lB = cur_layer.mlp.down_proj.lora_B
 
                     w_norm = mlp_d_lB[m_s5, :].pow(2).sum(1)
                     w_norm = w_norm.add(1e-8).pow(0.5)
