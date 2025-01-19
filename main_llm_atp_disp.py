@@ -541,9 +541,9 @@ def main():
     hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
-        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-3)
+        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-4)
     else:
-        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-3)
+        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-4)
     
     print("\n[INFO]=====> Trainable parameters for Pruning_Decision_Generator: <=====")
     for name, param in hyper_net_ddp.named_parameters():
