@@ -16,7 +16,7 @@ def sample_gumbel(shape, eps=1e-10):
 
 
 def gumbel_softmax_sample(logits, T, offset=0):
-    gumbel_sample = sample_gumbel(logits.size())
+    gumbel_sample = sample_gumbel(logits.size()).to(dtype=torch.bfloat16)
     if logits.is_cuda:
         gumbel_sample = gumbel_sample.cuda()
 
