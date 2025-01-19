@@ -226,6 +226,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
     ###############################################
     for i, text_input in enumerate(nlp_dataloader):
+        print(f"training step: {i}")
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
             if (i + 1) % args.control_step == 0:
                 # acquire validation mini-batch
