@@ -13,6 +13,7 @@ from hypernet_llm import hard_concrete
 import random
 import sys
 import math
+from tqdm import tqdm
 
 #-----------------------------------------------------------------#
 # average computation for loss
@@ -226,8 +227,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
 
     ###############################################
-    for i, text_input in enumerate(nlp_dataloader):
-        print(f"training step: {i}")
+    for i, text_input in enumerate(tqdm(nlp_dataloader, desc="Processing", unit="batch")):
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
             if (i + 1) % args.control_step == 0:
                 # acquire validation mini-batch
