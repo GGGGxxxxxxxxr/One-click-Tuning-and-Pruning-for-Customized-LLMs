@@ -635,10 +635,10 @@ class LlamaSdpaAttention(LlamaAttention):
             dropout_p=self.attention_dropout if self.training else 0.0,
             is_causal=is_causal,
         )
-        
+        print(attn_output.dtype)
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
-        
+        print(attn_output.dtype)
         # [ATP_DISP]: apply s2 to the attention_output projection      Alg.1.2
         if self.training != True:
             if m_s2 != None:
