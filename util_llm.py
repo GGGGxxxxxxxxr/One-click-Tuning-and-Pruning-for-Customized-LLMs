@@ -221,9 +221,9 @@ class LoRALinear(nn.Module):
         # lora initialization 
         # 1) common initialization for LoRA
         if svd_init != True:
-            self.lora_A = nn.Parameter(torch.empty(in_features, r, device=cur_device))
+            self.lora_A = nn.Parameter(torch.empty(in_features, r, device=cur_device, dtype=data_type))
             init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  
-            self.lora_B = nn.Parameter(torch.zeros(r, out_features, device=cur_device))
+            self.lora_B = nn.Parameter(torch.zeros(r, out_features, device=cur_device, dtype=data_type))
         # 2) SVD initialization for LoRA
         else:
             # acquire original linear weight
