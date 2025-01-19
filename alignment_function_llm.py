@@ -781,7 +781,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 # [ATP_DISP]: 5. process s5
                 ratio = (1 - m_s5).sum() / N_t
                 if ratio > 0:
-                    m_s3 = (m_s5 == 0)
+                    m_s5 = (m_s5 == 0)
             
                     mlp_d_lB = cur_layer.mlp.down_proj.lora_B
 
