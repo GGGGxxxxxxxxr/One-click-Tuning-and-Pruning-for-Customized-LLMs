@@ -637,7 +637,7 @@ class LlamaSdpaAttention(LlamaAttention):
         
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
-        print(attn_output.dtype)
+        
         # [ATP_DISP]: apply s2 to the attention_output projection      Alg.1.2
         if self.training != True:
             if m_s2 != None:
@@ -650,6 +650,7 @@ class LlamaSdpaAttention(LlamaAttention):
             else:
                 attn_output = self.o_proj(attn_output)
 
+        print(attn_output.dtype)
         return attn_output, None, past_key_value
 
 
