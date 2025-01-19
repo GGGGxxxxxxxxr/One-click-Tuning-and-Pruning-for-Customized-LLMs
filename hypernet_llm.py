@@ -241,10 +241,10 @@ class LLM_HyperStructure(nn.Module):
 
         # >>>>> Transformer Encoder <<<<<#
         transformer_out = self.transformer(self.inputs)  # Shape: (num_layers, 64)
-
+        print(transformer_out.dtype)
         # Apply Layer Normalization
         norm_out = self.ln(transformer_out)
-
+        print(norm_out.dtype)
         '''
         # >>>>> Layer-Wise Mask Projection <<<<<#
         outputs = [fc(norm_out) for fc in self.mh_fc]
