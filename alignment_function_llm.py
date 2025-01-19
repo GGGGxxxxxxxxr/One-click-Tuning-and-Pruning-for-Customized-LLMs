@@ -785,7 +785,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
             
                     mlp_d_lB = cur_layer.mlp.down_proj.lora_B
 
-                    w_norm = mlp_d_lB[m_s5, :].pow(2).sum(1)
+                    w_norm = mlp_d_lB[:, m_s5].pow(2).sum(1)
                     w_norm = w_norm.add(1e-8).pow(0.5)
 
                     mlp_d_lB.copy_(self.groupproximal(mlp_d_lB, m_s5, ratio, w_norm, 'out_dim'))
