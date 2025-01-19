@@ -796,7 +796,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
     # group_lasso_proximal_solution for a single matrics
     def groupproximal(self, weight, m_s, ratio, w_norm, dim):
         if dim == 'in_dim':
-            print(w_norm.shape)
+            w_norm = w_norm.unsqueeze(1)
             weight[m_s, :]   = weight[m_s, :] / w_norm
             scale            = - self.grad_mul * ratio * self.lr + w_norm
             scale[scale < 0] = 0
