@@ -651,7 +651,6 @@ class LlamaSdpaAttention(LlamaAttention):
             else:
                 attn_output = self.o_proj(attn_output)
 
-        print(attn_output.dtype)
         return attn_output, None, past_key_value
 
 
