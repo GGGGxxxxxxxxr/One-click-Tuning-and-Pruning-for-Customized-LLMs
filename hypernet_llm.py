@@ -29,7 +29,7 @@ def hard_concrete(out):
     out_hard = torch.zeros(out.size())
     out_hard[out>=0.5]=1
     if out.is_cuda:
-        out_hard = out_hard.to(device)
+        out_hard = out_hard.to(device=device, dtype=torch.bfloat16)
     # Set gradients w.r.t. y_hard gradients w.r.t. y
     out_hard = (out_hard - out).detach() + out
     return out_hard
