@@ -1011,6 +1011,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     position_embeddings,
                 )
             else:
+                print(layer_idx)
                 assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
                 layer_outputs = decoder_layer(
                     hidden_states,
