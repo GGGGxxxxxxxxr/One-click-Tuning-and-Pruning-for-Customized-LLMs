@@ -728,7 +728,6 @@ class LlamaDecoderLayer(nn.Module):
 
         hidden_states = hidden_states * m_s1   
         hidden_states = self.input_layernorm(hidden_states)    # Alg.1.1
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
         # Self Attention
         # [ATP_DISP]: 2. infuse s2 into self.attention.forward()
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -743,7 +742,7 @@ class LlamaDecoderLayer(nn.Module):
             m_s2=m_s2,
             **kwargs,
         )                                                      # Alg.1.2
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error -2 !"
+
         hidden_states = residual + hidden_states               # Alg.1.3 (**notice: hidden_states here is theoratically a sparse tensor with several dim masked out)
 
         # Fully Connected
@@ -994,6 +993,7 @@ class LlamaModel(LlamaPreTrainedModel):
         # ATP_modifications: layer_index for layer-wise mask extraction
         layer_idx = 0
 
+        assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
         for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
