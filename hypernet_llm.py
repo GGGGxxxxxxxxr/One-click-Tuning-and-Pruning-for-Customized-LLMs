@@ -262,10 +262,10 @@ class LLM_HyperStructure(nn.Module):
 
         # Concatenate all layers' outputs
         out = torch.cat(outputs, dim=0)  # Shape: (32, total_mask_dim)
-
+        print(out.dtype)
         # >>>>> Gumbel-Softmax Sampling <<<<<#
         out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
-
+        print(out.dtype)
         # Convert to Binary Mask in Evaluation Mode
         if not self.training:
             out = hard_concrete(out)
