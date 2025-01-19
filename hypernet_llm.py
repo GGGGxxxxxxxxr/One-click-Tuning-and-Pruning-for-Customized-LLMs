@@ -241,10 +241,8 @@ class LLM_HyperStructure(nn.Module):
 
         # >>>>> Transformer Encoder <<<<<#
         transformer_out = self.transformer(self.inputs)  # Shape: (num_layers, 64)
-        print(transformer_out.dtype)
         # Apply Layer Normalization
         norm_out = self.ln(transformer_out)
-        print(norm_out.dtype)
         '''
         # >>>>> Layer-Wise Mask Projection <<<<<#
         outputs = [fc(norm_out) for fc in self.mh_fc]
@@ -262,14 +260,11 @@ class LLM_HyperStructure(nn.Module):
 
         # Concatenate all layers' outputs
         out = torch.cat(outputs, dim=0)  # Shape: (32, total_mask_dim)
-        print(out.dtype)
         # >>>>> Gumbel-Softmax Sampling <<<<<#
         out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
-        print(out.dtype)
         # Convert to Binary Mask in Evaluation Mode
         if not self.training:
             out = hard_concrete(out)
-        print(out.dtype)
         return out
 
     # convert output vector into applicable masks for LLM maksed inference
