@@ -267,7 +267,6 @@ class LlamaMLP(nn.Module):
 
         # for currently supported 7B and 8B models 
         else:
-            print(f"mlp input dtype:{x.dtype}")
             if self.training != True:
                 if m_s4 != None:
                     temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * m_s4
@@ -1012,7 +1011,6 @@ class LlamaModel(LlamaPreTrainedModel):
                     position_embeddings,
                 )
             else:
-                print(layer_idx)
                 assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
                 layer_outputs = decoder_layer(
                     hidden_states,
