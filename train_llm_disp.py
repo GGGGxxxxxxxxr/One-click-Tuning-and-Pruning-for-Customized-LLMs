@@ -125,13 +125,12 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, args):
 
     # [ATP_DISP] 1. llm.train_forward() for NEXT_TOKEN_PREDICTION_LOSS w/ s1-s5 decisions
     if args.tuning_method == "lora":
-        with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-            output      = llm_model(input_ids=input_ids, 
-                            attention_mask=attn_mask,
-                            labels=labels, 
-                            return_dict=True, 
-                            use_cache=False,
-                            pruning_mask=masks)
+        output      = llm_model(input_ids=input_ids, 
+                        attention_mask=attn_mask,
+                        labels=labels, 
+                        return_dict=True, 
+                        use_cache=False,
+                        pruning_mask=masks)
     else:
         output      = llm_model(input_ids=input_ids, 
                                 attention_mask=attn_mask,
@@ -166,13 +165,13 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     assert len(mask) == 5, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # [ATP_DISP]: eval_forward() with current pruning decision 
-    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-        output      = llm_model(input_ids=val_ids, 
-                                labels=labels, 
-                                return_dict=True, 
-                                use_cache=False,
-                                attention_mask=attn_mask,
-                                pruning_mask=mask)
+    
+    output      = llm_model(input_ids=val_ids, 
+                            labels=labels, 
+                            return_dict=True, 
+                            use_cache=False,
+                            attention_mask=attn_mask,
+                            pruning_mask=mask)
     target_loss = output["loss"]
     
     # [ATP_DISP]: constrain current overall sparsity level of the 'pruned' llm
