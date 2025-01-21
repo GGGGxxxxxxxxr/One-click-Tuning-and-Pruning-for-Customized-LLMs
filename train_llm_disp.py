@@ -337,7 +337,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             # update: new projection tensity (beta)
             current_step = len(nlp_dataloader) * epoch + i
             current_step_tensor = torch.tensor(current_step, dtype=torch.float32)
-            total_steps_tensor = torch.tensor(total_steps, dtype=torch.float32)
+            total_steps_tensor  = torch.tensor(total_steps, dtype=torch.float32)
             grouplasso_module.grad_mul = (100000 * torch.log(current_step_tensor + 1) / torch.log(total_steps_tensor + 1)).item()
             grouplasso_module.lr = current_lr
 
@@ -357,8 +357,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
                 elapsed_time = time.time() - start_time
-                print("timer:")
-                print(elapsed_time)
                 print(
                     f"Time: {elapsed_time:.2f}s | "
                     f"Step: {i} | "
@@ -368,7 +366,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     f"Ratio Loss: {reduced_ratio_loss:.3f if reduced_ratio_loss is not None else 0.000} | "
                 )
 
-            start_time = time.time()
+                start_time = time.time()
 
     # rank0 would log the average summary per epoch
     if torch.distributed.get_rank() == 0:
