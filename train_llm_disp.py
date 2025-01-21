@@ -359,7 +359,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 elapsed_time = time.time() - start_time
                 print(elapsed_time)
                 print(
-                    f"Time: {elapsed_time:.2f}s | "
+                    f"Time: {elapsed_time}s | "
                     f"Step: {i} | "
                     f"LLM Loss: {reduced_llm_loss:.3f} | "
                     f"Hypernet Loss: {reduced_hyper_loss:.3f if reduced_hyper_loss is not None else 0.000} | "
