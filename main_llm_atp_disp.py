@@ -516,7 +516,7 @@ def main():
 
 
     # config training dataloader
-    data_collator  = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True, max_length=4096)
+    data_collator  = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding='max_length', max_length=4096)
     ddp_sampler    = DistributedSampler(tokenized_datasets, num_replicas=world_size, rank=rank)
     ddp_sampler1   = DistributedSampler(tokenized_valsets, num_replicas=world_size, rank=rank)
     nlp_dataloader = DataLoader(
