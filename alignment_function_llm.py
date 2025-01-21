@@ -881,6 +881,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
                 w_norm = mlp_d_lB[:, m_s5].pow(2).sum(0)
                 w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                print(w_norm)
                 gl_list.append(w_norm)
 
         # return averaged current structural sparsity degree
