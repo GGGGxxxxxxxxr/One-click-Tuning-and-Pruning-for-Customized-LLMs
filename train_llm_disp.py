@@ -196,6 +196,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     valid_loss_ave     = AverageMeter()
     ratio_loss_ave     = AverageMeter()
 
+    reduced_hyper_loss = None
+    reduced_valid_loss = None
+    reduced_ratio_loss = None
+
     # [ATP_DISP]: step-wise loss log -- Optional
     if log_loss:
         loss_logs = {
