@@ -449,8 +449,8 @@ def main():
 
     # Print the 85th samples just for dataset cleaning verfication
     print("\n[INFO]=====> sequence samples: <=====")
-    print(nlp_dataset[5])  
-    print(val_dataset[165])
+    print(nlp_dataset[85])  
+    print(val_dataset[85])
 
     # tokenize the NLP dataset
     # ** please determine whether to model loss on 'answer' or 'entire sentences'

@@ -180,7 +180,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     ratio_loss       = match_loss(mask_ratio, pruning_ratio_target)
     
     # [ATP_DISP]: combined loss for PDG update and backward()
-    hyper_loss = target_loss + 5 * ratio_loss 
+    hyper_loss = target_loss + 15 * ratio_loss 
     hyper_loss.backward()
 
     return hyper_loss, target_loss, ratio_loss
