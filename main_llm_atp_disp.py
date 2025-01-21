@@ -603,7 +603,7 @@ def main():
     print("[PROCESS]=====> Begin Training: <=====\n")
     if args.resume != None:
         print(f"[PROCESS]=====> Resume Training from {args.resume}: <=====\n")
-        epoch, cur_maskVec = load_checkpoint(model=llm_ddp.module, hyper_net=hyper_net_ddp.module, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, filename="checkpoint.pth.tar")
+        epoch, cur_maskVec = load_checkpoint(model=llm_ddp.module, hyper_net=hyper_net_ddp.module, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, filename=args.resume)
         start_epoch = epoch + 1
     else:
         print(f"[PROCESS]=====> New Training Progress Launched. <=====\n")
