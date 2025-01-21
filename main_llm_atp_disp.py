@@ -616,7 +616,7 @@ def main():
 
         # train for one epoch
         cur_maskVec, loss_log = llm_sp_train_one_epoch(nlp_dataloader=nlp_dataloader, nlp_hypernet_dataloader=val_dataloader, target_llm=llm_ddp, 
-                                            hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, cur_mask_vec=cur_maskVec, 
+                                            hyper_net=hyper_net_ddp , optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, epoch=epoch, total_epochs=args.epochs, cur_mask_vec=cur_maskVec, 
                                             grouplasso_module=grouplasso_module, args=args, total_params=total_prunable_params, log_loss=args.log_loss)
         
         # save the training log per epoch -- Optional

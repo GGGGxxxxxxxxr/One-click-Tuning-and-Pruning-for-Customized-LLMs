@@ -188,7 +188,7 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
 
 #-----------------------------------------------------------------#
 # [ATP_DISP]: one ATP step based on DISP pruning space 
-def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, cur_mask_vec, grouplasso_module, args, total_params, log_loss):
+def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, hyper_net, optimizer_llm, optimizer_hyper, epoch, total_epochs, cur_mask_vec, grouplasso_module, args, total_params, log_loss):
     print(f"Epoch {epoch} starting.............")
     # [ATP_DISP]: average loss tracker
     llm_loss_ave       = AverageMeter()
@@ -226,6 +226,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     nlp_hypernet_iter = itertools.cycle(nlp_hypernet_dataloader)
 
     ###############################################
+    # count total steps 
+    total_steps = total_epochs * len(nlp_dataloader)
+
     for i, text_input in enumerate(tqdm(nlp_dataloader, desc="Processing", unit="batch")):
         if epoch >= args.start_epoch_control and epoch < (args.start_epoch_control + args.control_epochs):
             if (i + 1) % args.control_step == 0:
@@ -321,10 +324,15 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
 
         # [ATP_DISP]: 3. perform grouplasso approximal projection
         if args.tuning_method == 'lora':
+            '''
             if epoch >= (args.start_epoch_control + args.control_epochs):
                 grouplasso_module.grad_mul = 1000
             else:
                 grouplasso_module.grad_mul = 100000
+            '''
+            # update: new projection tensity (beta)
+            current_step = len(nlp_dataloader) * epoch + i
+            grouplasso_module.grad_mul = 100000 * torch.log(current_step + 1) / torch.log(total_steps + 1)
             grouplasso_module.lr = current_lr
 
             projection_status = grouplasso_module.project_weight_lora_DISP(
