@@ -357,6 +357,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
                 elapsed_time = time.time() - start_time
+                print(elapsed_time)
                 print(
                     f"Time: {elapsed_time:.2f}s | "
                     f"Step: {i} | "
