@@ -324,7 +324,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             if epoch >= (args.start_epoch_control + args.control_epochs):
                 grouplasso_module.grad_mul = 1000
             else:
-                grouplasso_module.grad_mul = 100
+                grouplasso_module.grad_mul = 100000
             grouplasso_module.lr = current_lr
 
             projection_status = grouplasso_module.project_weight_lora_DISP(
