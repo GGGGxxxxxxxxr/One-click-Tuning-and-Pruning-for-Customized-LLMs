@@ -196,10 +196,6 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
     valid_loss_ave     = AverageMeter()
     ratio_loss_ave     = AverageMeter()
 
-    reduced_hyper_loss = None
-    reduced_valid_loss = None
-    reduced_ratio_loss = None
-
     # [ATP_DISP]: step-wise loss log -- Optional
     if log_loss:
         loss_logs = {
@@ -357,26 +353,39 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         if i % args.log_interval == 0:
             if torch.distributed.get_rank() == 0:
                 elapsed_time = time.time() - start_time
-                print(
-                f"Time: {elapsed_time:.2f}s | "
-                f"Step: {i} | "
-                f"LLM Loss: {reduced_llm_loss:.3f if reduced_llm_loss is not None else 0.000} | "
-                f"Hypernet Loss: {reduced_hyper_loss:.3f if reduced_hyper_loss is not None else 0.000} | "
-                f"Valid Loss: {reduced_valid_loss:.3f if reduced_valid_loss is not None else 0.000} | "
-                f"Ratio Loss: {reduced_ratio_loss:.3f if reduced_ratio_loss is not None else 0.000} | "
-                )
+                if epoch >= (args.start_epoch_control + args.control_epochs):
+                    print(
+                        f"Time: {elapsed_time:.2f}s | "
+                        f"Step: {i} | "
+                        f"LLM Loss: {reduced_llm_loss:.3f} | "
+                    )
+                else:
+                    print(
+                        f"Time: {elapsed_time:.2f}s | "
+                        f"Step: {i} | "
+                        f"LLM Loss: {reduced_llm_loss:.3f} | "
+                        f"Hypernet Loss: {reduced_hyper_loss:.3f} | "
+                        f"Valid Loss: {reduced_valid_loss:.3f} | "
+                        f"Ratio Loss: {reduced_ratio_loss:.3f} | "
+                    )
                 start_time = time.time()
 
     # rank0 would log the average summary per epoch
     if torch.distributed.get_rank() == 0:
         print(f"\n===== End of Epoch {epoch} =====")
-        print(
-            f"Epoch {epoch} Summary:\n"
-            f"LLM Loss (Avg): {llm_loss_ave.avg:.4f} | "
-            f"Hypernet Loss (Avg): {hypernet_loss_ave.avg:.4f} | "
-            f"Ratio Loss (Avg): {ratio_loss_ave.avg:.4f} | "
-            f"Valid Loss (Avg): {valid_loss_ave.avg:.4f}\n"
-        )
+        if epoch >= (args.start_epoch_control + args.control_epochs):
+            print(
+                f"Epoch {epoch} Summary:\n"
+                f"LLM Loss (Avg): {llm_loss_ave.avg:.4f} | "
+            )
+        else:
+            print(
+                f"Epoch {epoch} Summary:\n"
+                f"LLM Loss (Avg): {llm_loss_ave.avg:.4f} | "
+                f"Hypernet Loss (Avg): {hypernet_loss_ave.avg:.4f} | "
+                f"Ratio Loss (Avg): {ratio_loss_ave.avg:.4f} | "
+                f"Valid Loss (Avg): {valid_loss_ave.avg:.4f}\n"
+            )
 
     return return_mask, loss_logs
 
