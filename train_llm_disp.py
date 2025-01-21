@@ -89,7 +89,7 @@ def caculate_remaining_parmams(pruning_masks, args):
 
         # [ATP_DISP]: 1. calculate q, k, v remaining params based on s1
         dim_after_pruning_qkv_in = torch.sum(m_s1, dim=1)
-        remaining_qkv_params     = torch.sum(4096 * dim_after_pruning_qkv_in)
+        remaining_qkv_params     = 3 * torch.sum(4096 * dim_after_pruning_qkv_in)
 
         # [ATP_DISP]: 2. calculate attn_out remaining params based on s2
         dim_after_pruning_o_out  = torch.sum(m_s2, dim=1)
