@@ -332,7 +332,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             '''
             # update: new projection tensity (beta)
             current_step = len(nlp_dataloader) * epoch + i
-            grouplasso_module.grad_mul = 100000 * torch.log(current_step + 1) / torch.log(total_steps + 1)
+            current_step_tensor = torch.tensor(current_step, dtype=torch.float32)
+            total_steps_tensor = torch.tensor(total_steps, dtype=torch.float32)
+            grouplasso_module.grad_mul = (100000 * torch.log(current_step_tensor + 1) / torch.log(total_steps_tensor + 1)).item()
             grouplasso_module.lr = current_lr
 
             projection_status = grouplasso_module.project_weight_lora_DISP(
