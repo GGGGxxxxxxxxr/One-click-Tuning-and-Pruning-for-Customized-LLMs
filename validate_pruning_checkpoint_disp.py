@@ -36,7 +36,7 @@ def transform_output_layer_DISP(inputs, model_name=None):
         end = start + size
         sliced_input_tensor = inputs[:, start:end]
 
-        if i < 2:  # Extend K_V_head_mask for the whole layer (multi-head)
+        if i < 1:  # Extend K_V_head_mask for the whole layer (multi-head)
             replicated_slices = sliced_input_tensor.repeat(1, num_kv_heads)
             arch_vector.append(replicated_slices)
         else:
@@ -192,7 +192,7 @@ def observe_weight_masks(model, model_cfg, masks):
         epoch=None
     )
     '''
-    
+
 def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
     if dataset_name.lower() == 'pubmedqa':
         dataset = load_dataset(
