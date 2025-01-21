@@ -108,6 +108,7 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_s
         lw_structure.append(intermediate_size)
         lw_structure.append(hidden_size)
         print(f"=====> Prunable Structure for one-DecoderLayer according to {pruning_scheme}: <=====")
+        print(lw_structure)
     else:
         print("=====> Not implemented yet!. <=====")
 
@@ -123,7 +124,7 @@ def count_llm_p_structures(model: nn.Module, model_config: AutoConfig, pruning_s
         p_structure.append(num_heads)
 
     print("=====> LLM p_structure counting finished. <=====")
-    print("Prunable Structure:", p_structure)
+    print("Prunable Structure [num_layers, structure_per_layer, num_attention_heads]:", p_structure)
     
     return p_structure
 #-----------------------------------------------------------------#

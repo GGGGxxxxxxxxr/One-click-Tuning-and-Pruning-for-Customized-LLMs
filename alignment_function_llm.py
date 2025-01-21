@@ -885,7 +885,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
         # return averaged current structural sparsity degree
         ave_gl = sum(gl_list) / len(gl_list)
-
+        print(sum(gl_list))
         return ave_gl
 
 

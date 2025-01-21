@@ -428,9 +428,10 @@ def main():
     elif args.dataset == 'AGNews':
         nlp_dataset, val_dataset = formatted_AGNews_dataset()
     
+    # update: for alpaca, we are right now testing which loss modeling would be better
     elif args.dataset == 'alpaca':
         nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
-        assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
+        #assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
 
     ## domain-specific dataset
     elif args.dataset == 'MedNLI':
