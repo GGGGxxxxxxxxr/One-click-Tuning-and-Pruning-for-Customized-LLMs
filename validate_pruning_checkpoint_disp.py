@@ -107,7 +107,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     if not base:
         print("Getting current mask vector.")
         cur_mask_vec = checkpoint["mask_vec"].to("cuda")
-        masks = transform_output_layer_uniform(cur_mask_vec, model_name=model_name)
+        masks = transform_output_layer_DISP(cur_mask_vec, model_name=model_name)
 
         # Include weight mask observation parts
         observe_weight_masks(model, model_cfg, masks)
@@ -192,6 +192,7 @@ def observe_weight_masks(model, model_cfg, masks):
         epoch=None
     )
     '''
+    
 def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
     if dataset_name.lower() == 'pubmedqa':
         dataset = load_dataset(
