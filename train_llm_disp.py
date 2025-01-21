@@ -355,9 +355,9 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     f"Time: {elapsed_time:.2f}s | "
                     f"Step: {i} | "
                     f"LLM Loss: {reduced_llm_loss:.3f} | "
-                    f"Hypernet Loss: {reduced_hyper_loss:.3f} | "
-                    f"Valid Loss: {reduced_valid_loss:.3f} | "
-                    f"Ratio Loss: {reduced_ratio_loss:.3f} | "
+                    f"Hypernet Loss: {reduced_hyper_loss:.3f if reduced_hyper_loss is not None else 0.000} | "
+                    f"Valid Loss: {reduced_valid_loss:.3f if reduced_valid_loss is not None else 0.000} | "
+                    f"Ratio Loss: {reduced_ratio_loss:.3f if reduced_ratio_loss is not None else 0.000} | "
                 )
 
                 start_time = time.time()
