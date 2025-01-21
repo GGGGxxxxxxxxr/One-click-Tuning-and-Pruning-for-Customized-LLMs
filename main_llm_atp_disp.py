@@ -223,9 +223,9 @@ def save_fsdp_checkpoint(epoch, model, cur_mask_vec, filename="/orange/yonghui.w
 def load_checkpoint(model, hyper_net, optimizer_llm, optimizer_hyper, filename="checkpoint.pth.tar"):
     checkpoint = torch.load(filename, map_location=torch.device('cpu'))  # adjust map_location as needed
     model.load_state_dict(checkpoint['model_state_dict'])
-    hyper_net.load_state_dict(checkpoint['hyper_net_state_dict'])
-    optimizer_llm.load_state_dict(checkpoint['optimizer_llm_state_dict'])
-    optimizer_hyper.load_state_dict(checkpoint['optimizer_hyper_state_dict'])
+    #hyper_net.load_state_dict(checkpoint['hyper_net_state_dict'])
+    #optimizer_llm.load_state_dict(checkpoint['optimizer_llm_state_dict'])
+    #optimizer_hyper.load_state_dict(checkpoint['optimizer_hyper_state_dict'])
     cur_mask_vec = checkpoint['mask_vec']
     epoch = checkpoint['epoch']
     print(f"Checkpoint loaded: epoch {epoch}")
