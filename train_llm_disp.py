@@ -336,8 +336,8 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             total_steps_tensor  = torch.tensor(total_steps, dtype=torch.float32)
             alpha = torch.tensor(1.0, dtype=torch.float32)
             growth_factor = (torch.exp(alpha * (current_step_tensor / total_steps_tensor)) - 1) / (torch.exp(alpha) - 1).item()
+
             grouplasso_module.grad_mul = 10000 * growth_factor
-            print(grouplasso_module.grad_mul)
             grouplasso_module.lr = current_lr
 
             projection_status = grouplasso_module.project_weight_lora_DISP(
