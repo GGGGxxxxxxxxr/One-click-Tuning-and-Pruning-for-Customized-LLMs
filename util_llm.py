@@ -244,6 +244,8 @@ class LoRALinear(nn.Module):
             # Update the original linear layer with the residual weight
             with torch.no_grad():
                 self.linear.weight.copy_(remaining_weight.to(self.linear.weight.dtype))
+            # [DEBUG]:assert SVD correctioness
+            
             # assign lora weights
             # Initialize LoRA matrices
             w_A = Vh_truncated.to(device=cur_device, dtype=data_type).T
