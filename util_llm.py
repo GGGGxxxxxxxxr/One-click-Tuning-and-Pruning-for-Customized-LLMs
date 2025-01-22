@@ -235,9 +235,9 @@ class LoRALinear(nn.Module):
                 assert original_weight.shape[0] == in_features, "implementation error in SVD init."
             # svd decomposition
             U, S, Vh = torch.linalg.svd(original_weight, full_matrices=False)
-            U_truncated = U[:, :r]
-            S_truncated = S[:r]
-            Vh_truncated = Vh[:r, :]
+            U_truncated = U[:, -r:]
+            S_truncated = S[-r:]
+            Vh_truncated = Vh[-r:, :]
             # Calculate the low-rank approximation (LoRA contribution)
             lora_contribution = torch.mm(U_truncated, torch.mm(torch.diag(S_truncated), Vh_truncated))
             # Calculate the remaining weight (residual part)
