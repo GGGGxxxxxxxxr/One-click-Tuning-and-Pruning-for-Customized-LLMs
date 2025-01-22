@@ -321,7 +321,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
         
         if log_loss:
             loss_logs["llm_loss"].append(reduced_llm_loss.item())
-
+        
         # [ATP_DISP]: 3. perform grouplasso approximal projection
         if args.tuning_method == 'lora':
             '''
@@ -337,7 +337,7 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
             alpha = torch.tensor(1.0, dtype=torch.float32)
             growth_factor = (torch.exp(alpha * (current_step_tensor / total_steps_tensor)) - 1) / (torch.exp(alpha) - 1).item()
 
-            grouplasso_module.grad_mul = 10000 * growth_factor
+            grouplasso_module.grad_mul = 100000 * growth_factor
             grouplasso_module.lr = current_lr
 
             projection_status = grouplasso_module.project_weight_lora_DISP(
