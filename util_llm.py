@@ -246,7 +246,8 @@ class LoRALinear(nn.Module):
             with torch.no_grad():
                 self.linear.weight.copy_(remaining_weight.to(self.linear.weight.dtype).T)
             # [DEBUG]:assert SVD correctioness
-
+            reconstructed_weight = lora_contribution + remaining_weight
+            assert torch.allclose(reconstructed_weight, original_weight, atol=1e-5), "SVD reconstruction error!"
             # assign lora weights
             # Initialize LoRA matrices
             w_A = U_truncated.to(device=cur_device, dtype=data_type)
