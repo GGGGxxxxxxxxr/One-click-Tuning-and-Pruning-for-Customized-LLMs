@@ -305,7 +305,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
     else:
         llm_loss = target_loss #+ gl_loss
 
-    #llm_loss.backward()
+    llm_loss.backward()
 
     '''
     test & track purpose
