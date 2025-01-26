@@ -14,19 +14,10 @@ class custom_grad_weight(torch.autograd.Function):
     def forward(ctx, input, grad_w=1):
         ctx.grad_w = grad_w
         input_clone = input.clone()
-        return input_clone
-
+        return input_clone.float()
     @staticmethod
     def backward(ctx, grad_out):
-        # Ensure gradient computation is in float32 for precision
-        grad_out = grad_out.to(torch.float32)
         grad_input = ctx.grad_w * grad_out
-
-        # Convert back to bfloat16 if necessary
-        if grad_out.dtype == torch.bfloat16:
-            grad_input = grad_input.to(torch.bfloat16)
-
-        # Return grad_input and None for the second argument
         return grad_input, None
 #-----------------------------------------------------------------#
 
