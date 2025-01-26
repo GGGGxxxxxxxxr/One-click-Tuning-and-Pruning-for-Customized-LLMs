@@ -604,9 +604,9 @@ def main():
                                                 grouplasso_module=grouplasso_module, args=args, scaler=scaler_llm, scaler_hyper=scaler_hyper, total_params=total_prunable_params, skip_hyper_training=skip_hyper_training)
             
             # save the training log per epoch
-            import json
-            with open(f"loss_logs_epoch_{epoch}.json", "w") as log_file:
-                json.dump(loss_log, log_file)
+            #import json
+            #with open(f"loss_logs_epoch_{epoch}.json", "w") as log_file:
+            #    json.dump(loss_log, log_file)
             
             # learing rate update
             scheduler_llm.step()
