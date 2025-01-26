@@ -284,7 +284,7 @@ def main():
           ████       ATP:       ████
        ████   All-in-One Tuning     ████
        ████    & Structural Pruning ████
-          ████    version2.0    ████
+          ████    version1.0    ████
               ████          ████
                   ██████████
     """)
@@ -302,7 +302,7 @@ def main():
     #-----------------------------------------------------------------#
     # pre-trained LLM initialization
     # Huggingface support is pulled to make sure the generalization ability of our scripts.
-    # ** current support: {qwen2-0.5b, llama2-7b, llama3-8b}
+    # ** current support: {qwen2-0.5b, llama2-7b, llama2-13b, llama3-8b}
     if args.tuning_method == 'lora':
         print("\n[INFO] Tuning Method: LoRA")
         print("LoRA has been enabled for tuning. Distributed Data Parallel (DDP) mode is selected.")
@@ -332,6 +332,27 @@ def main():
         print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
         
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.padding_side = 'left'
+        
+        model = LlamaForCausalLM.from_pretrained(
+            "meta-llama/Llama-2-7b-hf",
+            attn_implementation="sdpa",
+            torch_dtype=torch.bfloat16,
+            token=api_token
+        ).to(init_device)
+        model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = model_cfg.num_key_value_heads
+
+    elif args.model == 'llama2-13b':
+        # LLaMA 2-13B Model Initialization
+        print("\n[INFO] LLaMA 2-13B detected. Initializing with API token...")
+        print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
+        api_token = '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'
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-13b-hf", token=api_token)
+        print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+        
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-13b-hf", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         tokenizer.padding_side = 'left'
         
