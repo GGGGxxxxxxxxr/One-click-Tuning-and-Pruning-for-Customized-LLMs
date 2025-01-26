@@ -14,7 +14,7 @@ class custom_grad_weight(torch.autograd.Function):
     def forward(ctx, input, grad_w=1):
         ctx.grad_w = grad_w
         input_clone = input.clone()
-        return input_clone.float()
+        return input_clone
     @staticmethod
     def backward(ctx, grad_out):
         grad_input = ctx.grad_w * grad_out
@@ -225,7 +225,6 @@ class Group_Lasso_regularization(nn.Module):
             gl_loss      = ((1 - m_umlp).unsqueeze(0) * mlp_g_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_u_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_d_lora_A).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
-            print(gl_loss)
             gl_list.append(gl_loss)
 
             
