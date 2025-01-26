@@ -42,6 +42,7 @@ class Group_Lasso_regularization(nn.Module):
         self.model       = None
         self.cfg         = target_llm_cfg
         self.num_groups  = int(self.cfg.num_attention_heads / self.cfg.num_key_value_heads)
+        print(self.num_groups)
         self.scheme      = args.pruning_method
 
     '''
