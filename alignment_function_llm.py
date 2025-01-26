@@ -63,16 +63,16 @@ class Group_Lasso_regularization(nn.Module):
             mlp_g_weight = cur_layer.mlp.gate_proj.weight
             mlp_u_weight = cur_layer.mlp.up_proj.weight
             mlp_d_weight = cur_layer.mlp.down_proj.weight
-            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                         + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                         + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                         + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                         + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
             # process attn_out_mask
             attn_out_weight = cur_layer.self_attn.o_proj.weight
-            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
-                          + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()    \
+                          + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
             # process attn_V_mask
@@ -83,9 +83,9 @@ class Group_Lasso_regularization(nn.Module):
             attn_v_weight = cur_layer.self_attn.v_proj.weight
             attn_v_bias   = cur_layer.self_attn.v_proj.bias
             
-            gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
             # process attn_K_mask (Q_mask)
@@ -97,11 +97,11 @@ class Group_Lasso_regularization(nn.Module):
             attn_q_weight = cur_layer.self_attn.q_proj.weight
             attn_q_bias   = cur_layer.self_attn.q_proj.bias
             
-            gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                          #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                          #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
         
         # sum gl_loss
@@ -135,9 +135,9 @@ class Group_Lasso_regularization(nn.Module):
                 mlp_u_weight = cur_layer.mlp.up_proj.weight
                 mlp_d_weight = cur_layer.mlp.down_proj.weight
 
-                gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
                 
                 #gl_list.append(gl_loss)
                 gl_list.append(torch.tensor(gl_loss.item()).cuda())
@@ -145,9 +145,9 @@ class Group_Lasso_regularization(nn.Module):
 
                 # process attn_out_mask
                 attn_out_weight = cur_layer.self_attn.o_proj.weight
-                gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
-                                + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()    \
+                                + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
                 
                 #gl_list.append(gl_loss)
                 gl_list.append(torch.tensor(gl_loss.item()).cuda())
@@ -160,13 +160,13 @@ class Group_Lasso_regularization(nn.Module):
                 
                 # 如果 attention_bias 存在并且 == False，则跳过 bias 的 regularization
                 if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                    gl_loss = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                              + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                    gl_loss = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                              + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
                 else:
                     attn_v_bias   = cur_layer.self_attn.v_proj.bias
-                    gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                    + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                    + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                    gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                    + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                                    + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
                
                 #gl_list.append(gl_loss)
                 gl_list.append(torch.tensor(gl_loss.item()).cuda())
@@ -179,15 +179,15 @@ class Group_Lasso_regularization(nn.Module):
                 attn_q_weight = cur_layer.self_attn.q_proj.weight
 
                 if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                    gl_loss = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                              + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
+                    gl_loss = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                              + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum()
                 else:
                     attn_k_bias   = cur_layer.self_attn.k_proj.bias
                     attn_q_bias   = cur_layer.self_attn.q_proj.bias
-                    gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                    + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                    + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                    + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
+                    gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                    + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                                    + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                    + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-20).pow(1/2.).sum()
                     
                 #gl_list.append(gl_loss)
                 gl_list.append(torch.tensor(gl_loss.item()).cuda())
@@ -222,9 +222,9 @@ class Group_Lasso_regularization(nn.Module):
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
             mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A
 
-            gl_loss      = ((1 - m_umlp).unsqueeze(0) * mlp_g_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - m_umlp).unsqueeze(0) * mlp_u_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - m_umlp).unsqueeze(1) * mlp_d_lora_A).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
+            gl_loss      = ((1 - m_umlp).unsqueeze(0) * mlp_g_lora_B).pow(2).sum((0)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(0) * mlp_u_lora_B).pow(2).sum((0)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - m_umlp).unsqueeze(1) * mlp_d_lora_A).pow(2).sum((1)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
             
@@ -234,9 +234,9 @@ class Group_Lasso_regularization(nn.Module):
             mlp_g_lora_A    = cur_layer.mlp.gate_proj.lora_A
             mlp_u_lora_A    = cur_layer.mlp.up_proj.lora_A
 
-            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - m_out).unsqueeze(0) * mlp_g_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
-                          + ((1 - m_out).unsqueeze(0) * mlp_u_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_lora_B).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - m_out).unsqueeze(0) * mlp_g_lora_A).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()    \
+                          + ((1 - m_out).unsqueeze(0) * mlp_u_lora_A).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
             '''
 
@@ -249,8 +249,8 @@ class Group_Lasso_regularization(nn.Module):
             attn_v_lora_B   = cur_layer.self_attn.v_proj.lora_B
             attn_out_lora_A = cur_layer.self_attn.o_proj.lora_A
 
-            gl_loss       = ((1 - V_mask).unsqueeze(0) * attn_v_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - V_mask_repeated).unsqueeze(1) * attn_out_lora_A).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - V_mask).unsqueeze(0) * attn_v_lora_B).pow(2).sum((0)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - V_mask_repeated).unsqueeze(1) * attn_out_lora_A).pow(2).sum((1)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
             # process attn_K_mask (Q_mask)
@@ -261,9 +261,9 @@ class Group_Lasso_regularization(nn.Module):
             attn_k_lora_B = cur_layer.self_attn.k_proj.lora_B
             attn_q_lora_B = cur_layer.self_attn.q_proj.lora_B
             
-            gl_loss       = ((1 - K_mask).unsqueeze(0) * attn_k_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
-                          + ((1 - Q_mask).unsqueeze(0) * attn_q_lora_B).pow(2).sum((0)).add(1e-8).pow(1/2.).sum() \
-                          #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - K_mask).unsqueeze(0) * attn_k_lora_B).pow(2).sum((0)).add(1e-20).pow(1/2.).sum() \
+                          + ((1 - Q_mask).unsqueeze(0) * attn_q_lora_B).pow(2).sum((0)).add(1e-20).pow(1/2.).sum() \
+                          #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             gl_list.append(gl_loss)
             
 
@@ -324,7 +324,7 @@ class Group_Lasso_regularization(nn.Module):
                         w_norm = mlp_g_weight[m_umlp_out, :].pow(2).sum(1) + \
                                 mlp_u_weight[m_umlp_out, :].pow(2).sum(1) + \
                                 mlp_d_weight[:, m_umlp_out].pow(2).sum(0)
-                        w_norm = w_norm.add(1e-8).pow(0.5)
+                        w_norm = w_norm.add(1e-20).pow(0.5)
 
                         mlp_g_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
                         mlp_u_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
@@ -356,7 +356,7 @@ class Group_Lasso_regularization(nn.Module):
                         w_norm = mlp_g_weight[:, m_out].pow(2).sum(0) + \
                                 mlp_u_weight[:, m_out].pow(2).sum(0) + \
                                 attn_out_weight[m_out, :].pow(2).sum(1)
-                        w_norm = w_norm.add(1e-8).pow(0.5)
+                        w_norm = w_norm.add(1e-20).pow(0.5)
 
                         mlp_g_weight[:, m_out] /= w_norm.unsqueeze(0)
                         mlp_u_weight[:, m_out] /= w_norm.unsqueeze(0)
@@ -386,7 +386,7 @@ class Group_Lasso_regularization(nn.Module):
 
                         w_norm = attn_v_weight[V_mask, :].pow(2).sum(1) + \
                                 attn_out_weight[:, V_mask_repeated].pow(2).sum(0)
-                        w_norm = w_norm.add(1e-8).pow(0.5)
+                        w_norm = w_norm.add(1e-20).pow(0.5)
 
                         attn_v_weight[V_mask, :] /= w_norm.unsqueeze(1)
                         attn_out_weight[:, V_mask_repeated] /= w_norm.unsqueeze(0)
@@ -413,7 +413,7 @@ class Group_Lasso_regularization(nn.Module):
 
                         w_norm = attn_k_weight[m_K_out, :].pow(2).sum(1) + \
                                 attn_q_weight[m_Q_out, :].pow(2).sum(1)
-                        w_norm = w_norm.add(1e-8).pow(0.5)
+                        w_norm = w_norm.add(1e-20).pow(0.5)
 
                         attn_k_weight[m_K_out, :] /= w_norm.unsqueeze(1)
                         attn_q_weight[m_Q_out, :] /= w_norm.unsqueeze(1)
@@ -470,9 +470,9 @@ class Group_Lasso_regularization(nn.Module):
             mlp_u_weight = cur_layer.mlp.up_proj.weight
             mlp_d_weight = cur_layer.mlp.down_proj.weight
             
-            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                            + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                            + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss      = ((1 - m_umlp).unsqueeze(1) * mlp_g_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                            + ((1 - m_umlp).unsqueeze(1) * mlp_u_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                            + ((1 - m_umlp).unsqueeze(0) * mlp_d_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             
             print(f"gl_loss_for_mlp_up_mask:{gl_loss}")
 
@@ -481,9 +481,9 @@ class Group_Lasso_regularization(nn.Module):
 
             # process attn_out_mask
             attn_out_weight = cur_layer.self_attn.o_proj.weight
-            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                            + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()    \
-                            + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+            gl_loss       = ((1 - m_out).unsqueeze(1) * attn_out_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                            + ((1 - m_out).unsqueeze(0) * mlp_u_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()    \
+                            + ((1 - m_out).unsqueeze(0) * mlp_g_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             
             print(f"gl_loss_for_attn_out_mask:{gl_loss}")
 
@@ -497,13 +497,13 @@ class Group_Lasso_regularization(nn.Module):
             
             # 如果 attention_bias 存在并且 == False，则跳过 bias 的 regularization
             if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                gl_loss = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                            + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                gl_loss = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                            + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             else:
                 attn_v_bias   = cur_layer.self_attn.v_proj.bias
-                gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
+                gl_loss       = ((1 - V_mask).unsqueeze(1) * attn_v_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - V_mask) * attn_v_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_weight).pow(2).sum((0)).add(1e-20).pow(1/2.).sum()
             
             print(f"gl_loss_for_attn_v_mask:{gl_loss}")
 
@@ -517,15 +517,15 @@ class Group_Lasso_regularization(nn.Module):
             attn_q_weight = cur_layer.self_attn.q_proj.weight
 
             if hasattr(self.cfg, "attention_bias") and self.cfg.attention_bias == False:
-                gl_loss = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                            + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum()
+                gl_loss = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                            + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum()
             else:
                 attn_k_bias   = cur_layer.self_attn.k_proj.bias
                 attn_q_bias   = cur_layer.self_attn.q_proj.bias
-                gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
-                                + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-8).pow(1/2.).sum()
+                gl_loss       = ((1 - K_mask).unsqueeze(1) * attn_k_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - K_mask) * attn_k_bias).pow(2).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - Q_mask).unsqueeze(1) * attn_q_weight).pow(2).sum((1)).add(1e-20).pow(1/2.).sum() \
+                                + ((1 - Q_mask) * attn_q_bias).pow(2).add(1e-20).pow(1/2.).sum()
                 
             print(f"gl_loss_for_attn_k_mask:{gl_loss}")
 
@@ -576,7 +576,7 @@ class Group_Lasso_regularization(nn.Module):
                     w_norm = mlp_g_weight[m_umlp_out, :].pow(2).sum(1) + \
                             mlp_u_weight[m_umlp_out, :].pow(2).sum(1) + \
                             mlp_d_weight[:, m_umlp_out].pow(2).sum(0)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     mlp_g_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
                     mlp_u_weight[m_umlp_out, :] /= w_norm.unsqueeze(1)
@@ -603,7 +603,7 @@ class Group_Lasso_regularization(nn.Module):
                     w_norm = mlp_g_weight[:, m_out].pow(2).sum(0) + \
                             mlp_u_weight[:, m_out].pow(2).sum(0) + \
                             attn_out_weight[m_out, :].pow(2).sum(1)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     mlp_g_weight[:, m_out] /= w_norm.unsqueeze(0)
                     mlp_u_weight[:, m_out] /= w_norm.unsqueeze(0)
@@ -633,7 +633,7 @@ class Group_Lasso_regularization(nn.Module):
 
                     w_norm = attn_v_weight[V_mask, :].pow(2).sum(1) + \
                             attn_out_weight[:, V_mask_repeated].pow(2).sum(0)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     attn_v_weight[V_mask, :] /= w_norm.unsqueeze(1)
                     attn_out_weight[:, V_mask_repeated] /= w_norm.unsqueeze(0)
@@ -660,7 +660,7 @@ class Group_Lasso_regularization(nn.Module):
 
                     w_norm = attn_k_weight[m_K_out, :].pow(2).sum(1) + \
                             attn_q_weight[m_Q_out, :].pow(2).sum(1)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     attn_k_weight[m_K_out, :] /= w_norm.unsqueeze(1)
                     attn_q_weight[m_Q_out, :] /= w_norm.unsqueeze(1)
@@ -729,7 +729,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                     w_norm = attn_q_lA[m_s1, :].pow(2).sum(1) + \
                              attn_k_lA[m_s1, :].pow(2).sum(1) + \
                              attn_v_lA[m_s1, :].pow(2).sum(1)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     attn_q_lA.copy_(self.groupproximal(attn_q_lA, m_s1, ratio, w_norm, 'in_dim'))
                     attn_k_lA.copy_(self.groupproximal(attn_k_lA, m_s1, ratio, w_norm, 'in_dim'))
@@ -742,7 +742,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
                     m_s2 = (m_s2 == 0)
                     w_norm = attn_o_lB[:, m_s2].pow(2).sum(0)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     attn_o_lB.copy_(self.groupproximal(attn_o_lB, m_s2, ratio, w_norm, 'out_dim'))
 
@@ -756,7 +756,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
                     w_norm = mlp_u_lA[m_s3, :].pow(2).sum(1) + \
                              mlp_g_lA[m_s3, :].pow(2).sum(1)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     mlp_u_lA.copy_(self.groupproximal(mlp_u_lA, m_s3, ratio, w_norm, 'in_dim'))
                     mlp_g_lA.copy_(self.groupproximal(mlp_g_lA, m_s3, ratio, w_norm, 'in_dim'))
@@ -772,7 +772,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                     w_norm = mlp_u_lB[:, m_s4].pow(2).sum(0) + \
                              mlp_g_lB[:, m_s4].pow(2).sum(0) + \
                              mlp_d_lA[m_s4, :].pow(2).sum(1)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     mlp_u_lB.copy_(self.groupproximal(mlp_u_lB, m_s4, ratio, w_norm, 'out_dim'))
                     mlp_g_lB.copy_(self.groupproximal(mlp_g_lB, m_s4, ratio, w_norm, 'out_dim'))
@@ -786,7 +786,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                     mlp_d_lB = cur_layer.mlp.down_proj.lora_B
 
                     w_norm = mlp_d_lB[:, m_s5].pow(2).sum(0)
-                    w_norm = w_norm.add(1e-8).pow(0.5)
+                    w_norm = w_norm.add(1e-20).pow(0.5)
 
                     mlp_d_lB.copy_(self.groupproximal(mlp_d_lB, m_s5, ratio, w_norm, 'out_dim'))
             
@@ -840,7 +840,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 w_norm = attn_q_lA[m_s1, :].pow(2).sum(1) + \
                             attn_k_lA[m_s1, :].pow(2).sum(1) + \
                             attn_v_lA[m_s1, :].pow(2).sum(1)
-                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                w_norm = w_norm.add(1e-20).pow(0.5).sum()
                 gl_list.append(w_norm)
                     
                 # [ATP_DISP]: 2. process s2
@@ -848,7 +848,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
                 m_s2 = (m_s2 == 0)
                 w_norm = attn_o_lB[:, m_s2].pow(2).sum(0)
-                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                w_norm = w_norm.add(1e-20).pow(0.5).sum()
                 gl_list.append(w_norm)
 
                 # [ATP_DISP]: 3. process s3
@@ -859,7 +859,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
 
                 w_norm = mlp_u_lA[m_s3, :].pow(2).sum(1) + \
                             mlp_g_lA[m_s3, :].pow(2).sum(1)
-                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                w_norm = w_norm.add(1e-20).pow(0.5).sum()
                 gl_list.append(w_norm)
 
                 # [ATP_DISP]: 4. process s4
@@ -871,7 +871,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 w_norm = mlp_u_lB[:, m_s4].pow(2).sum(0) + \
                             mlp_g_lB[:, m_s4].pow(2).sum(0) + \
                             mlp_d_lA[m_s4, :].pow(2).sum(1)
-                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                w_norm = w_norm.add(1e-20).pow(0.5).sum()
                 gl_list.append(w_norm)
                 
                 # [ATP_DISP]: 5. process s5
@@ -880,7 +880,7 @@ class Group_Lasso_regularization_DISP(nn.Module):
                 mlp_d_lB = cur_layer.mlp.down_proj.lora_B
 
                 w_norm = mlp_d_lB[:, m_s5].pow(2).sum(0)
-                w_norm = w_norm.add(1e-8).pow(0.5).sum()
+                w_norm = w_norm.add(1e-20).pow(0.5).sum()
                 gl_list.append(w_norm)
 
         # return averaged current structural sparsity degree
