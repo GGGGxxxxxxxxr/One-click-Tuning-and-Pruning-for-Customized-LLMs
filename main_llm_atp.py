@@ -630,7 +630,7 @@ def main():
 
     #-----------------------------------------------------------------#
     # group_lasso_loss module intialization
-    grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures).to(device=init_device)
+    grouplasso_module = Group_Lasso_regularization(args = args, target_llm_cfg = model_cfg, prunable_structure = p_structures)
     print("\n[INFO]=====> Group_Lasso Sparsity Module Initialization Done. <=====")
     #-----------------------------------------------------------------#
 
