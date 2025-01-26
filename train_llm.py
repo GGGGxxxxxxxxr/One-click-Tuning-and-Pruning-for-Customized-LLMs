@@ -270,7 +270,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
 
     if epoch >= args.start_epoch_regularization:
         if epoch == (args.epochs - 1):
-            gl_tensity = 100                              # force to set expected weights to ZERO
+            gl_tensity = 300                              # force to set expected weights to ZERO
             gl_module.grad_mul = gl_tensity
         else: 
             gl_tensity = 0.3
@@ -305,7 +305,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
     else:
         llm_loss = target_loss + gl_loss
 
-    scaler.scale(llm_loss).backward()
+    llm_loss.backward()
 
     '''
     test & track purpose
