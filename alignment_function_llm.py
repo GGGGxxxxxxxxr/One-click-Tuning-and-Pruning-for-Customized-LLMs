@@ -274,11 +274,11 @@ class Group_Lasso_regularization(nn.Module):
         sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
         
         #test
-        
+        '''
         sum_loss.backward(retain_graph=True)
         mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A
         print(mlp_d_lora_A.grad)
-        
+        '''
         return sum_loss
 
 
