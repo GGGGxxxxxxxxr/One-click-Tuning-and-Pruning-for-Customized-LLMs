@@ -582,6 +582,7 @@ def main():
     if args.resume != None:
         print(f"=====> Resume Training from {args.resume}: <=====\n")
         epoch, cur_maskVec = load_checkpoint(model=llm_ddp.module, hyper_net=hyper_net_ddp.module, optimizer_llm=optimizer_llm, optimizer_hyper=optimizer_hyper, filename=args.resume)
+        cur_maskVec = cur_maskVec.to(device)
         start_epoch = epoch + 1
     else:
         print(f"=====> New Training Progress Launched. <=====\n")
