@@ -285,8 +285,8 @@ class Group_Lasso_regularization(nn.Module):
         #test
         
         sum_loss.backward()
-        mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
-        print(mlp_g_lora_B.grad)
+        mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A
+        print(mlp_d_lora_A.grad)
         
         return sum_loss
 
