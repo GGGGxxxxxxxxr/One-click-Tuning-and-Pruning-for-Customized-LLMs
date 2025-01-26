@@ -280,7 +280,7 @@ class LLM_HyperStructure(nn.Module):
 
             return arch_vector
         
-        elif self.pruning_scheme == 'atp_layer_uniform_attn':
+        elif self.pruning_scheme == 'layer_uniform_attn':
             arch_vector = []
             start = 0
             for i, size in enumerate(self.lw_structure):
