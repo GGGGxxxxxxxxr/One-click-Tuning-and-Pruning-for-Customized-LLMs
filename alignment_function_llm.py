@@ -275,7 +275,7 @@ class Group_Lasso_regularization(nn.Module):
         
         #test
         
-        sum_loss.backward()
+        sum_loss.backward(retain_graph=True)
         mlp_d_lora_A = cur_layer.mlp.down_proj.lora_A
         print(mlp_d_lora_A.grad)
         
