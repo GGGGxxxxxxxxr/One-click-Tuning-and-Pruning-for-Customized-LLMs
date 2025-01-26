@@ -273,7 +273,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
             gl_tensity = 100                              # force to set expected weights to ZERO
             gl_module.grad_mul = gl_tensity
         else: 
-            gl_tensity = 0.03
+            gl_tensity = 0.3
             gl_module.grad_mul = gl_tensity
 
     if args.tuning_method != 'lora':
