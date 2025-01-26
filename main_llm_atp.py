@@ -357,7 +357,7 @@ def main():
         tokenizer.padding_side = 'left'
         
         model = LlamaForCausalLM.from_pretrained(
-            "meta-llama/Llama-2-7b-hf",
+            "meta-llama/Llama-2-13b-hf",
             attn_implementation="sdpa",
             torch_dtype=torch.bfloat16,
             token=api_token
