@@ -26,6 +26,9 @@ def transform_output_layer_uniform(inputs, model_name=None):
     if model_name  == 'llama2-7b':
         lw_structure = [128] * 2 + [11008]
         num_kv_heads = 32
+    elif model_name == 'llama2-13b':
+        lw_structure = [128] * 2 + [13824]
+        num_kv_heads = 40
     elif model_name == 'llama3-8b':
         lw_structure = [128] * 2 + [14336]
         num_kv_heads = 8
@@ -62,6 +65,21 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             token=api_token
         ).cuda()
         model.resize_token_embeddings(len(tokenizer))
+    
+    elif model_name == 'llama2-13b':
+        print("Initializing LLaMA 2-13B model.")
+        api_token = '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'
+        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-13b-hf", token=api_token)
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-13b-hf", token=api_token)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model = LlamaForCausalLM.from_pretrained(
+            "meta-llama/Llama-2-13b-hf",
+            attn_implementation="sdpa",
+            torch_dtype=torch.bfloat16,
+            token=api_token
+        ).cuda()
+        model.resize_token_embeddings(len(tokenizer))
+
     elif model_name == 'llama3-8b':
         print("Initializing LLaMA 3-8B model.")
         api_token = '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'
@@ -757,7 +775,7 @@ if __name__ == "__main__":
     
     base = False
     lora = True
-    model_name = 'llama2-7b'
+    model_name = 'llama2-13b'
 
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
@@ -769,7 +787,7 @@ if __name__ == "__main__":
     if base != True:
         print(f"Using checkpoint path: {ckpt_path}")
     else:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruner_lora.pth.tar"
+        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
 
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model_name=model_name)
 
