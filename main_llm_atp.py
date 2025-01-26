@@ -347,7 +347,6 @@ def main():
     elif args.model == 'llama2-13b':
         # LLaMA 2-13B Model Initialization
         print("\n[INFO] LLaMA 2-13B detected. Initializing with API token...")
-        print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
         api_token = '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'
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-13b-hf", token=api_token)
         print(f"[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
