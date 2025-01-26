@@ -243,14 +243,14 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
     # a) llm_forward() for NEXT_TOKEN_PREDICTION_LOSS w/o pruning masks
     #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
     if args.tuning_method == "lora":
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            output      = llm_model(input_ids=input_ids, 
-                            attention_mask=attn_mask,
-                            labels=labels, 
-                            return_dict=True, 
-                            use_cache=False,
-                            #num_logits_to_keep=seq_len, 
-                            pruning_mask=masks)
+        #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        output      = llm_model(input_ids=input_ids, 
+                        attention_mask=attn_mask,
+                        labels=labels, 
+                        return_dict=True, 
+                        use_cache=False,
+                        #num_logits_to_keep=seq_len, 
+                        pruning_mask=masks)
     else:
         output      = llm_model(input_ids=input_ids, 
                                 attention_mask=attn_mask,
@@ -284,8 +284,8 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
             gl_loss = torch.tensor(0.0).to(target_loss.device)
     else:
         if epoch >= args.start_epoch_regularization:
-            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                gl_loss = gl_module.lora_forward(target_llm = llm_model.module, pruning_masks = masks)
+            #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            gl_loss = gl_module.lora_forward(target_llm = llm_model.module, pruning_masks = masks)
         else:
             gl_loss = torch.tensor(0.0).to(target_loss.device)
 
@@ -346,13 +346,13 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     assert len(mask) == 3, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # c) masked_llm forward() with 'pruning_mask = mask'
-    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
-        output      = llm_model(input_ids=val_ids, 
-                                labels=labels, 
-                                return_dict=True, 
-                                use_cache=False,
-                                attention_mask=attn_mask,
-                                pruning_mask=mask)
+    #with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+    output      = llm_model(input_ids=val_ids, 
+                            labels=labels, 
+                            return_dict=True, 
+                            use_cache=False,
+                            attention_mask=attn_mask,
+                            pruning_mask=mask)
     target_loss = output["loss"]
     
     # ** constrain the pruning target
