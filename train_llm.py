@@ -145,6 +145,37 @@ def caculate_remaining_parmams(pruning_masks, args):
 
         return total_remaining_params
     
+    elif args.model == 'llama2-13b':
+        assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
+        m_K = pruning_masks[0]
+        m_V = pruning_masks[1]
+        m_out = pruning_masks[2]
+
+        # calculate q_proj, k_proj remaining params
+        # input dim is 4096 because the hidden_states of each layer is unpruned, as [down_proj] has no output pruning masks
+        # m_K [32, 4096] (repeated head-wise pruning mask [32, 128] for 32 times to expand into the linear mask)
+        dim_after_pruning_K_out = torch.sum(m_K, dim=1)
+        remaining_K_params  = 5120 * dim_after_pruning_K_out
+        remaining_QK_params = torch.sum(remaining_K_params * 2)
+
+        # calculate v_proj remaining params
+        dim_after_pruning_V_out = torch.sum(m_V, dim=1)
+        remaining_V_params = torch.sum(5120 * dim_after_pruning_V_out)
+
+        # calculate out_proj remaining params
+        remaining_out_params = torch.sum(5120 * dim_after_pruning_V_out)
+
+        # calculate mlp_up / gate remaining params
+        dim_after_pruning_up_out = torch.sum(m_out, dim=1)
+        remaining_up_gate_params = 2 * torch.sum(5120 * dim_after_pruning_up_out)
+
+        # calculate mlp_down remaining params
+        remaining_down_params = torch.sum(5120 * dim_after_pruning_up_out)
+
+        total_remaining_params = remaining_QK_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
+
+        return total_remaining_params
+    
     # UPDATED IN VERSION 0.2.1
     # we further added the unpruned parameters (embeddings, lm_head, ...) to achieve more accurate pruning control
     elif args.model == "llama3-8b":
