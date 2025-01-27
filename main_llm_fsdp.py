@@ -458,7 +458,9 @@ def main():
             # Ensure 'answer' key is present, otherwise handle it gracefully
             if 'answer' not in examples:
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
-        
+            
+            inputs  = tokenizer(examples["text"], padding=False)
+            
             if examples["answer"]:
                 answers = tokenizer(examples["answer"], padding=False)
                 # Add the EOS token ID at the end of each tokenized input
