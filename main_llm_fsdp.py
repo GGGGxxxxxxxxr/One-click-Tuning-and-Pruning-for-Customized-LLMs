@@ -460,7 +460,7 @@ def main():
                 raise ValueError("The 'answer' key is missing in the dataset but 'loss_on_answer' is set to True.")
             
             inputs  = tokenizer(examples["text"], padding=False)
-            
+
             if examples["answer"]:
                 answers = tokenizer(examples["answer"], padding=False)
                 # Add the EOS token ID at the end of each tokenized input
@@ -469,7 +469,7 @@ def main():
                     raise ValueError("Your tokenizer does not have an eos_token_id. Please set an EOS token for your tokenizer.")
                 input_ids = inputs["input_ids"] + answers["input_ids"] + [eos_token_id]
                 attention_mask = inputs["attention_mask"] + answers["attention_mask"] + [1]
-                labels = -100 * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
+                labels = [-100] * len(inputs["input_ids"]) + answers["input_ids"] + [eos_token_id]
             else:
                 input_ids = inputs["input_ids"]
                 attention_mask = inputs["attention_mask"]
