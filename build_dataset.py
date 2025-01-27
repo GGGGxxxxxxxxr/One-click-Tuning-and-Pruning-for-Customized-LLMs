@@ -509,11 +509,11 @@ def formatted_c4_dataset(num_samples=1000, min_length=200, max_length=500):
     return validation_dataset
 
 #-------------------- 合并数据集 --------------------#
-def create_medical_dataset(args=None, open_domain=False):
+def create_medical_dataset(args=None, open_domain=False, raw=False):
     # 获取各个数据集的训练集和验证集
-    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
-    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
-    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
+    mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000, raw=raw)
+    pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500,raw=raw)
+    hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000, raw=raw)
 
     inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
 
