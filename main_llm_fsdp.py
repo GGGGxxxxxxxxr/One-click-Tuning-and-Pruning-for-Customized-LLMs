@@ -47,7 +47,7 @@ from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import count_llm_p_structures, count_total_params, count_trainable_parameters, count_total_prunable_params
 from util_llm import pruning_ratio_contribution
 from util_llm import LoRALinear, customized_lora_substitution
-from hypernet_llm import LLM_HyperStructure
+from hypernet_llm import LLM_HyperStructure, LLM_HyperStructure_old
 from train_llm import llm_sp_train_one_epoch
 from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset, formatted_alpaca_dataset
 # mask_infused_custom_llm
@@ -518,9 +518,9 @@ def main():
     hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
-        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 5e-1)
+        optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-4)
     else:
-        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 5e-1)
+        optimizer_hyper = torch.optim.AdamW(hyper_params,  lr  = 1e-4)
     
     print("=====> Trainable parameters for HyperNet(): <=====")
     for name, param in hyper_net_ddp.named_parameters():

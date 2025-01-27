@@ -101,7 +101,7 @@ class LLM_HyperStructure_old(nn.Module):
         # Step 2: Apply orthogonal initialization in float32
         nn.init.orthogonal_(inputs)
         # Step 3: Convert to bfloat16 after initialization
-        inputs = inputs.to(dtype=torch.bfloat16)
+        #inputs = inputs.to(dtype=torch.bfloat16)
         # Step 4: Detach the tensor to ensure no gradient tracking
         self.inputs = inputs.detach()                              # 'input' itself is a untrainable nn.param
         
@@ -207,7 +207,8 @@ class LLM_HyperStructure(nn.Module):
             # Learnable Input Embeddings
             inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
             nn.init.orthogonal_(inputs)
-            self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
+            #self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
+            self.inputs = nn.Parameter(inputs, requires_grad=False)
 
             # Layer Normalization
             self.ln = nn.LayerNorm(64)

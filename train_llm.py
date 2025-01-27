@@ -228,7 +228,7 @@ def caculate_remaining_parmams(pruning_masks, args):
 #-----------------------------------------------------------------#
 # step_wise forward() for target_llm param_tuning
 def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args, gl_module, scaler):
-    llm_model.eval()
+    llm_model.train()
     #uniform device
     cur_device = next(llm_model.parameters()).device
     input_ids  = input_ids.to(cur_device)
@@ -299,7 +299,7 @@ def target_llm_step(llm_model, input_ids, labels, masks, attn_mask, epoch, args,
     if args.tuning_method != 'lora':
         llm_loss = target_loss                         # in FSDP mode, we are forced to use GroupLasso DirectProjection to simulate such GL_loss backward effects
     else:
-        llm_loss = target_loss #+ gl_loss
+        llm_loss = target_loss + gl_loss
 
     scaler.scale(llm_loss).backward()
 
