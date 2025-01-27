@@ -243,7 +243,7 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name, raw):
         print(f"Dataset '{dataset_name}' is not supported.")
         return
 
-def evaluate_pubmedqa(model, tokenizer, masks, dataset):
+def evaluate_pubmedqa(model, tokenizer, masks, dataset, raw):
     print("Evaluating on PubMedQA dataset...")
     true_labels = []
     pred_labels = []
@@ -253,11 +253,23 @@ def evaluate_pubmedqa(model, tokenizer, masks, dataset):
         question = dataset[i]['QUESTION']
         gold_label = dataset[i]['final_decision'].lower()
 
-        input_text = (
-            f"The abstract of a biomedical research article is '{context}'. "
-            f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
-            f"The answer is '"
-        )
+        if raw:
+            input_text = (
+                f"The abstract of a biomedical research article is '{context}'. "
+                f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
+                f"The answer is '"
+            )
+        else:
+            instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
+            optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
+            input_text = (
+                f"Below is an instruction that describes a task, paired with an input that provides further context. "
+                f"Write a response that appropriately completes the request.\n\n"
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Input:\n{optional_input}\n\n"
+                f"### Response:\n"
+                f"The answer to the question is '"
+            )
 
         prediction = generate_predictions(model, tokenizer, input_text, masks)
 
