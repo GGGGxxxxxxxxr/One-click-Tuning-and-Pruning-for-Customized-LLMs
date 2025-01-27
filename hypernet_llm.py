@@ -180,89 +180,111 @@ class LLM_HyperStructure_old(nn.Module):
     
 
 class LLM_HyperStructure(nn.Module):
-    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=2, num_heads=4):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=2, num_heads=4, direct_mask=False):
+
         super(LLM_HyperStructure, self).__init__()
 
-        # >>>>> Configuration Setup <<<<<#
-        self.pruning_scheme = args.pruning_method
-        self.num_layers     = p_structure[0]  # Number of layers in the LLM
-        self.lw_structure   = p_structure[1]  # Structure of each layer's mask
-        if self.pruning_scheme == 'layer_uniform_attn':
-            assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
-            self.num_kv_heads = p_structure[-1]
+        self.direct_mask = direct_mask 
 
-        self.T              = T  # Temperature for Gumbel-Softmax
-        self.base           = base  # Offset for Gumbel-Softmax sampling
+        if direct_mask == False:
+            # >>>>> Configuration Setup <<<<<#
+            self.pruning_scheme = args.pruning_method
+            self.num_layers     = p_structure[0]  # Number of layers in the LLM
+            self.lw_structure   = p_structure[1]  # Structure of each layer's mask
+            if self.pruning_scheme == 'layer_uniform_attn':
+                assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
+                self.num_kv_heads = p_structure[-1]
 
-        # >>>>> Transformer Encoder <<<<<#
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=64, nhead=num_heads, dim_feedforward=256, batch_first=True
-        )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+            self.T              = T  # Temperature for Gumbel-Softmax
+            self.base           = base  # Offset for Gumbel-Softmax sampling
 
-        # Learnable Input Embeddings
-        inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
-        nn.init.orthogonal_(inputs)
-        self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
-
-        # Layer Normalization
-        self.ln = nn.LayerNorm(64)
-
-        # Layer-wise Mask Projection
-        '''
-        self.mh_fc = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(64, 128),
-                nn.ReLU(),
-                nn.Linear(128, self.lw_structure[i])
+            # >>>>> Transformer Encoder <<<<<#
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=64, nhead=num_heads, dim_feedforward=256, batch_first=True
             )
-            for i in range(len(self.lw_structure))
-        ])
-        '''
+            self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-        self.mh_fc_list = nn.ModuleList([
-            nn.ModuleList([
-                nn.Linear(64, self.lw_structure[i], bias=False)  # Multiple linear layers for each mask projection
+            # Learnable Input Embeddings
+            inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
+            nn.init.orthogonal_(inputs)
+            self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
+
+            # Layer Normalization
+            self.ln = nn.LayerNorm(64)
+
+            # Layer-wise Mask Projection
+            '''
+            self.mh_fc = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(64, 128),
+                    nn.ReLU(),
+                    nn.Linear(128, self.lw_structure[i])
+                )
                 for i in range(len(self.lw_structure))
-            ]) for _ in range(self.num_layers)  # One list per layer
-        ])
+            ])
+            '''
+
+            self.mh_fc_list = nn.ModuleList([
+                nn.ModuleList([
+                    nn.Linear(64, self.lw_structure[i], bias=False)  # Multiple linear layers for each mask projection
+                    for i in range(len(self.lw_structure))
+                ]) for _ in range(self.num_layers)  # One list per layer
+            ])
+        
+        # for ablation study
+        else:
+            self.pruning_scheme = args.pruning_method
+            self.num_layers     = p_structure[0]  # Number of layers in the LLM
+            self.lw_structure   = p_structure[1]  # Structure of each layer's mask
+            if self.pruning_scheme == 'layer_uniform_attn':
+                assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
+                self.num_kv_heads = p_structure[-1]
+
+            size = (num_layers, sum(self.lw_structure))
+            self.mask_vector = nn.Parameter(torch.ones(size), requires_grad=True)
+
 
     def forward(self, dummy=None):
-        # >>>>> Device Management <<<<<#
-        device = next(self.parameters()).device
-        self.inputs = self.inputs.to(device)
+        
+        if self.direct_mask == False:
+            # >>>>> Device Management <<<<<#
+            device = next(self.parameters()).device
+            self.inputs = self.inputs.to(device)
 
-        # >>>>> Transformer Encoder <<<<<#
-        transformer_out = self.transformer(self.inputs)  # Shape: (num_layers, 64)
+            # >>>>> Transformer Encoder <<<<<#
+            transformer_out = self.transformer(self.inputs)  # Shape: (num_layers, 64)
 
-        # Apply Layer Normalization
-        norm_out = self.ln(transformer_out)
+            # Apply Layer Normalization
+            norm_out = self.ln(transformer_out)
 
-        '''
-        # >>>>> Layer-Wise Mask Projection <<<<<#
-        outputs = [fc(norm_out) for fc in self.mh_fc]
-        out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
-        '''
-        outputs = []
-        for layer_idx in range(self.num_layers):
-            layer_out = norm_out[layer_idx].unsqueeze(0)  # Shape: (1, 64)
-            layer_masks = [
-                linear(layer_out)  # Apply each linear projection for this layer
-                for linear in self.mh_fc_list[layer_idx]
-            ]
-            outputs.append(torch.cat(layer_masks, dim=-1))  # Concatenate masks for this layer
+            '''
+            # >>>>> Layer-Wise Mask Projection <<<<<#
+            outputs = [fc(norm_out) for fc in self.mh_fc]
+            out = torch.cat(outputs, dim=-1)  # Shape: (num_layers, total_mask_dim)
+            '''
+            outputs = []
+            for layer_idx in range(self.num_layers):
+                layer_out = norm_out[layer_idx].unsqueeze(0)  # Shape: (1, 64)
+                layer_masks = [
+                    linear(layer_out)  # Apply each linear projection for this layer
+                    for linear in self.mh_fc_list[layer_idx]
+                ]
+                outputs.append(torch.cat(layer_masks, dim=-1))  # Concatenate masks for this layer
 
-        # Concatenate all layers' outputs
-        out = torch.cat(outputs, dim=0)  # Shape: (32, total_mask_dim)
+            # Concatenate all layers' outputs
+            out = torch.cat(outputs, dim=0)  # Shape: (32, total_mask_dim)
 
-        # >>>>> Gumbel-Softmax Sampling <<<<<#
-        out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
+            # >>>>> Gumbel-Softmax Sampling <<<<<#
+            out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
 
-        # Convert to Binary Mask in Evaluation Mode
-        if not self.training:
-            out = hard_concrete(out)
-
-        return out
+            # Convert to Binary Mask in Evaluation Mode
+            if not self.training:
+                out = hard_concrete(out)
+            return out
+        
+        else:
+            out = torch.sigmoid(self.mask_vector)
+            return out
 
     def transform_output(self, inputs):
         """Transform concatenated mask vector into individual layer masks."""
