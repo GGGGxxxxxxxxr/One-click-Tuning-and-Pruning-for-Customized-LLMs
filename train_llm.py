@@ -413,7 +413,6 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     hyper_loss = target_loss + 5 * ratio_loss #+ 0.00005 * alignment_loss
 
     hyper_loss.backward()
-    print(hypernet.module.mask_vector.grad)
     #scaler.scale(hyper_loss).backward()
     '''
     with torch.no_grad():
