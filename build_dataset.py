@@ -515,14 +515,14 @@ def create_medical_dataset(args=None, open_domain=False, raw=False):
     pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500,raw=raw)
     hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000, raw=raw)
 
-    inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
+    #inter_train, inter_val = formatted_intermedMed_dataset(num_samples=0)
 
     if open_domain:
         open_domain_val = formatted_c4_dataset(num_samples=500, min_length=900, max_length=1200)
-        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val, open_domain_val])
+        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, open_domain_val])
     else:
         combined_train = concatenate_datasets([mednli_train, pubmedqa_train, hqs_train])
-        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val, inter_val])
+        combined_val   = concatenate_datasets([mednli_val, pubmedqa_val, hqs_val])
 
     # according to D-Pruner, adding open-domain calibration dataset would help to improve the generalization ability of the model
     
