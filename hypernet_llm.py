@@ -283,7 +283,10 @@ class LLM_HyperStructure(nn.Module):
             return out
         
         else:
-            out = torch.sigmoid(self.mask_vector)
+            out = gumbel_softmax_sample(self.mask_vector)
+            # Convert to Binary Mask in Evaluation Mode
+            if not self.training:
+                out = hard_concrete(out)
             return out
 
     def transform_output(self, inputs):
