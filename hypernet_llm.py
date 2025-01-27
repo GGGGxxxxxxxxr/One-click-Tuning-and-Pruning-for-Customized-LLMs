@@ -233,6 +233,9 @@ class LLM_HyperStructure(nn.Module):
         
         # for ablation study
         else:
+            self.T              = T  # Temperature for Gumbel-Softmax
+            self.base           = base  # Offset for Gumbel-Softmax sampling
+            
             self.pruning_scheme = args.pruning_method
             self.num_layers     = p_structure[0]  # Number of layers in the LLM
             self.lw_structure   = p_structure[1]  # Structure of each layer's mask
