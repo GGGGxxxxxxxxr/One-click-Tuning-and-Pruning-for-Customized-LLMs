@@ -652,7 +652,7 @@ def generate_predictions(model, tokenizer, input_text, masks):
 
     return next_token 
 
-def evaluate_perplexity_on_harrison(model, tokenizer, masks):
+def evaluate_perplexity_on_harrison(model, tokenizer, masks, raw):
     print("Evaluating perplexity on Harrison dataset...")
 
     # 直接从 harrison.jsonl 文件加载数据
