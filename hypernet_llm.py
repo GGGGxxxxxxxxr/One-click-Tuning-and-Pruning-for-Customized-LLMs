@@ -180,7 +180,7 @@ class LLM_HyperStructure_old(nn.Module):
     
 
 class LLM_HyperStructure(nn.Module):
-    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=2, num_heads=4, direct_mask=False):
+    def __init__(self, p_structure=None, T=0.4, base=3, args=None, num_layers=2, num_heads=4, direct_mask=False, transformer=True):
 
         super(LLM_HyperStructure, self).__init__()
 
@@ -208,7 +208,7 @@ class LLM_HyperStructure(nn.Module):
             inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
             nn.init.orthogonal_(inputs)
             #self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
-            self.inputs = nn.Parameter(inputs, requires_grad=False)
+            self.inputs = nn.Parameter(inputs, requires_grad=True)
 
             # Layer Normalization
             self.ln = nn.LayerNorm(64)
