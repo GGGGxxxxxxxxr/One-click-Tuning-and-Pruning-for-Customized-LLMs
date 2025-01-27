@@ -789,7 +789,7 @@ if __name__ == "__main__":
     base = False
     lora = True
     model_name = 'llama2-7b'
-    qa=True
+    raw  = False
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
     args = parser.parse_args()
