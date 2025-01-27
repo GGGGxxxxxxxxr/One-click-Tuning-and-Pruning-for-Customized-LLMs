@@ -240,7 +240,7 @@ class LLM_HyperStructure(nn.Module):
                 assert len(p_structure) == 3, "mismatch between prunable_structure holder and the HyperNet() requirements"
                 self.num_kv_heads = p_structure[-1]
 
-            size = (num_layers, sum(self.lw_structure))
+            size = (self.num_layers, sum(self.lw_structure))
             self.mask_vector = nn.Parameter(torch.ones(size), requires_grad=True)
 
 
