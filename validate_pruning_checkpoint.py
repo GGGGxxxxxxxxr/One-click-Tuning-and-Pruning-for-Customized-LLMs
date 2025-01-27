@@ -210,13 +210,13 @@ def observe_weight_masks(model, model_cfg, masks):
         epoch=None
     )
     '''
-def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
+def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name, raw):
     if dataset_name.lower() == 'pubmedqa':
         dataset = load_dataset(
             "json",
             data_files="nlp_dataset_collections/PubMedQA/pubMedQA_test.jsonl"
         )["train"]
-        evaluate_pubmedqa(model, tokenizer, masks, dataset)
+        evaluate_pubmedqa(model, tokenizer, masks, dataset, raw)
     elif dataset_name.lower() == 'mednli':
         dataset = load_dataset(
             "json",
@@ -224,21 +224,21 @@ def evaluate_model_on_dataset(model, tokenizer, masks, dataset_name):
         ).remove_columns(
             ["pairID", "sentence1_parse", "sentence1_binary_parse", "sentence2_parse", "sentence2_binary_parse"]
         )["train"]
-        evaluate_mednli(model, tokenizer, masks, dataset)
+        evaluate_mednli(model, tokenizer, masks, dataset, raw)
     elif dataset_name.lower() == 'hqs':
         dataset = load_dataset(
             "json",
             data_files="nlp_dataset_collections/HQS/HQS_test.jsonl"
         )["train"]
-        evaluate_healthquestionsum(model, tokenizer, dataset, masks)
+        evaluate_healthquestionsum(model, tokenizer, dataset, masks, raw)
     elif dataset_name.lower() == 'harrison':
-        evaluate_perplexity_on_harrison(model, tokenizer, masks)
+        evaluate_perplexity_on_harrison(model, tokenizer, masks, raw)
     elif dataset_name.lower() == 'multilegalpile':
-        evaluate_perplexity_on_multilegalpile(model, tokenizer, masks)
+        evaluate_perplexity_on_multilegalpile(model, tokenizer, masks, raw)
     elif dataset_name.lower() == 'casehold':
-        evaluate_casehold(model, tokenizer, masks)
+        evaluate_casehold(model, tokenizer, masks, raw)
     elif dataset_name.lower() == 'billsum':
-        evaluate_billsum(model, tokenizer, masks)
+        evaluate_billsum(model, tokenizer, masks, raw)
     else:
         print(f"Dataset '{dataset_name}' is not supported.")
         return
@@ -293,7 +293,7 @@ def evaluate_pubmedqa(model, tokenizer, masks, dataset):
 
 
 
-def evaluate_mednli(model, tokenizer, masks, dataset):
+def evaluate_mednli(model, tokenizer, masks, dataset, raw):
     print("Evaluating on MedNLI dataset...")
     acc_count_base = 0
 
@@ -302,10 +302,23 @@ def evaluate_mednli(model, tokenizer, masks, dataset):
         sentence2 = dataset[i]["sentence2"]
         gold_label = dataset[i]["gold_label"]
 
-        input_text = (
-            f"Premise is '{sentence1} and hypothesis is '{sentence2}."
-            f"Their relationship is '"
-        )
+        if raw:
+            input_text = (
+                f"Premise is '{sentence1} and hypothesis is '{sentence2}."
+                f"Their relationship is '"
+            )
+        else:
+            instruction    =  "Determine the relationship between the medical Premise and the Hypothesis from 'entailment', 'contradiction', 'neutral'."
+            optional_input = f"Premise: '{sentence1}', Hypothesis: '{sentence2}'"
+            input_text = (
+                f"Below is an instruction that describes a task, paired with an input that provides further context. "
+                f"Write a response that appropriately completes the request.\n\n"
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Input:\n{optional_input}\n\n"
+                f"### Response:\n"
+                f"Their relationship is '"
+            )
+        
         
         prediction_base = generate_predictions(model, tokenizer, input_text, masks)
         #generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
@@ -776,7 +789,7 @@ if __name__ == "__main__":
     base = False
     lora = True
     model_name = 'llama2-7b'
-
+    qa=True
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
     args = parser.parse_args()
@@ -802,5 +815,5 @@ if __name__ == "__main__":
         elif dataset_name == 'instruct':
             evaluate_instruction(model, tokenizer, masks)
         else:
-            evaluate_model_on_dataset(model, tokenizer, masks, dataset_name)
+            evaluate_model_on_dataset(model, tokenizer, masks, dataset_name, raw)
             print("-" * 50)  # 分隔线，便于阅读输出
