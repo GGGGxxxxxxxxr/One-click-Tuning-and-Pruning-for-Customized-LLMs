@@ -424,7 +424,7 @@ def extract_message(text):
         return text.strip()
 
 
-def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
+def evaluate_healthquestionsum(model, tokenizer, dataset, masks, raw):
     print("Evaluating on HealthQuestionSum dataset...")
     references = []
     hypotheses = []
@@ -436,11 +436,24 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks):
         reference_summary = dataset[i]['Summary']
 
         question = extract_message(original_question)
+        
+        if raw:
+            input_text = (
+                f"A question posted by a patient is '{question}'."
+                f"The summary of the patient's question is: '"
+            )
+        else:
+            instruction = "Summarize the following question from a patient."
+            optional_input = f"Patient's question: '{question}'"
 
-        input_text = (
-            f"A question posted by a patient is '{question}'."
-            f"The summary of the patient's question is: '"
-        )
+            input_text = (
+                f"Below is an instruction that describes a task, paired with an input that provides further context. "
+                f"Write a response that appropriately completes the request.\n\n"
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Input:\n{optional_input}\n\n"
+                f"### Response:\n"
+                f"The summary of the patient's question is: '"
+            )
 
         generated_summary = generate_summary(model, tokenizer, input_text, masks, False, 70)
 
