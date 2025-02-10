@@ -53,6 +53,7 @@ from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, 
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from custom_llms.llama import LlamaForCausalLM
+from custom_llms.phi2  import PhiForCausalLM
 from alignment_function_llm import Group_Lasso_regularization
 from custom_llms.llama import LlamaDecoderLayer
 
@@ -295,6 +296,16 @@ def main():
         print(model)
         print("=====> Structure End. <=====\n")
 
+    elif args.model == 'phi2':
+        model_cfg = AutoConfig.from_pretrained("microsoft/phi-2")
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.padding_side = 'left'
+        model     = PhiForCausalLM.from_pretrained("microsoft/phi-2")
+        model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = model_cfg.num_key_value_heads
+        print(model)
+        
     # llama2-7b initialization from Huggingface
     # ** llama tokenizer does not have a specific PAD token, so a special pad token is appended here for string length alignment
     elif args.model == 'llama2-7b':
