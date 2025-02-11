@@ -11,6 +11,7 @@ import math
 import os
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import LoRALinear, customized_lora_substitution
+from custom_llms.phi2  import PhiForCausalLM
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -32,6 +33,9 @@ def transform_output_layer_uniform(inputs, model_name=None):
     elif model_name == 'llama3-8b':
         lw_structure = [128] * 2 + [14336]
         num_kv_heads = 8
+    elif model_name == 'phi2':
+        lw_structure = [80] * 2 + [10240]
+        num_kv_heads = 32
 
     arch_vector = []
     start = 0
@@ -94,6 +98,18 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         ).cuda()
         model.resize_token_embeddings(len(tokenizer))
         print(model)
+    
+    elif model_name == 'phi2':
+        print("Initializing Phi2 model.")
+        model_cfg = AutoConfig.from_pretrained("microsoft/phi-2")
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.padding_side = 'left'
+        model     = PhiForCausalLM.from_pretrained("microsoft/phi-2").cuda()
+        model.resize_token_embeddings(len(tokenizer))
+        args.num_key_values = model_cfg.num_key_value_heads
+        print(model)
+
     if lora == True:
         print("intialize LoRA insertions.")
         if base == True:
@@ -128,7 +144,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         masks = transform_output_layer_uniform(cur_mask_vec, model_name=model_name)
 
         # Include weight mask observation parts
-        observe_weight_masks(model, model_cfg, masks)
+        #observe_weight_masks(model, model_cfg, masks)
 
         return model, tokenizer, masks
     
@@ -813,7 +829,7 @@ if __name__ == "__main__":
     
     base = False
     lora = True
-    model_name = 'llama2-7b'
+    model_name = 'phi2'
     raw  = False
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
