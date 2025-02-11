@@ -227,7 +227,7 @@ def replace_linear_with_lora(decoder_layer, rank=8, dropout=0.1):
     return replacement_count
 
 # 主函数：冻结整个模型，并将 Linear 替换为 LoRALinear
-def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
+def customized_lora_substitution(llm_model, rank=8, dropout=0.1, model_name=None):
     # 1. 冻结整个模型的参数
     for param in llm_model.parameters():
         param.requires_grad = False
@@ -238,7 +238,10 @@ def customized_lora_substitution(llm_model, rank=8, dropout=0.1):
         replacement_count = replace_linear_with_lora(decoder_layer, rank=rank, dropout=dropout)
         
         # 每个 decoder layer 中应有 7 个 Linear，进行断言
-        assert replacement_count == 7, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
+        if model_name != 'phi2':
+            assert replacement_count == 7, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
+        else:
+            assert replacement_count == 6, f"Expected 7 Linear layers, but replaced {replacement_count} in layer {layer_idx}"
 
     '''
     trainable_params = [(name, param) for name, param in llm_model.named_parameters() if param.requires_grad]
