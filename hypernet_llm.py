@@ -97,7 +97,7 @@ class LLM_HyperStructure_old(nn.Module):
         self.Bi_GRU  = nn.GRU(64, 128, bidirectional=True)                  # [input dim, output_dim]
         self.h0      = torch.zeros(2, self.num_layers, 128).to(dtype=torch.bfloat16)                 # [bidirect, LAYERS, output_dim]
 
-        inputs = torch.empty(len(self.lw_structure), 1self.num_layers, 64 * 32 , dtype=torch.float32)
+        inputs = torch.empty(len(self.lw_structure), self.num_layers, 64 * 32 , dtype=torch.float32)
         # Step 2: Apply orthogonal initialization in float32
         nn.init.orthogonal_(inputs)
         # Step 3: Convert to bfloat16 after initialization
