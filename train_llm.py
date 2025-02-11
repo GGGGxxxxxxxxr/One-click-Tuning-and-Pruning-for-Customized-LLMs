@@ -220,6 +220,34 @@ def caculate_remaining_parmams(pruning_masks, args):
 
         return total_remaining_params
     
+    elif args.model == "phi2":
+        assert len(pruning_masks) == 3, 'pruning masks implementation error in [calculate_remaining_params], check the code.'
+        m_K = pruning_masks[0] 
+        m_V = pruning_masks[1]
+        m_out = pruning_masks[2]
+
+        dim_after_pruning_K_out = torch.sum(m_K, dim=1)
+        remaining_K_params  = 2560 * dim_after_pruning_K_out
+        remaining_QK_params = torch.sum(remaining_K_params * 2)
+
+        # calculate v_proj remaining params
+        dim_after_pruning_V_out = torch.sum(m_V, dim=1)
+        remaining_V_params = torch.sum(2560 * dim_after_pruning_V_out)
+
+        # calculate out_proj remaining params
+        remaining_out_params = torch.sum(2560 * dim_after_pruning_V_out)
+
+        # calculate mlp_up / gate remaining params
+        dim_after_pruning_up_out = torch.sum(m_out, dim=1)
+        remaining_up_gate_params = torch.sum(2560 * dim_after_pruning_up_out)
+
+        # calculate mlp_down remaining params
+        remaining_down_params = torch.sum(2560 * dim_after_pruning_up_out)
+
+        total_remaining_params = remaining_QK_params + remaining_V_params + remaining_out_params + remaining_up_gate_params + remaining_down_params
+
+        return total_remaining_params
+
     else:
         raise NotImplementedError
 
