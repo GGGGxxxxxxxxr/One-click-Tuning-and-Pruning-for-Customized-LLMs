@@ -132,7 +132,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         
         else:
             print("use customized lora-blocks.")
-            customized_lora_substitution(model, rank=8, dropout=0.1)
+            customized_lora_substitution(model, rank=8, dropout=0.1, model_name=model_name)
 
     print("Loading state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
