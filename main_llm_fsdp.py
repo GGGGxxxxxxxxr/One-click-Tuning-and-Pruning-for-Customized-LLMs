@@ -305,7 +305,7 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
         print(model)
-        
+
     # llama2-7b initialization from Huggingface
     # ** llama tokenizer does not have a specific PAD token, so a special pad token is appended here for string length alignment
     elif args.model == 'llama2-7b':
@@ -387,7 +387,7 @@ def main():
         print("=====> LoRA infusion done. <=====\n")
         model.print_trainable_parameters()
         '''
-        customized_lora_substitution(model, rank=8, dropout=0.1)
+        customized_lora_substitution(model, rank=8, dropout=0.1, model_name=args.model)
         print("=====> LoRA infusion done. <=====\n")
     else:
         print("=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====\n")
