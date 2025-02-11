@@ -215,6 +215,7 @@ class Group_Lasso_regularization(nn.Module):
             m_V    = layer_wise_masks[-2]
             assert len(layer_wise_masks) == 3, 'check the implementation in [lora_forward]'
 
+            '''
             # process MLP_up_mask for LoRA weights
             mlp_g_lora_B = cur_layer.mlp.gate_proj.lora_B
             mlp_u_lora_B = cur_layer.mlp.up_proj.lora_B
@@ -224,7 +225,28 @@ class Group_Lasso_regularization(nn.Module):
                                 + ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                                 + ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
+            '''
+            # Dynamically detect MLP layer names (for LLaMA, OPT, Phi-2, etc.)
+            if hasattr(cur_layer.mlp, "gate_proj"):
+                mlp_g_lora_B = getattr(cur_layer.mlp.gate_proj, "lora_B", None)
+                mlp_u_lora_B = getattr(cur_layer.mlp.up_proj, "lora_B", None)
+                mlp_d_lora_A = getattr(cur_layer.mlp.down_proj, "lora_A", None)
+            elif hasattr(cur_layer.mlp, "fc1"):
+                mlp_g_lora_B = getattr(cur_layer.mlp.fc1, "lora_B", None)
+                mlp_u_lora_B = None  # No up_proj
+                mlp_d_lora_A = getattr(cur_layer.mlp.fc2, "lora_A", None)
+            else:
+                raise ValueError("Unsupported MLP structure in the target model.")
 
+            gl_loss = 0
+            if mlp_g_lora_B is not None:
+                gl_loss += ((1 - m_umlp).unsqueeze(1) * mlp_g_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
+            if mlp_u_lora_B is not None:
+                gl_loss += ((1 - m_umlp).unsqueeze(1) * mlp_u_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
+            if mlp_d_lora_A is not None:
+                gl_loss += ((1 - m_umlp).unsqueeze(0) * mlp_d_lora_A).pow(2).sum(0).add(1e-8).pow(0.5).sum()
+            
+            gl_list.append(gl_loss)
             
             '''
             # process attn_out_mask
@@ -238,6 +260,7 @@ class Group_Lasso_regularization(nn.Module):
             gl_list.append(gl_loss)
             '''
 
+            '''
             # process attn_V_mask
             # a) concate V_split_masks into mask for original WV
             V_mask = m_V
@@ -251,6 +274,8 @@ class Group_Lasso_regularization(nn.Module):
                           + ((1 - V_mask_repeated).unsqueeze(0) * attn_out_lora_A).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
 
+
+
             # process attn_K_mask (Q_mask)
             # a) concate K_split_masks into mask for original WK
             K_mask = m_K
@@ -263,12 +288,41 @@ class Group_Lasso_regularization(nn.Module):
                           + ((1 - Q_mask).unsqueeze(1) * attn_q_lora_B).pow(2).sum((1)).add(1e-8).pow(1/2.).sum() \
                           #+ ((1 - K_mask).unsqueeze(0) * attn_v_weight).pow(2).sum((0)).add(1e-8).pow(1/2.).sum()
             gl_list.append(gl_loss)
-            
+            '''
+            # Detect different attention output projection names (`o_proj` vs. `dense`)
+            attn_out_proj_name = "o_proj" if hasattr(cur_layer.self_attn, "o_proj") else "dense"
+            attn_out_lora_A = getattr(cur_layer.self_attn, attn_out_proj_name, None)
+            attn_v_lora_B = getattr(cur_layer.self_attn.v_proj, "lora_B", None)
+
+            if attn_v_lora_B is not None:
+                gl_loss = ((1 - m_V).unsqueeze(1) * attn_v_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
+                gl_list.append(gl_loss)
+
+            if attn_out_lora_A is not None:
+                V_mask_repeated = m_V.repeat(self.num_groups)
+                gl_loss = ((1 - V_mask_repeated).unsqueeze(0) * attn_out_lora_A).pow(2).sum(0).add(1e-8).pow(0.5).sum()
+                gl_list.append(gl_loss)
+
+            # Process attention K_mask (Q_mask)
+            attn_k_lora_B = getattr(cur_layer.self_attn.k_proj, "lora_B", None)
+            attn_q_lora_B = getattr(cur_layer.self_attn.q_proj, "lora_B", None)
+
+            if attn_k_lora_B is not None:
+                gl_loss = ((1 - m_K).unsqueeze(1) * attn_k_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
+                gl_list.append(gl_loss)
+
+            if attn_q_lora_B is not None:
+                Q_mask = m_K.repeat(self.num_groups)
+                gl_loss = ((1 - Q_mask).unsqueeze(1) * attn_q_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
+                gl_list.append(gl_loss)
+
+        # Compute final Group Lasso loss
+        sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list) / len(gl_list), self.grad_mul)
 
         # sum gl_loss
         #sum_loss = sum(gl_list)/len(gl_list)
 
-        sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
+        #sum_loss = self.lam * custom_grad_weight.apply(sum(gl_list)/len(gl_list), self.grad_mul)
 
         #test
         '''
