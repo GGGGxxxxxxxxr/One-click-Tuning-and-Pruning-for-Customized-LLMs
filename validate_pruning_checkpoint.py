@@ -143,6 +143,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         cur_mask_vec = checkpoint["mask_vec"].to("cuda")
         masks = transform_output_layer_uniform(cur_mask_vec, model_name=model_name)
 
+        print(masks)
         # Include weight mask observation parts
         #observe_weight_masks(model, model_cfg, masks)
 
@@ -349,6 +350,7 @@ def evaluate_mednli(model, tokenizer, masks, dataset, raw):
         
         
         prediction_base = generate_predictions(model, tokenizer, input_text, masks)
+        print(prediction_base)
         #generated_text = generate_summary(model, tokenizer, input_text, masks, True, max_length=10)
         
         if "contr" in prediction_base:
