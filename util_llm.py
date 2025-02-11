@@ -170,7 +170,7 @@ def count_total_prunable_params(model_name):
     elif model_name == 'llama2-13b':
         num_params = (5120 * 5120 * 4 + 5120 * 13824 * 3) * 40 + 5120 * 2 * 40
     elif model_name == 'phi2':
-        num_params = 0
+        num_params = (2560 * 2560 * 4 + 2560 * 10240 * 2) * 32 + 2560 * 2 * 32
     else:
         raise NotImplementedError
 
