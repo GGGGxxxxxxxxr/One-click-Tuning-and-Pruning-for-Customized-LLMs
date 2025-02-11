@@ -291,8 +291,9 @@ class Group_Lasso_regularization(nn.Module):
             '''
             # Detect different attention output projection names (`o_proj` vs. `dense`)
             attn_out_proj_name = "o_proj" if hasattr(cur_layer.self_attn, "o_proj") else "dense"
-            attn_out_lora_A = getattr(cur_layer.self_attn, attn_out_proj_name, None)
-            attn_v_lora_B = getattr(cur_layer.self_attn.v_proj, "lora_B", None)
+            attn_out           = getattr(cur_layer.self_attn, attn_out_proj_name, None)
+            attn_out_lora_A    = getattr(attn_out, "lora_A", None)
+            attn_v_lora_B      = getattr(cur_layer.self_attn.v_proj, "lora_B", None)
 
             if attn_v_lora_B is not None:
                 gl_loss = ((1 - m_V).unsqueeze(1) * attn_v_lora_B).pow(2).sum(1).add(1e-8).pow(0.5).sum()
