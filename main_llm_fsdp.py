@@ -301,7 +301,7 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         tokenizer.padding_side = 'left'
-        model     = PhiForCausalLM.from_pretrained("microsoft/phi-2").to(init_device)
+        model     = PhiForCausalLM.from_pretrained("microsoft/phi-2", torch_dtype=torch.bfloat16).to(init_device)
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
         print(model)
