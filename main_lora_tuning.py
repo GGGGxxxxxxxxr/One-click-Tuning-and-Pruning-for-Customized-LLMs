@@ -174,7 +174,7 @@ def setup_for_distributed(is_master):
 def save_checkpoint(
     epoch, 
     model=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_pruner_lora.pth.tar"
+    filename="/home/002792721.neu/base_lora.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
