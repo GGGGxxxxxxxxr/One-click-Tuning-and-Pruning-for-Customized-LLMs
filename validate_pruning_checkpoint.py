@@ -829,7 +829,7 @@ def evaluate_instruction(model, tokenizer, masks):
 if __name__ == "__main__":
     import argparse
     
-    base = False
+    base = True
     lora = True
     model_name = 'phi2'
     raw  = False
