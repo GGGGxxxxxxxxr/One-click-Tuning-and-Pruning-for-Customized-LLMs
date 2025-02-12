@@ -843,7 +843,7 @@ if __name__ == "__main__":
     if base != True:
         print(f"Using checkpoint path: {ckpt_path}")
     else:
-        ckpt_path = "/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora.pth.tar"
+        ckpt_path = "/home/002792721.neu/base_lora.pth.tar"
 
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model_name=model_name)
 
