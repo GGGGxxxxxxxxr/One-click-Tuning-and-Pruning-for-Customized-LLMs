@@ -863,11 +863,12 @@ def llm_tuning_train_one_epoch(
         )
 
         # Backward pass and optimizer step
-        scaler.unscale_(optimizer_llm)
+        #scaler.unscale_(optimizer_llm)
         torch.nn.utils.clip_grad_norm_(target_llm.parameters(), 1.0)
-        scaler.step(optimizer_llm)
-        scaler.update()
-
+        #scaler.step(optimizer_llm)
+        #scaler.update()
+        optimizer_llm.step()
+        
         # Update loss metrics
         reduced_llm_loss = reduce_loss(llm_loss)
         reduced_target_loss = reduce_loss(target_loss)
