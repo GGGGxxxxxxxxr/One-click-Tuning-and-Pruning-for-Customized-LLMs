@@ -696,7 +696,7 @@ def evaluate_perplexity_on_harrison(model, tokenizer, masks, raw):
     print(f"Perplexity on Harrison dataset: {perplexity:.2f}")
 
 
-def evaluate_perplexity_on_multilegalpile(model, tokenizer, masks):
+def evaluate_perplexity_on_multilegalpile(model, tokenizer, masks, raw):
     print("Evaluating perplexity on MultiLegalPile Dataset...")
 
     dataset_file = 'nlp_dataset_collections/MultiLegalPile/multilegalpile_300.jsonl'
