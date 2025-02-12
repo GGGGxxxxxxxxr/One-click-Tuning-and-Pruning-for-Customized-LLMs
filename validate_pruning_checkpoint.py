@@ -509,7 +509,7 @@ def evaluate_healthquestionsum(model, tokenizer, dataset, masks, raw):
         avg_score = sum(rouge_scores[key]) / len(rouge_scores[key]) * 100  # Convert to percentage
         print(f"Average {key} F1 Score: {avg_score:.2f}%")
 
-def evaluate_billsum(model, tokenizer, masks):
+def evaluate_billsum(model, tokenizer, masks, raw):
     print("Evaluating on BillSum dataset...")
     dataset = load_dataset('json', data_files='nlp_dataset_collections/BillSum/billsum_test_200.jsonl', split='train')
 
