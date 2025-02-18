@@ -35,7 +35,7 @@ high_continuity_indices = torch.cat([
 continuous_indices = torch.arange(num_selected, device=device)
 
 # **性能测试函数**
-def benchmark_index_select(indices, input_tensor, num_runs=500):
+def benchmark_index_select(indices, input_tensor, num_runs=100):
     times = []
     for _ in range(num_runs):
         torch.cuda.synchronize() if device == "cuda" else None  # 确保 GPU 计算完成
