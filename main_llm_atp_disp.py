@@ -442,6 +442,7 @@ def main():
             print(f"\n[INFO]=====> LoRA initialization with common solution with rank: {args.lora_rank}. <=====")
 
         print("\n[INFO]=====> LoRA infusion done. <=====")
+
     else:
         print("\n[INFO]=====> Full-param tuning Initialization Done. Pre-trained weights would be tuned during the following stages. <=====")
     #-----------------------------------------------------------------#
@@ -617,6 +618,7 @@ def main():
     scheduler_hyper = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_hyper, T_max=args.control_epochs, eta_min=1e-4)
 
     print("\n[INFO]=====> Trainable parameters for target_LLM: <=====")
+    print(llm_ddp)
     for name, param in llm_ddp.named_parameters():
         if param.requires_grad:
             print(f"Parameter name: {name}, Shape: {param.shape}")
