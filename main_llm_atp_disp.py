@@ -429,7 +429,7 @@ def main():
             model = get_peft_model(model, lora_config)
             print("=====> LoRA infusion done. <=====\n")
             model.print_trainable_parameters()  
-            print(model.model.layers[0].mlp.gate_proj.lora_A.weight)
+            print(model.model.model.layers[0].mlp.gate_proj.lora_A.weight)
         
 
         else:
