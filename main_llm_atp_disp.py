@@ -45,6 +45,7 @@ from functools import partial
 
 # 8bit optimizer for memory efficent training
 import bitsandbytes as bnb
+from peft import LoraConfig, get_peft_model
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoConfig, DataCollatorForSeq2Seq
@@ -404,29 +405,35 @@ def main():
     # LoRA integration or full-param tuning
     # currently we use full-param, LoRA feature would be developed later
     if args.tuning_method == 'lora':
-        '''
-        ** in order to fit LoRA with ATP Implementation, customized LoRALinear with mask capability is required
-        ** thus instead of Peft library, we customize LoRA Infusion.
-        print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====")
-        lora_config = LoraConfig(
-                        r=8,
-                        lora_alpha=8,
-                        target_modules="all-linear",
-                        lora_dropout=0.1,
-                        bias="none"
-                    )
-        # lora detailed configuration
-        print(f"  r: {lora_config.r}")
-        print(f"  lora_alpha: {lora_config.lora_alpha}")
-        print(f"  target_modules: {lora_config.target_modules}")
-        print(f"  lora_dropout: {lora_config.lora_dropout}")
-        print(f"  bias: {lora_config.bias}")
-        # fuse lora module into pre-trained target llm
-        model = get_peft_model(model, lora_config)
-        print("=====> LoRA infusion done. <=====\n")
-        model.print_trainable_parameters()
-        '''
-        customized_lora_substitution(model, rank=args.lora_rank, dropout=0.1, svd_init=args.svd_init)
+        if args.quantization == True:
+            '''
+                ** in order to fit LoRA with ATP Implementation, customized LoRALinear with mask capability is required
+                ** thus instead of Peft library, we customize LoRA Infusion.
+            '''
+            print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====")
+            lora_config = LoraConfig(
+                            init_lora_weights="loftq",
+                            r=args.lora_rank,
+                            lora_alpha=1,
+                            target_modules="all-linear",
+                            lora_dropout=0.1,
+                            task_type="CAUSAL_LM"
+                        )
+            # lora detailed configuration
+            print(f"  r: {lora_config.r}")
+            print(f"  lora_alpha: {lora_config.lora_alpha}")
+            print(f"  target_modules: {lora_config.target_modules}")
+            print(f"  lora_dropout: {lora_config.lora_dropout}")
+            print(f"  bias: {lora_config.bias}")
+            # fuse lora module into pre-trained target llm
+            model = get_peft_model(model, lora_config)
+            print("=====> LoRA infusion done. <=====\n")
+            model.print_trainable_parameters()  
+            print(model)
+        
+
+        else:
+            customized_lora_substitution(model, rank=args.lora_rank, dropout=0.1, svd_init=args.svd_init)
 
         if args.svd_init == True:
             print(f"\n[INFO]=====> LoRA initialization with SVD decomposition with top_r: {args.lora_rank} <=====")
