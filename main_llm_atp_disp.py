@@ -485,7 +485,7 @@ def main():
         nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
         #assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
     elif args.dataset == 'alpaca_gpt':
-        nlp_dataset, val_dataset = formatted_alpaca_gpt_dataset(args=args, num_val_samples=5000)
+        nlp_dataset, val_dataset = formatted_alpaca_gpt_dataset(args=args, num_val_samples=10000)
     ## domain-specific dataset
     elif args.dataset == 'MedNLI':
         nlp_dataset, val_dataset = formatted_MedNLI_dataset()
