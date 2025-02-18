@@ -169,7 +169,7 @@ def save_checkpoint(
     epoch, 
     cur_mask_vec,
     model=None, 
-    filename="/orange/yonghui.wu/sgao1/llm_pruning_tuning_lora_qa.pth.tar"
+    filename="/orange/gao1/llm_atpdisp_lora_qa.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
