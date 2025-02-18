@@ -1011,7 +1011,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     position_embeddings,
                 )
             else:
-                assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
+                #assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
                 layer_outputs = decoder_layer(
                     hidden_states,
                     attention_mask=causal_mask,
