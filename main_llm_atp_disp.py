@@ -45,7 +45,7 @@ from functools import partial
 
 # 8bit optimizer for memory efficent training
 import bitsandbytes as bnb
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, replace_lora_weights_loftq
 
 # llm-related library import
 from transformers import AutoTokenizer, AutoConfig, DataCollatorForSeq2Seq
@@ -131,6 +131,7 @@ parser.add_argument('--svd-init', action='store_true',
 parser.add_argument('--lora-rank', default=32, type=int,
                     help='rank of the low-rank matrices in LoRA layers')
 parser.add_argument('--quantization', action='store_true', help="Enable weight quantization for ATP upscaling")
+parser.add_argument('--loftq-init', action='store_true', help="Enable LoftQ SVD init for lora weights")
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
@@ -429,8 +430,12 @@ def main():
             model = get_peft_model(model, lora_config)
             print("=====> LoRA infusion done. <=====\n")
             model.print_trainable_parameters()  
-            print(model)
-            print(model.model.model.layers[0].mlp.gate_proj.lora_A['default'].weight)
+
+            # LoftQ lora initialization?
+            if args.loftq_init == True:
+                for _ in range(5):
+                    replace_lora_weights_loftq(model)
+                print(model)
         
 
         else:
