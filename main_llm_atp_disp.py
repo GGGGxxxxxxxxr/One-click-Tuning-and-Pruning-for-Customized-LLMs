@@ -15,6 +15,8 @@
 # to run this script:
 # CUDA_VISIBLE_DEVICES=0,1,2, ..  torchrun --nproc_per_node=n main_llm_atp_disp.py --model llama2-7b --tuning-method lora --pruning-method DISP --lr 1e-4 --lora-rank 32 --epochs 2 --control-epochs 1 --svd-init
 
+## model quantization support added
+
 import argparse
 import os
 import copy
@@ -127,6 +129,7 @@ parser.add_argument('--svd-init', action='store_true',
                     help='whether to use SVD initialization for LoRA layers')
 parser.add_argument('--lora-rank', default=32, type=int,
                     help='rank of the low-rank matrices in LoRA layers')
+parser.add_argument('--quantization', action='store_true', help="Enable weight quantization for ATP upscaling")
 #-----------------------------------------------------------------#
 
 #-----------------------------------------------------------------#
@@ -301,24 +304,57 @@ def main():
         print("[INFO]=====> Model structure ends. <=====\n")
 
     elif args.model == 'llama2-7b':
-        # LLaMA 2-7B Model Initialization
-        print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
-        api_token = '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'
-        model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
-        print(f"\n[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+        if args.quantization == False:
+            # LLaMA 2-7B Model Initialization
+            print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
+            api_token = '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'
+            model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+            print(f"\n[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+            
+            tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            tokenizer.padding_side = 'left'
+            
+            model = LlamaForCausalLM.from_pretrained(
+                "meta-llama/Llama-2-7b-hf",
+                attn_implementation="sdpa",
+                torch_dtype=torch.bfloat16,
+                token=api_token
+            ).to(init_device)
+            model.resize_token_embeddings(len(tokenizer))
+            args.num_key_values = model_cfg.num_key_value_heads
         
-        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
-        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        tokenizer.padding_side = 'left'
-        
-        model = LlamaForCausalLM.from_pretrained(
-            "meta-llama/Llama-2-7b-hf",
-            attn_implementation="sdpa",
-            torch_dtype=torch.bfloat16,
-            token=api_token
-        ).to(init_device)
-        model.resize_token_embeddings(len(tokenizer))
-        args.num_key_values = model_cfg.num_key_value_heads
+        else:
+            from transformers import BitsAndBytesConfig
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,  
+                bnb_4bit_compute_dtype=torch.float16, 
+                bnb_4bit_use_double_quant=True, 
+                bnb_4bit_quant_type="nf4"
+            )
+            # LLaMA 2-7B Model Initialization
+            print("\n[INFO] LLaMA 2-7B detected. Initializing with API token...")
+            api_token = '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'
+            model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+            print(f"\n[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+            
+            tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            tokenizer.padding_side = 'left'
+
+            model = LlamaForCausalLM.from_pretrained(
+                "meta-llama/Llama-2-7b-hf",
+                device_map="auto",  
+                quantization_config=bnb_config,
+                token=api_token
+            )
+
+            model.resize_token_embeddings(len(tokenizer))
+            args.num_key_values = model.config.num_key_value_heads
+
+            print("\n[INFO] LLaMA 2-7B Model initialized successfully!")
+            print("\n[INFO] Pretrained Weights are quantized to save on the GPU memory consumption...")
+
 
     elif args.model == 'llama3-8b':
         # LLaMA 3-8B Model Initialization
