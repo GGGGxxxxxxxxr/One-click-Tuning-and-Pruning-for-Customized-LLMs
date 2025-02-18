@@ -354,6 +354,7 @@ def main():
 
             print("\n[INFO] LLaMA 2-7B Model initialized successfully!")
             print("\n[INFO] Pretrained Weights are quantized to save on the GPU memory consumption...")
+            print(model)
 
 
     elif args.model == 'llama3-8b':
