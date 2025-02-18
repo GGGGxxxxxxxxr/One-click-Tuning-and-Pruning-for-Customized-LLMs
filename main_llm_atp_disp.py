@@ -433,7 +433,7 @@ def main():
 
             # LoftQ lora initialization?
             if args.loftq_init == True:
-                for _ in range(5):
+                for _ in range(1):
                     replace_lora_weights_loftq(model)
                 print(model)
         
