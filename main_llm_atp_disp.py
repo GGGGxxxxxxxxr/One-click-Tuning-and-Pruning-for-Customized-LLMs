@@ -412,7 +412,7 @@ def main():
             '''
             print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====")
             lora_config = LoraConfig(
-                            init_lora_weights="loftq",
+                            #init_lora_weights="loftq",
                             r=args.lora_rank,
                             lora_alpha=1,
                             target_modules=["q_proj","k_proj", "v_proj", "o_proj", "gate_proj", "down_proj", "up_proj"],
