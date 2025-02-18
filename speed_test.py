@@ -14,22 +14,31 @@ num_selected = 1500
 random_indices = torch.randperm(4096, device=device)[:num_selected]
 
 # 2. **低连续索引**（3-5 个连续块后跳跃）
-low_continuity_indices = torch.cat([
-    torch.arange(i, i + torch.randint(3, 6, (1,), device=device).item(), device=device)
-    for i in range(0, num_selected * 3, 10)
-])[:num_selected]
+low_continuity_indices = []
+i = 0
+while len(low_continuity_indices) < num_selected:
+    length = torch.randint(3, 6, (1,), device=device).item()  # 连续 3-5 个
+    low_continuity_indices.extend(range(i, min(i + length, 4096)))
+    i += torch.randint(6, 10, (1,), device=device).item()  # 跳跃 6-10 个
+low_continuity_indices = torch.tensor(low_continuity_indices[:num_selected], device=device)
 
 # 3. **中等连续索引**（10-20 个连续块后跳跃）
-medium_continuity_indices = torch.cat([
-    torch.arange(i, i + torch.randint(10, 21, (1,), device=device).item(), device=device)
-    for i in range(0, num_selected * 3, 50)
-])[:num_selected]
+medium_continuity_indices = []
+i = 0
+while len(medium_continuity_indices) < num_selected:
+    length = torch.randint(10, 21, (1,), device=device).item()  # 连续 10-20 个
+    medium_continuity_indices.extend(range(i, min(i + length, 4096)))
+    i += torch.randint(20, 30, (1,), device=device).item()  # 跳跃 20-30 个
+medium_continuity_indices = torch.tensor(medium_continuity_indices[:num_selected], device=device)
 
 # 4. **高连续索引**（50-100 个连续块后跳跃）
-high_continuity_indices = torch.cat([
-    torch.arange(i, i + torch.randint(50, 101, (1,), device=device).item(), device=device)
-    for i in range(0, num_selected * 3, 200)
-])[:num_selected]
+high_continuity_indices = []
+i = 0
+while len(high_continuity_indices) < num_selected:
+    length = torch.randint(50, 101, (1,), device=device).item()  # 连续 50-100 个
+    high_continuity_indices.extend(range(i, min(i + length, 4096)))
+    i += torch.randint(100, 150, (1,), device=device).item()  # 跳跃 100-150 个
+high_continuity_indices = torch.tensor(high_continuity_indices[:num_selected], device=device)
 
 # 5. **完全连续索引**（最优情况）
 continuous_indices = torch.arange(num_selected, device=device)
