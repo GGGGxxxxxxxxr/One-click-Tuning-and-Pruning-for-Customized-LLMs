@@ -430,7 +430,7 @@ def main():
             print("=====> LoRA infusion done. <=====\n")
             model.print_trainable_parameters()  
             print(model)
-            print(model.model.model.layers[0].mlp.gate_proj["default"].weight)
+            print(model.model.model.layers[0].mlp.gate_proj.lora_A['default'].weight)
         
 
         else:
