@@ -415,7 +415,7 @@ def main():
                             init_lora_weights="loftq",
                             r=args.lora_rank,
                             lora_alpha=1,
-                            target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","down_proj","up_proj"],
+                            target_modules=["q_proj","k_proj", "v_proj", "o_proj", "gate_proj", "down_proj", "up_proj"],
                             lora_dropout=0.1,
                             task_type="CAUSAL_LM"
                         )
