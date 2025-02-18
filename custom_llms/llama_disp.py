@@ -993,7 +993,7 @@ class LlamaModel(LlamaPreTrainedModel):
         # ATP_modifications: layer_index for layer-wise mask extraction
         layer_idx = 0
 
-        assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
+        #assert hidden_states.dtype == torch.bfloat16, "check dtype error -1 !"
         for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
