@@ -14,6 +14,7 @@
 
 # to run this script:
 # CUDA_VISIBLE_DEVICES=0,1,2, ..  torchrun --nproc_per_node=n main_llm_atp_disp.py --model llama2-7b --tuning-method lora --pruning-method DISP --lr 1e-4 --lora-rank 32 --epochs 2 --control-epochs 1 --svd-init
+
 import argparse
 import os
 import copy
@@ -50,7 +51,7 @@ from util_llm import count_llm_p_structures, count_total_params, count_trainable
 from util_llm import customized_lora_substitution
 from hypernet_llm import LLM_HyperStructure
 from train_llm_disp import llm_sp_train_one_epoch
-from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset, formatted_alpaca_dataset
+from build_dataset import formatted_MedNLI_dataset, formatted_wikitext_dataset, formatted_AGNews_dataset, create_medical_dataset, create_legal_dataset, formatted_alpaca_dataset, formatted_alpaca_gpt_dataset
 # mask_infused_custom_llm
 from custom_llms.qwen2 import Qwen2ForCausalLM
 from custom_llms.llama_disp import LlamaForCausalLM
@@ -432,7 +433,8 @@ def main():
     elif args.dataset == 'alpaca':
         nlp_dataset, val_dataset = formatted_alpaca_dataset(args=args, num_val_samples=10000)
         #assert args.loss_on_answer == True, "If Alpaca dataset is used, then the model loss is computed on [answer] only."
-
+    elif args.dataset == 'alpaca_gpt':
+        nlp_dataset, val_dataset = formatted_alpaca_gpt_dataset(args=args, num_val_samples=5000)
     ## domain-specific dataset
     elif args.dataset == 'MedNLI':
         nlp_dataset, val_dataset = formatted_MedNLI_dataset()

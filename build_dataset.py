@@ -802,8 +802,23 @@ def formatted_alpaca_dataset(args=None, num_val_samples=5000):
 
     return dataset, val_dataset
 
+def formatted_alpaca_gpt_dataset(arg=None, num_val_samples=5000):
+    # load dataset [52k] pieces from Alpaca-GPT4 
+    ds = load_dataset("vicgalle/alpaca-gpt4")['train']
+    ds = ds.remove_columns(['instruction', 'input'])
+    
+    ds = ds.map(format_alpaca_gpt_dataset).remove_columns(['input','instruction','output'])
+    random_sample_indices = random.sample(range(len(ds)), num_val_samples)
+    val_dataset           = ds.select(random_sample_indices)
 
+    return ds, val_dataset
 
+def format_alpaca_gpt_dataset(example):
+    response = example["output"]
+    input_whole = example["text"]
+    input_partial = input_whole.removesuffix(response)
+
+    return {'text': input_partial, 'answer': response}
 
 '''
 train, val = formatted_MedNLI_dataset(num_samples=500)
