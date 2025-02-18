@@ -807,7 +807,7 @@ def formatted_alpaca_gpt_dataset(args=None, num_val_samples=5000):
     ds = load_dataset("vicgalle/alpaca-gpt4")['train']
     ds = ds.remove_columns(['instruction', 'input'])
     
-    ds = ds.map(format_alpaca_gpt_dataset).remove_columns(['input','instruction','output'])
+    ds = ds.map(format_alpaca_gpt_dataset).remove_columns(['output'])
     random_sample_indices = random.sample(range(len(ds)), num_val_samples)
     val_dataset           = ds.select(random_sample_indices)
 
