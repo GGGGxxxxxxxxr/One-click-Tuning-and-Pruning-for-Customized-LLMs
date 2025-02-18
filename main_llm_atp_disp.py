@@ -348,7 +348,7 @@ def main():
                 device_map="auto",  
                 quantization_config=bnb_config,
                 token=api_token
-            )
+            ).to(init_device)
 
             model.resize_token_embeddings(len(tokenizer))
             args.num_key_values = model.config.num_key_value_heads
