@@ -173,7 +173,7 @@ def save_checkpoint(
     epoch, 
     cur_mask_vec,
     model=None, 
-    filename="/orange/sgao1/atp_llm_dir/llm_atpdisp_lora_qa.pth.tar"
+    filename="/orange/sgao1/atp_llm_dir/llm_atpdisp_lora_qa_quantize.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
@@ -415,7 +415,7 @@ def main():
                             init_lora_weights="loftq",
                             r=args.lora_rank,
                             lora_alpha=1,
-                            target_modules="all-linear",
+                            target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","down_proj","up_proj"]
                             lora_dropout=0.1,
                             task_type="CAUSAL_LM"
                         )
