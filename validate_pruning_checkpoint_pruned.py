@@ -295,7 +295,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Use the user-defined checkpoint path
-    ckpt_path = args.ckpt_path
+    ckpt_path = args.pruned_ckpt_path
 
     model, tokenizer, masks = initialize_model_and_tokenizer(pruned_ckpt_path=ckpt_path, model_name=model_name)
 
