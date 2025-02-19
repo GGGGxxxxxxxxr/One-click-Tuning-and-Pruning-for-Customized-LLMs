@@ -75,7 +75,7 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
     # **Compress original weight (linear.weight)**
     pruned_linear = nn.Linear(pruned_in_dim, pruned_out_dim, bias=False)
     print(pruned_linear.weight.shape)
-    pruned_weight = layer.linear.weight.data[select_out_idx, :][:, select_in_idx]
+    pruned_weight = layer.linear.weight.data[select_out_idx, :][:, select_in_idx].squeeze(2)
     print(pruned_weight.shape)
     pruned_linear.weight.data.copy_(pruned_weight)
 
