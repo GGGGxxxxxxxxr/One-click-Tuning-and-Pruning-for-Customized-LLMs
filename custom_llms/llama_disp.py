@@ -725,9 +725,10 @@ class LlamaDecoderLayer(nn.Module):
         
         # [ATP_DISP]: 1. apply s1 before attn_block
         residual = hidden_states.clone()   # store the original hidden_states :)
-
-        hidden_states = hidden_states * m_s1   
+   
         hidden_states = self.input_layernorm(hidden_states)    # Alg.1.1
+        hidden_states = hidden_states * m_s1
+
         # Self Attention
         # [ATP_DISP]: 2. infuse s2 into self.attention.forward()
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -748,8 +749,8 @@ class LlamaDecoderLayer(nn.Module):
         # Fully Connected
         residual = hidden_states.clone()
         # [ATP_DISP]: 3. apply s3 before MLP_block
-        hidden_states = hidden_states * m_s3
         hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
+        hidden_states = hidden_states * m_s3
         # [ATP_DISP]: 4. infuse s4, s5 into self.mlp.forward()        
         hidden_states = self.mlp(hidden_states, m_s4, m_s5)           # Alg.1.5
         hidden_states = residual + hidden_states                      # Alg.1.6 (**notice: same as the previous residual addition)
