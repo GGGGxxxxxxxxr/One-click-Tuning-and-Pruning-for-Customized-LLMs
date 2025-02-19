@@ -82,7 +82,6 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
     pruned_lora_B = nn.Parameter(layer.lora_B[:, select_out_idx])  # Adjust output dimension for LoRA
 
     # **Create a new compressed LoRALinear layer**
-    del layer
     torch.cuda.empty_cache() 
     compressed_layer = LoRALinear(pruned_linear, r=layer.lora_A.shape[1], dropout=layer.lora_dropout.p, svd_init=False)
     compressed_layer.lora_A = pruned_lora_A
