@@ -267,19 +267,7 @@ class LlamaMLP(nn.Module):
 
         # for currently supported 7B and 8B models 
         else:
-            if self.training != True:
-                if m_s4 != None:
-                    temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x) * m_s4
-                    down_proj = self.down_proj(temp) * m_s5                                      # Alg.1.5
-                else:
-                    down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
-            else:
-                if m_s4 != None:
-                    temp = self.act_fn(self.gate_proj(x, m_s4)) * self.up_proj(x, m_s4)
-                    down_proj = self.down_proj(temp, m_s5)                                       # Alg.1.5
-                else:
-                    temp      = self.act_fn(self.gate_proj(x)) * self.up_proj(x)
-                    down_proj = self.down_proj(temp)
+            down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
         return down_proj
 
@@ -582,7 +570,6 @@ class LlamaSdpaAttention(LlamaAttention):
         bsz, q_len, _ = hidden_states.size()
 
         # inference logic
-        # [ATP_DISP]: in the ATP simulation stage, the input 'hidden_states' is alreadly masked, thus no additional processing is required here :)
         query_states = self.q_proj(hidden_states)
         key_states   = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
@@ -638,17 +625,7 @@ class LlamaSdpaAttention(LlamaAttention):
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
         
-        # [ATP_DISP]: apply s2 to the attention_output projection      Alg.1.2
-        if self.training != True:
-            if m_s2 != None:
-                attn_output = self.o_proj(attn_output) * m_s2
-            else:
-                attn_output = self.o_proj(attn_output)     
-        else:
-            if m_s2 != None:
-                attn_output = self.o_proj(attn_output, m_s2)
-            else:
-                attn_output = self.o_proj(attn_output)
+        attn_output = self.o_proj(attn_output)
 
         return attn_output, None, past_key_value
 
@@ -709,25 +686,32 @@ class LlamaDecoderLayer(nn.Module):
         """
         # [ATP_DISP]:
         # extract pruning diag vectors for the corresponding DecoderLayer for S1-S5 selection matrics
+        # in the actual pruned model, we need to gather the index instead of using the semi-pruning masks
+        device = hidden_states.device
         if pruning_mask != None:
             layer_wise_masks = [individual_mask[layer_idx,:] for individual_mask in pruning_mask]
             assert len(layer_wise_masks) == 5, "make sure your input [mask_vec] has diag vector corresponding to s1-s5 to fit with the [DISP]."
-            m_s1 = layer_wise_masks[0]
-            m_s2 = layer_wise_masks[1]
-            m_s3 = layer_wise_masks[2]
-            m_s4 = layer_wise_masks[3]
-            m_s5 = layer_wise_masks[4]
-        else:
-            # [None] equivalent to the origianal unaffected forward() implementation
-            m_s1 = m_s2 = m_s3 = m_s4 = m_s5 = None
+            m_s1 = layer_wise_masks[0].to(torch.float32)
+            m_s2 = layer_wise_masks[1].to(torch.float32)
+            m_s3 = layer_wise_masks[2].to(torch.float32)
+            m_s4 = layer_wise_masks[3].to(torch.float32)
+            m_s5 = layer_wise_masks[4].to(torch.float32)
+
+            s1_index = (m_s1 == 1).nonzero().squeeze(1).to(device)
+            s2_index = (m_s2 == 1).nonzero().squeeze(1).to(device)
+            s3_index = (m_s3 == 1).nonzero().squeeze(1).to(device)
+            s4_index = (m_s4 == 1).nonzero().squeeze(1).to(device)
+            s5_index = (m_s5 == 1).nonzero().squeeze(1).to(device)
 
         # official forward() implementation
-        
+        # disp_pruned incorporates index_select/index_add_ for inter-dimension alignment
+
         # [ATP_DISP]: 1. apply s1 before attn_block
         residual = hidden_states.clone()   # store the original hidden_states :)
 
-        hidden_states = hidden_states * m_s1   
-        hidden_states = self.input_layernorm(hidden_states)    # Alg.1.1
+        hidden_states = self.input_layernorm(hidden_states)   
+        hidden_states = torch.index_select(hidden_states, -1, s1_index)                       # Alg.1.1
+
         # Self Attention
         # [ATP_DISP]: 2. infuse s2 into self.attention.forward()
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -739,20 +723,19 @@ class LlamaDecoderLayer(nn.Module):
             use_cache=use_cache,
             cache_position=cache_position,
             position_embeddings=position_embeddings,
-            m_s2=m_s2,
             **kwargs,
-        )                                                      # Alg.1.2
+        )                                                                                      # Alg.1.2
 
-        hidden_states = residual + hidden_states               # Alg.1.3 (**notice: hidden_states here is theoratically a sparse tensor with several dim masked out)
-
+        hidden_states = residual.index_add(-1, s2_index, hidden_states.contiguous())           # Alg.1.3
         # Fully Connected
         residual = hidden_states.clone()
         # [ATP_DISP]: 3. apply s3 before MLP_block
-        hidden_states = hidden_states * m_s3
-        hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
+        hidden_states = self.post_attention_layernorm(hidden_states)                               
+        hidden_states = torch.index_select(hidden_states, -1, s3_index)                         # Alg.1.4
+
         # [ATP_DISP]: 4. infuse s4, s5 into self.mlp.forward()        
-        hidden_states = self.mlp(hidden_states, m_s4, m_s5)           # Alg.1.5
-        hidden_states = residual + hidden_states                      # Alg.1.6 (**notice: same as the previous residual addition)
+        hidden_states = self.mlp(hidden_states)                                                 # Alg.1.5
+        hidden_states = residual.index_add(-1, s5_index, hidden_states.contiguous())            # Alg.1.6
 
         outputs = (hidden_states,)
 
