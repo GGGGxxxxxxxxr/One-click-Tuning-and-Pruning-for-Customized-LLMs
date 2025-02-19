@@ -65,7 +65,7 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
     customized_lora_substitution(model, rank=32, dropout=0.1)
     print(model)
     print("Loading pruned state dict from checkpoint.")
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True).to("cuda")
     model.eval()
 
     return model, tokenizer, masks
