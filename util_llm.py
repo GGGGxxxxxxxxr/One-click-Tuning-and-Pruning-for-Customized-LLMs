@@ -217,16 +217,15 @@ class LoRALinear(nn.Module):
         # keep the original Linear module
         self.linear = linear_module
         in_features = linear_module.in_features
-        out_features = linear_module.out_features
-        data_type = linear_module.weight.dtype  
+        out_features = linear_module.out_features  
         cur_device = linear_module.weight.device 
         
         # lora initialization 
         # 1) common initialization for LoRA
         if svd_init != True:
-            self.lora_A = nn.Parameter(torch.empty(in_features, r, device=cur_device, dtype=data_type))
+            self.lora_A = nn.Parameter(torch.empty(in_features, r, device=cur_device))
             init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  
-            self.lora_B = nn.Parameter(torch.zeros(r, out_features, device=cur_device, dtype=data_type))
+            self.lora_B = nn.Parameter(torch.zeros(r, out_features, device=cur_device))
         # 2) SVD initialization for LoRA
         else:
             # acquire original linear weight
@@ -252,8 +251,8 @@ class LoRALinear(nn.Module):
             assert torch.allclose(reconstructed_weight, original_weight, atol=1e-5), "SVD reconstruction error!"
             # assign lora weights
             # Initialize LoRA matrices
-            w_A = U_truncated.to(device=cur_device, dtype=data_type)
-            w_B = torch.mm(torch.diag(S_truncated), Vh_truncated).to(device=cur_device, dtype=data_type)
+            w_A = U_truncated.to(device=cur_device)
+            w_B = torch.mm(torch.diag(S_truncated), Vh_truncated).to(device=cur_device)
             self.lora_A = nn.Parameter(w_A)
             self.lora_B = nn.Parameter(w_B)
 
