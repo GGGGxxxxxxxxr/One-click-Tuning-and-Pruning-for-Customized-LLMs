@@ -165,13 +165,13 @@ def hypernet_step(hypernet, llm_model, val_ids, labels, attn_mask, pruning_ratio
     assert len(mask) == 5, "the total masking vectors have been wrong in [hypernet_step], please check the implementation"
 
     # [ATP_DISP]: eval_forward() with current pruning decision 
-    
-    output      = llm_model(input_ids=val_ids, 
-                            labels=labels, 
-                            return_dict=True, 
-                            use_cache=False,
-                            attention_mask=attn_mask,
-                            pruning_mask=mask)
+    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+        output      = llm_model(input_ids=val_ids, 
+                                labels=labels, 
+                                return_dict=True, 
+                                use_cache=False,
+                                attention_mask=attn_mask,
+                                pruning_mask=mask)
     target_loss = output["loss"]
     
     # [ATP_DISP]: constrain current overall sparsity level of the 'pruned' llm
