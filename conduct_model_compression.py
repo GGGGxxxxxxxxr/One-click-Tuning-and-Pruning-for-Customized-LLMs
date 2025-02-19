@@ -76,6 +76,7 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
     pruned_linear = nn.Linear(pruned_in_dim, pruned_out_dim, bias=False)
     print(pruned_linear.weight.shape)
     pruned_weight = layer.linear.weight.data[select_out_idx, :][:, select_in_idx]
+    print(pruned_weight.shape)
     pruned_linear.weight.data.copy_(pruned_weight)
 
     # **Compress LoRA matrices (A and B)**
