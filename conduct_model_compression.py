@@ -159,10 +159,10 @@ def prune_llama(
 
     print("\n[INFO]: Pruning and compression complete! Saving compressed model...")
     print(semi_pruned_model)
-    
+
     # Save compressed model
     os.makedirs(os.path.dirname(output_ckpt), exist_ok=True)
-    torch.save({"model_state_dict": lora_model.state_dict()}, output_ckpt)
+    torch.save({"model_state_dict": semi_pruned_model.state_dict()}, output_ckpt)
 
     print(f"\n[INFO]: Compressed LoRA model saved at: {output_ckpt}")
 
