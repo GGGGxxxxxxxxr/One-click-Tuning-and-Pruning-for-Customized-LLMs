@@ -74,7 +74,8 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
   
     # **Compress original weight (linear.weight)**
     pruned_linear = nn.Linear(pruned_in_dim, pruned_out_dim, bias=False)
-    pruned_weight = layer.linear.weight.data[select_out_idx, :][:, select_in_idx].squeeze(2)
+    pruned_weight = torch.index_select(layer.linear.weight.data, 0, select_out_idx)  # Select rows
+    pruned_weight = torch.index_select(pruned_weight, 1, select_in_idx)  # Select columns
     pruned_linear.weight.data.copy_(pruned_weight)
 
     # **Compress LoRA matrices (A and B)**
