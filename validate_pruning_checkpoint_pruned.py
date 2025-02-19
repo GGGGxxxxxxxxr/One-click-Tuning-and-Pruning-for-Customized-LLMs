@@ -47,7 +47,7 @@ def transform_output_layer_DISP(inputs, model_name=None):
 
 
 def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
-    ckpt_path = input_ckpt_path
+    ckpt_path = pruned_ckpt_path
     print(f"Loading pruned_model_checkpoint from {ckpt_path}.")
     checkpoint    = torch.load(ckpt_path, map_location=torch.device('cpu'))
     masks = checkpoint["pruning_mask"]
