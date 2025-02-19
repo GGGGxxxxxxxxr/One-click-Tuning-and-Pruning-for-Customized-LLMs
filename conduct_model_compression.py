@@ -4,17 +4,17 @@ import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from custom_llms.llama_disp import LlamaForCausalLM  # Import custom LLaMA class
 import os
-
+from util_llm import customized_lora_substitution, LoRALinear
 
 def print_banner():
     """ Display a cool ASCII banner when the script starts """
     print("""
                   ██████████
               ████          ████
-          ████       ATP:       ████
-       ████   All-in-One Tuning     ████
-       ████    & Structural Pruning ████
-          ████    version 2.0    ████
+          ████       stage2:       ████
+    ████   acquire the real pruned model   ████
+       ████                            ████
+          ████                    ████
               ████          ████
                   ██████████
     """)
@@ -47,6 +47,45 @@ def transform_output_layer_DISP(inputs, model_name):
             arch_vector.append(sliced_input_tensor)
         start = end
     return arch_vector
+
+def compress_loralinear(layer, in_mask=None, out_mask=None):
+    """
+    Compress a LoRALinear layer by applying structured pruning 
+    to the original weights and the LoRA parameters.
+
+    Arguments:
+    - layer: LoRALinear instance (original model)
+    - in_mask: Pruning mask for the input dimension (optional)
+    - out_mask: Pruning mask for the output dimension (optional)
+
+    Returns:
+    - A new, compressed LoRALinear layer.
+    """
+    assert isinstance(layer, LoRALinear), "Expected a LoRALinear layer."
+
+    # Determine which dimensions need pruning
+    in_dim, out_dim = layer.linear.in_features, layer.linear.out_features
+    pruned_in_dim = int(in_mask.sum().item()) if in_mask is not None else in_dim
+    pruned_out_dim = int(out_mask.sum().item()) if out_mask is not None else out_dim
+
+    # Compute selected indices for input and output
+    select_in_idx = (in_mask == 1).nonzero().squeeze() if in_mask is not None else torch.arange(in_dim)
+    select_out_idx = (out_mask == 1).nonzero().squeeze() if out_mask is not None else torch.arange(out_dim)
+
+    # **Compress original weight (linear.weight)**
+    pruned_linear = nn.Linear(pruned_in_dim, pruned_out_dim, bias=False)
+    pruned_linear.weight.data.copy_(layer.linear.weight.data[select_out_idx, :][:, select_in_idx])
+
+    # **Compress LoRA matrices (A and B)**
+    pruned_lora_A = nn.Parameter(layer.lora_A[select_in_idx, :])  # Adjust input dimension for LoRA
+    pruned_lora_B = nn.Parameter(layer.lora_B[:, select_out_idx])  # Adjust output dimension for LoRA
+
+    # **Create a new compressed LoRALinear layer**
+    compressed_layer = LoRALinear(pruned_linear, r=layer.lora_A.shape[1], dropout=layer.lora_dropout.p, svd_init=False)
+    compressed_layer.lora_A = pruned_lora_A
+    compressed_layer.lora_B = pruned_lora_B
+
+    return compressed_layer
 
 
 def prune_llama(
@@ -84,8 +123,10 @@ def prune_llama(
     semi_pruned_model.resize_token_embeddings(len(tokenizer))
 
     # Load pruning mask from checkpoint
+    # ** we do not merge LoRA for the consideration of quantized pre-trained weights to keep consistency
     print("\n[INFO]: Loading semi-pruned checkpoint...")
     checkpoint = torch.load(atp_disp_ckpt, map_location="cpu")
+    customized_lora_substitution(semi_pruned_model, rank=32, dropout=0.1)
     semi_pruned_model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     semi_pruned_model.eval()
 
@@ -95,7 +136,7 @@ def prune_llama(
     masks = transform_output_layer_DISP(cur_mask_vec, model_name)
 
     # Begin pruning process
-    print("\n[INFO]: Replacing projections with pruned versions...")
+    print("\n[INFO]: Replacing LoRALinear layers with compressed versions...")
     for layer_idx, decoder_layer in enumerate(semi_pruned_model.model.layers):
         cur_layer = decoder_layer
         layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in masks]
@@ -103,52 +144,28 @@ def prune_llama(
         # Extract pruning masks for different projections
         m_s1, m_s2, m_s3, m_s4, m_s5 = layer_wise_masks
 
-        # **Prune QKV Projections**
-        attn_in_dim = int(m_s1.sum().item())  # New input dimension after pruning
-        select_index = (m_s1 == 1).nonzero().squeeze()
-        pruned_q_proj = nn.Linear(attn_in_dim, 4096, bias=False)
-        pruned_k_proj = nn.Linear(attn_in_dim, 4096, bias=False)
-        pruned_v_proj = nn.Linear(attn_in_dim, 4096, bias=False)
+        # **Compress QKV Projections**
+        cur_layer.self_attn.q_proj = compress_loralinear(cur_layer.self_attn.q_proj, in_mask=m_s1)
+        cur_layer.self_attn.k_proj = compress_loralinear(cur_layer.self_attn.k_proj, in_mask=m_s1)
+        cur_layer.self_attn.v_proj = compress_loralinear(cur_layer.self_attn.v_proj, in_mask=m_s1)
 
-        # Copy the pruned weights
-        pruned_q_proj.weight.data.copy_(cur_layer.self_attn.q_proj.weight.data[:, select_index])
-        pruned_k_proj.weight.data.copy_(cur_layer.self_attn.k_proj.weight.data[:, select_index])
-        pruned_v_proj.weight.data.copy_(cur_layer.self_attn.v_proj.weight.data[:, select_index])
+        # **Compress O Projection**
+        cur_layer.self_attn.o_proj = compress_loralinear(cur_layer.self_attn.o_proj, out_mask=m_s2)
 
-        # Replace the original layers with pruned versions
-        cur_layer.self_attn.q_proj = pruned_q_proj
-        cur_layer.self_attn.k_proj = pruned_k_proj
-        cur_layer.self_attn.v_proj = pruned_v_proj
+        # **Compress MLP Layers**
+        cur_layer.mlp.gate_proj    = compress_loralinear(cur_layer.mlp.gate_proj, in_mask=m_s3, out_mask=m_s4)
+        cur_layer.mlp.up_proj      = compress_loralinear(cur_layer.mlp.up_proj, in_mask=m_s3, out_mask=m_s4)
+        cur_layer.mlp.down_proj    = compress_loralinear(cur_layer.mlp.down_proj, in_mask=m_s4, out_mask=m_s5)
 
-        # **Prune O Projection**
-        o_out_dim = int(m_s2.sum().item())  # New output dimension
-        select_index = (m_s2 == 1).nonzero().squeeze()
-        pruned_o_proj = nn.Linear(4096, o_out_dim, bias=False)
-        pruned_o_proj.weight.data.copy_(cur_layer.self_attn.o_proj.weight.data[select_index, :])
-        cur_layer.self_attn.o_proj = pruned_o_proj
+    print("\n[INFO]: Pruning and compression complete! Saving compressed model...")
+    print(semi_pruned_model)
+    
+    # Save compressed model
+    os.makedirs(os.path.dirname(output_ckpt), exist_ok=True)
+    torch.save({"model_state_dict": lora_model.state_dict()}, output_ckpt)
 
-        # **Prune MLP Layers**
-        mlp_in_dim = int(m_s3.sum().item())
-        mlp_inter_dim = int(m_s4.sum().item())
-        mlp_out_dim = int(m_s5.sum().item())
+    print(f"\n[INFO]: Compressed LoRA model saved at: {output_ckpt}")
 
-        select_in_index = (m_s3 == 1).nonzero().squeeze()
-        select_inter_index = (m_s4 == 1).nonzero().squeeze()
-        select_out_index = (m_s5 == 1).nonzero().squeeze()
-
-        pruned_mlp_u_proj = nn.Linear(mlp_in_dim, mlp_inter_dim, bias=False)
-        pruned_mlp_g_proj = nn.Linear(mlp_in_dim, mlp_inter_dim, bias=False)
-        pruned_mlp_d_proj = nn.Linear(mlp_inter_dim, mlp_out_dim, bias=False)
-
-        pruned_mlp_g_proj.weight.data.copy_(cur_layer.mlp.gate_proj.weight.data[select_inter_index, select_in_index])
-        pruned_mlp_u_proj.weight.data.copy_(cur_layer.mlp.up_proj.weight.data[select_inter_index, select_in_index])
-        pruned_mlp_d_proj.weight.data.copy_(cur_layer.mlp.down_proj.weight.data[select_out_index, select_inter_index])
-
-        cur_layer.mlp.gate_proj = pruned_mlp_g_proj
-        cur_layer.mlp.up_proj = pruned_mlp_u_proj
-        cur_layer.mlp.down_proj = pruned_mlp_d_proj
-
-    print("\n[INFO]: Pruning complete! Saving pruned model...")
 
     # Save pruned model
     os.makedirs(os.path.dirname(output_ckpt), exist_ok=True)
