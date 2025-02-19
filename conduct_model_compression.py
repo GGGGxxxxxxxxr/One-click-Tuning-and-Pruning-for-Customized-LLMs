@@ -61,6 +61,7 @@ def prune_llama(
     print(f"\n[INFO]: Loading model `{model_name}`...")
 
     if model_name == 'llama2-7b':
+        api_token = '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'
         hf_model_name = "meta-llama/Llama-2-7b-hf"
     else:
         raise ValueError(f"Unsupported model: {model_name}")
@@ -74,7 +75,8 @@ def prune_llama(
     semi_pruned_model = LlamaForCausalLM.from_pretrained(
         hf_model_name,
         attn_implementation="sdpa",
-        torch_dtype=torch.bfloat16
+        torch_dtype=torch.bfloat16,
+        token=api_token,
     ).to('cuda')
 
     # Load pruning mask from checkpoint
