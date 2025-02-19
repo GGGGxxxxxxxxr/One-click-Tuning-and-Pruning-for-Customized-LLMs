@@ -317,6 +317,33 @@ def customized_lora_substitution(llm_model, rank=8, dropout=0.1, svd_init=False)
 #-----------------------------------------------------------------#
 
 
+def transform_output_layer_DISP(inputs, model_name):
+    """ 
+    Process the binary mask vector based on model architecture. 
+    This function ensures that the correct pruning decisions are applied 
+    to different projection layers of LLaMA.
+    """
+    if model_name == 'llama2-7b':
+        lw_structure = [128, 4096, 4096, 11008, 4096]
+        num_kv_heads = 32
+    elif model_name == 'llama3-8b':
+        lw_structure = [128, 128, 14336]
+        num_kv_heads = 8
+    else:
+        raise ValueError(f"Unsupported model: {model_name}")
+
+    arch_vector = []
+    start = 0
+    for i, size in enumerate(lw_structure):
+        end = start + size
+        sliced_input_tensor = inputs[:, start:end]
+        if i < 1:  # Extend KV head mask across all heads
+            replicated_slices = sliced_input_tensor.repeat(1, num_kv_heads)
+            arch_vector.append(replicated_slices)
+        else:
+            arch_vector.append(sliced_input_tensor)
+        start = end
+    return arch_vector
 
 
     

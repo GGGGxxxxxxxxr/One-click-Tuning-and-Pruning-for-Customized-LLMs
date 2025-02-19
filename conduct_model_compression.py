@@ -95,7 +95,7 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
 def prune_llama(
     model_name,
     atp_disp_ckpt,
-    output_ckpt
+    output_path,
 ):
     """ 
     Load the semi-pruned LLaMA model, apply structural pruning, and save the compressed model. 
@@ -165,17 +165,18 @@ def prune_llama(
     print(semi_pruned_model)
 
     # Save compressed model
-    os.makedirs(os.path.dirname(output_ckpt), exist_ok=True)
-    torch.save({"model_state_dict": semi_pruned_model.state_dict()}, output_ckpt)
+    
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    output_ckpt = os.path.join(output_path, f"{model_name}_pruned.pth")
+    
+    torch.save({
+        "model_state_dict": semi_pruned_model.state_dict(),
+        "pruning_masks": cur_mask_vec  # Save the pruning masks
+    }, output_ckpt)
 
     print(f"\n[INFO]: Compressed LoRA model saved at: {output_ckpt}")
 
-
-    # Save pruned model
-    os.makedirs(os.path.dirname(output_ckpt), exist_ok=True)
-    torch.save({"model_state_dict": semi_pruned_model.state_dict()}, output_ckpt)
-
-    print(f"\n[INFO]: Pruned model saved at: {output_ckpt}")
 
 
 if __name__ == "__main__":
@@ -183,7 +184,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prune LLaMA model and save compressed checkpoint.")
     parser.add_argument("--model_name", type=str, default="llama2-7b", help="Model name (e.g., llama2-7b)")
     parser.add_argument("--atp_disp_ckpt", type=str, required=True, help="Path to semi-pruned model checkpoint.")
-    parser.add_argument("--output_ckpt", type=str, required=True, help="Path to save the fully pruned model checkpoint.")
+    parser.add_argument("--output_path", type=str, required=True, help="Path to save the fully pruned model checkpoint.")
 
     args = parser.parse_args()
 
@@ -191,5 +192,5 @@ if __name__ == "__main__":
     prune_llama(
         model_name=args.model_name,
         atp_disp_ckpt=args.atp_disp_ckpt,
-        output_ckpt=args.output_ckpt
+        output_path=args.output_path
     )
