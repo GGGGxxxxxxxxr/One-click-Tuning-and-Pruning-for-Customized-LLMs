@@ -1342,7 +1342,7 @@ class PrunedLlamaForCausalLM(LlamaForCausalLM):
         """
         super().__init__(config)  # This initializes all layers as usual
 
-        self.pruning_masks = pruning_masks.to(torch.flot32)
+        self.pruning_masks = pruning_masks.to(torch.float32)
     
 
 def model_replace(prunedllama, model_name):
