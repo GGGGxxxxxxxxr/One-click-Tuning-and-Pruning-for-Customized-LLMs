@@ -1348,7 +1348,6 @@ class PrunedLlamaForCausalLM(LlamaForCausalLM):
 def model_replace(prunedllama, model_name):
     print("\n[INFO]: Constructing your compressed Llama...")
     masks = transform_output_layer_DISP(prunedllama.pruning_masks, model_name)
-
     for layer_idx, decoder_layer in enumerate(prunedllama.model.layers):
         cur_layer = decoder_layer
         layer_wise_masks = [individual_mask[layer_idx, :] for individual_mask in masks]
@@ -1370,6 +1369,8 @@ def model_replace(prunedllama, model_name):
         cur_layer.mlp.down_proj    = replace_linear(cur_layer.mlp.down_proj, in_mask=m_s4, out_mask=m_s5)
     
     print("\n[INFO]: PrunedLlama Constructed Done...")
+
+    return masks
 
 
 

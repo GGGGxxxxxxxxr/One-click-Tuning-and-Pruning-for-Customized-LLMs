@@ -60,11 +60,11 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
         model = PrunedLlamaForCausalLM(model_cfg, masks).cuda()
         model.resize_token_embeddings(len(tokenizer))
 
-    model_replace(model, model_name)
+    masks = model_replace(model, model_name)
     
     customized_lora_substitution(model, rank=32, dropout=0.1)
     print(model)
-    print("Loading state dict from checkpoint.")
+    print("Loading pruned state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
