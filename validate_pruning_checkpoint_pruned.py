@@ -57,7 +57,7 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        model = PrunedLlamaForCausalLM(model_cfg, masks).cuda()
+        model = PrunedLlamaForCausalLM(model_cfg, masks).to(torch.bfloat16).cuda()
         model.resize_token_embeddings(len(tokenizer))
 
     masks = model_replace(model, model_name)
