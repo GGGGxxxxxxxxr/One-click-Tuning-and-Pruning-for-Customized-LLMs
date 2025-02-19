@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import argparse
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from custom_llms.llama_disp import LlamaForCausalLM  # Import custom LLaMA class
 import os
 
@@ -67,17 +67,21 @@ def prune_llama(
         raise ValueError(f"Unsupported model: {model_name}")
 
     # Load Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
+    api_token = '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'
+    model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+    print(f"\n[INFO] Pretraining TP: {model_cfg.pretraining_tp}")
+    
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     tokenizer.padding_side = 'left'
-
-    # Load LLaMA model
+    
     semi_pruned_model = LlamaForCausalLM.from_pretrained(
-        hf_model_name,
+        "meta-llama/Llama-2-7b-hf",
         attn_implementation="sdpa",
         torch_dtype=torch.bfloat16,
-        token=api_token,
+        token=api_token
     ).to('cuda')
+    semi_pruned_model.resize_token_embeddings(len(tokenizer))
 
     # Load pruning mask from checkpoint
     print("\n[INFO]: Loading semi-pruned checkpoint...")
