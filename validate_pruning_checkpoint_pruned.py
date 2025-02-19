@@ -50,7 +50,7 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
     ckpt_path = pruned_ckpt_path
     print(f"Loading pruned_model_checkpoint from {ckpt_path}.")
     checkpoint    = torch.load(ckpt_path, map_location=torch.device('cpu'))
-    masks = checkpoint["pruning_mask"]
+    masks = checkpoint["pruning_masks"]
     if model_name == 'llama2-7b':
         print("Initializing LLaMA 2-7B model.")
         api_token = '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'
