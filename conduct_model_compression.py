@@ -65,13 +65,12 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
 
     # Determine which dimensions need pruning
     in_dim, out_dim = layer.linear.in_features, layer.linear.out_features
-    pruned_in_dim =  int(in_mask.sum().item()) if in_mask is not None else in_dim
-    pruned_out_dim = int(out_mask.sum().item()) if out_mask is not None else out_dim
+    pruned_in_dim =  int(in_mask.to(torch.float32).sum().item()) if in_mask is not None else in_dim
+    pruned_out_dim = int(out_mask.to(torch.float32).sum().item()) if out_mask is not None else out_dim
     print(pruned_in_dim, pruned_out_dim)
     # Compute selected indices for input and output
     select_in_idx =  (in_mask == 1).nonzero().squeeze(1).cuda() if in_mask is not None else torch.arange(in_dim).cuda()
     select_out_idx = (out_mask == 1).nonzero().squeeze(1).cuda() if out_mask is not None else torch.arange(out_dim).cuda()
-    print(out_mask)
     print(select_in_idx.shape)
     print(select_out_idx.shape)
     # **Compress original weight (linear.weight)**
