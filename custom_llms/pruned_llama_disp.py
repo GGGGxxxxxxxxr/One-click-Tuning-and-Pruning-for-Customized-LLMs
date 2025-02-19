@@ -708,7 +708,7 @@ class LlamaDecoderLayer(nn.Module):
 
         # [ATP_DISP]: 1. apply s1 before attn_block
         residual = hidden_states.clone()   # store the original hidden_states :)
-        print(residual.dtype)
+        
         hidden_states = self.input_layernorm(hidden_states)   
         hidden_states = torch.index_select(hidden_states, -1, s1_index)                       # Alg.1.1
 
