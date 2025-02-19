@@ -287,14 +287,15 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                 target_llm.eval()
                 val_inputs = next(nlp_hypernet_iter)
                 with torch.no_grad(): 
-                    temp_output = target_llm(
-                        input_ids=val_inputs["input_ids"], 
-                        labels=val_inputs["labels"], 
-                        return_dict=True, 
-                        use_cache=False,
-                        attention_mask=val_inputs["attention_mask"],
-                        pruning_mask=masks
-                    )
+                    with torch.autocast(device_type="cuda",dtype=torch.bfloat16):
+                        temp_output = target_llm(
+                            input_ids=val_inputs["input_ids"], 
+                            labels=val_inputs["labels"], 
+                            return_dict=True, 
+                            use_cache=False,
+                            attention_mask=val_inputs["attention_mask"],
+                            pruning_mask=masks
+                        )
                     validation_purpose_loss = temp_output["loss"]
                     print(f"The current validation loss with fixed maskSchedule: {validation_purpose_loss}")
                 del temp_output

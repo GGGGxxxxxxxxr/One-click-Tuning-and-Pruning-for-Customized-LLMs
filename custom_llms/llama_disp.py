@@ -747,7 +747,7 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = residual + hidden_states               # Alg.1.3 (**notice: hidden_states here is theoratically a sparse tensor with several dim masked out)
 
         # Fully Connected
-        residual = hidden_states.clone()
+        residual      = hidden_states.clone()
         # [ATP_DISP]: 3. apply s3 before MLP_block
         hidden_states = self.post_attention_layernorm(hidden_states)  # Alg.1.4
         hidden_states = hidden_states * m_s3
