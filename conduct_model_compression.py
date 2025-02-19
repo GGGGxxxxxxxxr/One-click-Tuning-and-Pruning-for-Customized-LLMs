@@ -71,7 +71,7 @@ def compress_loralinear(layer, in_mask=None, out_mask=None):
     # Compute selected indices for input and output
     select_in_idx = (in_mask == 1).nonzero() if in_mask is not None else torch.arange(in_dim)
     select_out_idx = (out_mask == 1).nonzero() if out_mask is not None else torch.arange(out_dim)
-
+    print(pruned_in_dim, pruned_out_dim)
     # **Compress original weight (linear.weight)**
     pruned_linear = nn.Linear(pruned_in_dim, pruned_out_dim, bias=False)
     pruned_linear.weight.data.copy_(layer.linear.weight.data[select_out_idx, select_in_idx])
