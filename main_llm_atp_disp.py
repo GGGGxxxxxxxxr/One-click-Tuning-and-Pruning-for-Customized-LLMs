@@ -455,7 +455,7 @@ def main():
     #-----------------------------------------------------------------#
     # build controllernetwork for mask generation
     print("\n[INFO]=====> Initialize Pruning_Decision_Generator(PDG) based on [prunable_structure, temperature, base]. <=====")
-    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(dtype=torch.bfloat16).to(device)
+    hyper_net = LLM_HyperStructure(p_structure = p_structures, T = 0.4, base = 3, args = args).to(device)#.to(dtype=torch.bfloat16).to(device)
     cur_maskVec = hyper_net(dummy=0)
     cur_mask_init = hyper_net.transform_output(cur_maskVec)
     '''

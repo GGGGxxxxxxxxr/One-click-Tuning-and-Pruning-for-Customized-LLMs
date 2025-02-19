@@ -16,7 +16,7 @@ def sample_gumbel(shape, eps=1e-10):
 
 
 def gumbel_softmax_sample(logits, T, offset=0):
-    gumbel_sample = sample_gumbel(logits.size()).to(dtype=torch.bfloat16)
+    gumbel_sample = sample_gumbel(logits.size())#.to(dtype=torch.bfloat16)
     if logits.is_cuda:
         gumbel_sample = gumbel_sample.cuda()
 
@@ -29,7 +29,7 @@ def hard_concrete(out):
     out_hard = torch.zeros(out.size())
     out_hard[out>=0.5]=1
     if out.is_cuda:
-        out_hard = out_hard.to(device=device, dtype=torch.bfloat16)
+        out_hard = out_hard.to(device=device)#, dtype=torch.bfloat16)
     # Set gradients w.r.t. y_hard gradients w.r.t. y
     out_hard = (out_hard - out).detach() + out
     return out_hard
@@ -209,7 +209,7 @@ class LLM_HyperStructure(nn.Module):
         # Learnable Input Embeddings
         inputs = torch.full((self.num_layers, 64), fill_value=1.5, dtype=torch.float32)
         nn.init.orthogonal_(inputs)
-        self.inputs = nn.Parameter(inputs.to(dtype=torch.bfloat16), requires_grad=False)
+        self.inputs = nn.Parameter(inputs, requires_grad=False)#.to(dtype=torch.bfloat16), requires_grad=False)
 
         # Layer Normalization
         self.ln = nn.LayerNorm(64)
