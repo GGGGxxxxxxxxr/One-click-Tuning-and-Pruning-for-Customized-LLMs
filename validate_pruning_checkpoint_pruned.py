@@ -59,8 +59,9 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model = PrunedLlamaForCausalLM(model_cfg, masks).cuda()
         model.resize_token_embeddings(len(tokenizer))
+
     model_replace(model, masks)
-    print("use customized lora-blocks.")
+    
     customized_lora_substitution(model, rank=32, dropout=0.1)
     print(model)
     print("Loading state dict from checkpoint.")
