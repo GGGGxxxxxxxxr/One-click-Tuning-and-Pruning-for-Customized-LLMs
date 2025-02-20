@@ -41,7 +41,7 @@ model = PrunedModel(hidden_dim=4096, pruned_dim=2048, intermediate_dim=11008).to
 model.eval()
 
 # Generate random input tensor
-batch_size = 32
+batch_size = 1
 seq_len = 128
 hidden_dim = 4096
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device)
