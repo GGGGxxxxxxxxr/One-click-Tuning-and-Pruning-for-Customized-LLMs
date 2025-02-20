@@ -270,14 +270,16 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     masks = hyper_net.module.transform_output(mask_vec)
 
                 # ** calculate the step-wise change in the pruning decisions
-                if prev_mask_vec is not None:
-                    change_count = (prev_mask_vec != mask_vec).sum().item()  
-                    total_count = prev_mask_vec.numel() 
-                    change_percentage = (change_count / total_count) * 100  
-                    
-                    print(f"[INFO] Step-wise pruning decision change: {change_percentage:.2f}%")
+                if i % args.log_interval == 0:
+                    if torch.distributed.get_rank() == 0:
+                        if prev_mask_vec is not None:
+                            change_count = (prev_mask_vec != mask_vec).sum().item()  
+                            total_count = prev_mask_vec.numel() 
+                            change_percentage = (change_count / total_count) * 100  
+                            
+                            print(f"[INFO] Step-wise pruning decision change: {change_percentage:.6f}%")
                 prev_mask_vec = mask_vec
-                
+
                 # update average loss tracker
                 reduced_hyper_loss = reduce_loss(hyper_loss)
                 reduced_valid_loss = reduce_loss(valid_loss)
