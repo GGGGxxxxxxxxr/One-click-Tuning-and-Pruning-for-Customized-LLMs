@@ -385,8 +385,8 @@ class LLM_HyperStructure_v2(nn.Module):
         # momentum update
         if self.prev_vec is not None:
             out = (1 - self.momentum) * self.prev_vec + self.momentum * out
-            
-        self.prev_vec = out
+
+        self.prev_vec = out.detach().clone()
 
         # Gumbel-Softmax Sampling
         out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
