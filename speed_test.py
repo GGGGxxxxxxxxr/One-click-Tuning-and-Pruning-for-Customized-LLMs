@@ -1,74 +1,61 @@
 import torch
 import time
 
-# 设备选择
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# Ensure CUDA is available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 生成 1M 维输入 tensor
-input_tensor = torch.randn(10**6, dtype=torch.float32, device=device)
+# Define Model with Custom Pruned Inference
+class PrunedModel(torch.nn.Module):
+    def __init__(self, hidden_dim=1024, mlp_dim=4096, pruned_dim=512):
+        super().__init__()
+        self.post_attention_layernorm = torch.nn.LayerNorm(hidden_dim)
+        self.mlp = torch.nn.Linear(pruned_dim, hidden_dim)  # Simulating MLP block
+        self.hidden_dim = hidden_dim
 
-# 选择要保留的元素数量
-num_selected = 100000  # 选取 10 万个索引
+        # Simulated pruning indices (random for benchmarking)
+        self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
+        self.s5_index = torch.randint(0, hidden_dim, (hidden_dim,), device=device)
 
-# 1. **完全随机索引**（最坏情况）
-random_indices = torch.randperm(10**6, device=device)[:num_selected]
+    def forward(self, hidden_states):
+        residual = hidden_states.clone()
 
-# **函数：生成不同连续性的索引**
-def generate_continuous_indices(num_selected, block_size, jump_size, max_dim):
-    """生成逐步增加连续性的索引"""
-    indices = []
-    i = 0
-    while len(indices) < num_selected:
-        indices.extend(range(i, min(i + block_size, max_dim)))  # 选取 block_size 个连续索引
-        i += jump_size  # 进行跳跃
-    return torch.tensor(indices[:num_selected], device=device)
+        # [ATP_DISP]: Apply s3 before MLP_block
+        hidden_states = self.post_attention_layernorm(hidden_states)                               
+        hidden_states = torch.index_select(hidden_states, -1, self.s3_index)                         
 
-# 2. **低连续索引**（3 连续 / 10 跳跃）
-low_continuity_indices = generate_continuous_indices(num_selected, block_size=3, jump_size=10, max_dim=10**6)
+        # [ATP_DISP]: Infuse s4, s5 into self.mlp.forward()        
+        hidden_states = self.mlp(hidden_states)                                                 
+        hidden_states = residual.index_add(-1, self.s5_index, hidden_states.contiguous())            
 
-# 3. **中等连续索引**（20 连续 / 50 跳跃）
-medium_continuity_indices = generate_continuous_indices(num_selected, block_size=20, jump_size=50, max_dim=10**6)
+        return hidden_states
 
-# 4. **高连续索引**（100 连续 / 200 跳跃）
-high_continuity_indices = generate_continuous_indices(num_selected, block_size=100, jump_size=200, max_dim=10**6)
+# Create the model and move it to GPU
+model = PrunedModel(hidden_dim=1024, mlp_dim=4096, pruned_dim=512).to(device)
+model.eval()
 
-# 5. **完全连续索引**（最优情况）
-continuous_indices = torch.arange(num_selected, device=device)
+# Generate random input tensor
+batch_size = 32
+seq_len = 128
+hidden_dim = 1024
+input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device)
 
-# **性能测试函数**
-def benchmark_index_select(indices, input_tensor, num_runs=50):
-    times = []
+# Warm-up CUDA (avoid cold-start delays)
+with torch.no_grad():
+    for _ in range(10):
+        _ = model(input_tensor)
+
+# Measure inference time
+num_runs = 100
+torch.cuda.synchronize()
+start_time = time.perf_counter()
+
+with torch.no_grad():
     for _ in range(num_runs):
-        torch.cuda.synchronize() if device == "cuda" else None  # 确保 GPU 计算完成
-        start_time = time.time()
+        _ = model(input_tensor)
 
-        # 进行 index_select 操作
-        selected_tensor = torch.index_select(input_tensor, 0, indices)
+torch.cuda.synchronize()
+end_time = time.perf_counter()
 
-        torch.cuda.synchronize() if device == "cuda" else None  # 确保 GPU 计算完成
-        end_time = time.time()
-        
-        times.append(end_time - start_time)
-    
-    return sum(times) / num_runs  # 返回平均时间
-
-# **运行测试**
-time_random = benchmark_index_select(random_indices, input_tensor)
-time_low_continuity = benchmark_index_select(low_continuity_indices, input_tensor)
-time_medium_continuity = benchmark_index_select(medium_continuity_indices, input_tensor)
-time_high_continuity = benchmark_index_select(high_continuity_indices, input_tensor)
-time_continuous = benchmark_index_select(continuous_indices, input_tensor)
-
-# **打印结果**
-print(f"Device: {device}")
-print(f"Average Execution Time (Random Indices) over 50 runs: {time_random:.6f} seconds")
-print(f"Average Execution Time (Low Continuity Indices) over 50 runs: {time_low_continuity:.6f} seconds")
-print(f"Average Execution Time (Medium Continuity Indices) over 50 runs: {time_medium_continuity:.6f} seconds")
-print(f"Average Execution Time (High Continuity Indices) over 50 runs: {time_high_continuity:.6f} seconds")
-print(f"Average Execution Time (Continuous Indices) over 50 runs: {time_continuous:.6f} seconds")
-
-# **计算加速比**
-print(f"Speedup (Continuous vs Random): {time_random / time_continuous:.2f}x")
-print(f"Speedup (High Continuity vs Random): {time_random / time_high_continuity:.2f}x")
-print(f"Speedup (Medium Continuity vs Random): {time_random / time_medium_continuity:.2f}x")
-print(f"Speedup (Low Continuity vs Random): {time_random / time_low_continuity:.2f}x")
+# Compute average latency
+avg_latency = (end_time - start_time) / num_runs * 1000  # Convert to milliseconds
+print(f"Average Inference Time: {avg_latency:.2f} ms per forward pass")
