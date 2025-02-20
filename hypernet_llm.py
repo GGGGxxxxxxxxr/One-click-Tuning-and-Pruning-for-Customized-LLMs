@@ -332,7 +332,7 @@ class LLM_HyperStructure(nn.Module):
 # shared projection layers
 class LLM_HyperStructure_v2(nn.Module):
     def __init__(self, p_structure=None, T=0.2, base=3, args=None, num_layers=4, num_heads=1):
-        super(LLM_HyperStructure, self).__init__()
+        super(LLM_HyperStructure_v2, self).__init__()
 
         self.pruning_scheme = args.pruning_method
         self.num_layers = p_structure[0]
