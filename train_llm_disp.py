@@ -274,9 +274,10 @@ def llm_sp_train_one_epoch(nlp_dataloader, nlp_hypernet_dataloader, target_llm, 
                     change_count = (prev_mask_vec != mask_vec).sum().item()  
                     total_count = prev_mask_vec.numel() 
                     change_percentage = (change_count / total_count) * 100  
-
-                    print(f"[INFO] Step-wise pruning decision change: {change_percentage:.2f}%")
                     
+                    print(f"[INFO] Step-wise pruning decision change: {change_percentage:.2f}%")
+                prev_mask_vec = mask_vec
+                
                 # update average loss tracker
                 reduced_hyper_loss = reduce_loss(hyper_loss)
                 reduced_valid_loss = reduce_loss(valid_loss)
