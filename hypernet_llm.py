@@ -347,6 +347,9 @@ class LLM_HyperStructure_v2(nn.Module):
 
         self.ln = nn.LayerNorm(128)
 
+        self.prev_vec = None 
+        self.momentum = 0.1
+
         # Transformer Encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=128, nhead=num_heads, dim_feedforward=512, batch_first=True
@@ -378,6 +381,12 @@ class LLM_HyperStructure_v2(nn.Module):
 
         # Shared MLP Mask Projection
         out = self.shared_mh_fc(norm_out)
+        
+        # momentum update
+        if self.prev_vec is not None:
+            out = (1 - self.momentum) * self.prev_vec + self.momentum * out
+            
+        self.prev_vec = out
 
         # Gumbel-Softmax Sampling
         out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
