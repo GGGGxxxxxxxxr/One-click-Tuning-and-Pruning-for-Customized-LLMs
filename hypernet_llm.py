@@ -326,6 +326,120 @@ class LLM_HyperStructure(nn.Module):
         """(Deprecated) Transform vector to mask - not used in current ATO's application."""
         return None
 
+
+# expanded transformer layers
+# learnable layer-wise embeddings
+# shared projection layers
+class LLM_HyperStructure_v2(nn.Module):
+    def __init__(self, p_structure=None, T=0.2, base=3, args=None, num_layers=4, num_heads=1):
+        super(LLM_HyperStructure, self).__init__()
+
+        self.pruning_scheme = args.pruning_method
+        self.num_layers = p_structure[0]
+        self.lw_structure = p_structure[1]
+
+        if self.pruning_scheme in ['layer_uniform_attn', 'DISP']:
+            assert len(p_structure) == 3, "Mismatch in prunable_structure"
+            self.num_kv_heads = p_structure[-1]
+
+        self.T = T
+        self.base = base
+
+        self.ln = nn.LayerNorm(128)
+
+        # Transformer Encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=128, nhead=num_heads, dim_feedforward=512, batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Learnable Layer Embedding
+        self.layer_embedding = nn.Embedding(self.num_layers, 128)
+
+        # Positional Encoding
+        self.position_encoding = nn.Parameter(torch.randn(self.num_layers, 128) * 0.1)
+
+        # Shared Mask Projection
+        self.shared_mh_fc = nn.Sequential(
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, sum(self.lw_structure))
+        )
+
+    def forward(self, dummy=None):
+        device = next(self.parameters()).device
+
+        # Generate Unique Inputs for Each Layer
+        layer_ids = torch.arange(self.num_layers, device=device)
+        self.inputs = self.layer_embedding(layer_ids) + self.position_encoding
+
+        transformer_out = self.transformer(self.inputs)
+        norm_out = self.ln(transformer_out)
+
+        # Shared MLP Mask Projection
+        out = self.shared_mh_fc(norm_out)
+
+        # Gumbel-Softmax Sampling
+        out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
+
+        if not self.training:
+            out = hard_concrete(out)
+        return out
+    
+    # convert output vector into applicable masks for LLM maksed inference
+    def transform_output(self, inputs):
+        """Transform concatenated mask vector into individual layer masks."""
+        if self.pruning_scheme == 'inner':
+            arch_vector = []
+            start = 0
+            for size in self.lw_structure:
+                end = start + size
+                arch_vector.append(inputs[:, start:end])
+                start = end
+
+            return arch_vector
+        
+        elif self.pruning_scheme == 'layer_uniform_attn':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
+
+                ## **
+                ## we need to extend K_V_head_mask for the whole layer (multi-head)
+                ## for K, V mask, we repeat a layer-uniform [head-wise] pruning for the actual K_proj / V_proj mask for more efficient implementation
+                if i < 2:  
+                    #replicated_slices = [sliced_input_tensor] * self.num_kv_heads
+                    #arch_vector.extend(replicated_slices)
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+            assert len(arch_vector) == 3, "K(Q), V , MLP_up(Gate) masks are expected, 3 seperate masks in total, please check."
+            return arch_vector
+        
+        # version2.0: DISP mask conversion
+        elif self.pruning_scheme == 'DISP':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
+
+                ## ** in DISP pruning space, S1 is applicable for EACH head-attention input dimension(Q,K,V), thus we simply repeat head-wise S1 into S1 x num_heads
+                ## notice: this logic is different from 'layer_uniform_attn'!
+                if i == 0:  
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+            assert len(arch_vector) == 5, "S1(extened), S2, S3, S4, S5 masks are expected, 5 seperate masks in total, please check."
+            return arch_vector
+    
+
 if __name__ == '__main__':
     net = LLM_HyperStructure()
     y = net()
