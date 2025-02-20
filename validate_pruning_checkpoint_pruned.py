@@ -64,10 +64,13 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
     
     customized_lora_substitution(model, rank=32, dropout=0.1)
     print(model)
-    print("Loading pruned state dict from checkpoint.")
+    print("\n[INFO]: Loading pruned state dict from checkpoint.")
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.cuda()
     model.eval()
+
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"[INFO]:Pruned model total parameters: {total_params:,}")
 
     return model, tokenizer, masks
 

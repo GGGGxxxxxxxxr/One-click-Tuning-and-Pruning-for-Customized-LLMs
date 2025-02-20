@@ -168,7 +168,7 @@ def prune_llama(
     
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    output_ckpt = os.path.join(output_path, f"{model_name}_pruned.pth")
+    output_ckpt = os.path.join(output_path, f"{model_name}_pruned.pth.tar")
     
     torch.save({
         "model_state_dict": semi_pruned_model.state_dict(),
