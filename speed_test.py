@@ -11,13 +11,13 @@ class PrunedModel(torch.nn.Module):
         self.post_attention_layernorm = torch.nn.LayerNorm(hidden_dim)
         
         # Gated MLP components
-        self.gate = torch.nn.Linear(pruned_dim, pruned_dim)  # Gate projection
+        self.gate = torch.nn.Linear(pruned_dim, intermediate_dim)  # Gate projection
         self.up = torch.nn.Linear(pruned_dim, intermediate_dim)  # Up projection (4096 -> 11008)
-        self.down = torch.nn.Linear(intermediate_dim, hidden_dim)  # Down projection (11008 -> 4096)
+        self.down = torch.nn.Linear(intermediate_dim, pruned_dim)  # Down projection (11008 -> 4096)
 
         # Simulated pruning indices (random for benchmarking)
         self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
-        self.s5_index = torch.randint(0, hidden_dim, (hidden_dim,), device=device)
+        self.s5_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
 
     def forward(self, hidden_states):
         residual = hidden_states.clone()
