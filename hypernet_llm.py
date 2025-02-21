@@ -449,6 +449,187 @@ class LLM_HyperStructure_v2(nn.Module):
             return arch_vector
     
 
+class MoEMLP(nn.Module):
+    """Mixture of Experts (MoE) MLP for Pruning Decision Modeling"""
+    def __init__(self, num_experts=4, expert_dim=128, output_dim=256, top_k=2):
+        super().__init__()
+        self.num_experts = num_experts
+        self.top_k = top_k  # Number of active experts per layer
+
+        # Define expert networks
+        self.experts = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(expert_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, output_dim)
+            ) for _ in range(num_experts)
+        ])
+
+        # Gating network: Decides which experts to use
+        self.gate = nn.Linear(expert_dim, num_experts)
+
+    def forward(self, x):
+        batch_size, dim = x.shape
+
+        # Compute gating scores and select top_k experts
+        logits = self.gate(x)  # Shape: (batch_size, num_experts)
+        scores = F.softmax(logits, dim=-1)  # Normalize expert selection
+
+        # Get top_k experts
+        top_k_scores, top_k_indices = torch.topk(scores, self.top_k, dim=-1)  # (batch_size, top_k)
+
+        # Compute expert outputs (Sparse activation)
+        output = torch.zeros(batch_size, self.experts[0][-1].out_features, device=x.device)
+
+        for i in range(self.top_k):
+            expert_idx = top_k_indices[:, i]
+            expert_out = torch.stack([self.experts[idx](x[j]) for j, idx in enumerate(expert_idx)])
+            output += top_k_scores[:, i].unsqueeze(-1) * expert_out  # Weighted sum of top_k experts
+
+        return output
+
+
+class LLM_HyperStructure_v3(nn.Module):
+    def __init__(self, p_structure=None, T=0.1, base=3, args=None, num_layers=4, num_heads=1, num_experts=4, top_k=2, lambda_min=0.1, lambda_max=0.9, alpha=5.0):
+        super().__init__()
+
+        self.pruning_scheme = args.pruning_method
+        self.num_layers = p_structure[0]
+        self.lw_structure = p_structure[1]
+
+        if self.pruning_scheme in ['layer_uniform_attn', 'DISP']:
+            assert len(p_structure) == 3, "Mismatch in prunable_structure"
+            self.num_kv_heads = p_structure[-1]
+
+        self.T = T
+        self.base = base
+
+        self.ln = nn.LayerNorm(128)
+
+        self.prev_vec = None  # Stores previous pruning vector
+        self.lambda_min = lambda_min
+        self.lambda_max = lambda_max
+        self.alpha = alpha  # Controls how fast momentum decays
+
+        # Transformer Encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=128, nhead=num_heads, dim_feedforward=512, batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Learnable Layer Embedding
+        self.layer_embedding = nn.Embedding(self.num_layers, 128)
+
+        # Positional Encoding
+        self.position_encoding = nn.Parameter(torch.randn(self.num_layers, 128) * 0.1)
+
+        # Layer-wise MoE MLP
+        self.moe_mlp_list = nn.ModuleList([
+            MoEMLP(num_experts=num_experts, expert_dim=128, output_dim=self.lw_structure[i], top_k=top_k)
+            for i in range(self.num_layers)
+        ])
+
+    def compute_momentum(self, new_vec):
+        """Adaptive momentum based on L2 norm change."""
+        if self.prev_vec is None:
+            return self.lambda_max  # Start with high momentum
+
+        # Compute L2 norm difference
+        diff_norm = torch.norm(self.prev_vec - new_vec, p=2)  # ||prev_vec - new_vec||_2
+        prev_norm = torch.norm(self.prev_vec, p=2) + 1e-8  # Normalize by prev norm
+
+        # Compute change rate
+        change_rate = (diff_norm / prev_norm).item()
+
+        # Adaptive momentum: λ_min + (λ_max - λ_min) * exp(-α * change_rate)
+        momentum = self.lambda_min + (self.lambda_max - self.lambda_min) * torch.exp(-self.alpha * change_rate)
+        return momentum.item()
+
+    def forward(self, dummy=None):
+        device = next(self.parameters()).device
+
+        # Generate Unique Inputs for Each Layer
+        layer_ids = torch.arange(self.num_layers, device=device)
+        self.inputs = self.layer_embedding(layer_ids) + self.position_encoding
+
+        transformer_out = self.transformer(self.inputs)
+        norm_out = self.ln(transformer_out)
+
+        # Layer-wise MoE MLP Projection (dynamic pruning decisions)
+        outputs = [self.moe_mlp_list[i](norm_out[i]) for i in range(self.num_layers)]
+        out = torch.cat(outputs, dim=0)
+
+        # Compute adaptive momentum
+        momentum = self.compute_momentum(out)
+
+        # Adaptive Momentum Update with Residual Memory
+        if self.prev_vec is not None:
+            out = (1 - momentum) * self.prev_vec + momentum * out + 0.1 * self.prev_vec  # Retains past pruning decisions
+
+        # Store new pruning vector
+        self.prev_vec = out.detach().clone()
+
+        # Gumbel-Softmax Sampling
+        out = gumbel_softmax_sample(out, T=self.T, offset=self.base)
+
+        if not self.training:
+            out = hard_concrete(out)
+
+        return out
+    
+    # convert output vector into applicable masks for LLM maksed inference
+    def transform_output(self, inputs):
+        """Transform concatenated mask vector into individual layer masks."""
+        if self.pruning_scheme == 'inner':
+            arch_vector = []
+            start = 0
+            for size in self.lw_structure:
+                end = start + size
+                arch_vector.append(inputs[:, start:end])
+                start = end
+
+            return arch_vector
+        
+        elif self.pruning_scheme == 'layer_uniform_attn':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
+
+                ## **
+                ## we need to extend K_V_head_mask for the whole layer (multi-head)
+                ## for K, V mask, we repeat a layer-uniform [head-wise] pruning for the actual K_proj / V_proj mask for more efficient implementation
+                if i < 2:  
+                    #replicated_slices = [sliced_input_tensor] * self.num_kv_heads
+                    #arch_vector.extend(replicated_slices)
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+            assert len(arch_vector) == 3, "K(Q), V , MLP_up(Gate) masks are expected, 3 seperate masks in total, please check."
+            return arch_vector
+        
+        # version2.0: DISP mask conversion
+        elif self.pruning_scheme == 'DISP':
+            arch_vector = []
+            start = 0
+            for i, size in enumerate(self.lw_structure):
+                end                 = start + size
+                sliced_input_tensor = inputs[:, start : end]
+
+                ## ** in DISP pruning space, S1 is applicable for EACH head-attention input dimension(Q,K,V), thus we simply repeat head-wise S1 into S1 x num_heads
+                ## notice: this logic is different from 'layer_uniform_attn'!
+                if i == 0:  
+                    replicated_slices = sliced_input_tensor.repeat(1, self.num_kv_heads)
+                    arch_vector.append(replicated_slices)
+                else:
+                    arch_vector.append(sliced_input_tensor)
+                start = end
+            assert len(arch_vector) == 5, "S1(extened), S2, S3, S4, S5 masks are expected, 5 seperate masks in total, please check."
+            return arch_vector
+    
 if __name__ == '__main__':
     net = LLM_HyperStructure()
     y = net()

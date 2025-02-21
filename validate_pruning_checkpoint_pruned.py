@@ -12,6 +12,7 @@ import os
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import LoRALinear, customized_lora_substitution
 from custom_llms.pruned_llama_disp import PrunedLlamaForCausalLM, model_replace
+from transformers import AutoConfig, AutoModel
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
@@ -72,6 +73,8 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
     total_params = sum(p.numel() for p in model.parameters())
     print(f"[INFO]:Pruned model total parameters: {total_params:,}")
 
+    # register for HF-compatible 
+    model.register_for_auto_class("AutoModelForCausalLM")
     return model, tokenizer, masks
 
 
