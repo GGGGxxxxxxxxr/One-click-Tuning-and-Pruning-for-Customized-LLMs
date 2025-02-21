@@ -524,10 +524,8 @@ class LLM_HyperStructure_v3(nn.Module):
         self.position_encoding = nn.Parameter(torch.randn(self.num_layers, 128) * 0.1)
 
         # Layer-wise MoE MLP
-        self.moe_mlp_list = nn.ModuleList([
-            MoEMLP(num_experts=num_experts, expert_dim=128, output_dim=sum(self.lw_structure), top_k=top_k)
-            for i in range(self.num_layers)
-        ])
+        self.moe_mlp = MoEMLP(num_experts=num_experts, expert_dim=128, output_dim=sum(self.lw_structure), top_k=top_k)
+            
 
     def compute_momentum(self, new_vec):
         """Adaptive momentum based on L2 norm change."""
@@ -556,8 +554,7 @@ class LLM_HyperStructure_v3(nn.Module):
         norm_out = self.ln(transformer_out)
 
         # Layer-wise MoE MLP Projection (dynamic pruning decisions)
-        outputs = [self.moe_mlp_list[i](norm_out[i]) for i in range(self.num_layers)]
-        out = torch.cat(outputs, dim=0)
+        out = self.moe_mlp(norm_out)
 
         # Compute adaptive momentum
         momentum = self.compute_momentum(out)
