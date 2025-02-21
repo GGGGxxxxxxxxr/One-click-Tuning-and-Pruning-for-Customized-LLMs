@@ -75,6 +75,8 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
 
     # register for HF-compatible 
     model.register_for_auto_class("AutoModelForCausalLM")
+    model.save_pretrained("/orange/sgao1/atp_disp_dir/pruned_llama_checkpoint")
+    
     return model, tokenizer, masks
 
 

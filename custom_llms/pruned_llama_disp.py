@@ -1344,8 +1344,8 @@ class PrunedLlamaForCausalLM(LlamaForCausalLM):
 
         self.pruning_masks = pruning_masks.to(torch.float32)
     
-    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
+    #@add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
+    #@replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         input_ids: torch.LongTensor = None,
@@ -1366,7 +1366,7 @@ class PrunedLlamaForCausalLM(LlamaForCausalLM):
         lw_structure = [128, 4096, 4096, 11008, 4096]
         num_kv_heads = 32
 
-        pruning_masks = []
+        pruning_mask = []
         start = 0
         for i, size in enumerate(lw_structure):
             end = start + size
@@ -1374,9 +1374,9 @@ class PrunedLlamaForCausalLM(LlamaForCausalLM):
 
             if i < 1:  # Extend K_V_head_mask for the whole layer (multi-head)
                 replicated_slices = sliced_input_tensor.repeat(1, num_kv_heads)
-                pruning_masks.append(replicated_slices)
+                pruning_mask.append(replicated_slices)
             else:
-                pruning_masks.append(sliced_input_tensor)
+                pruning_mask.append(sliced_input_tensor)
             start = end
         
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
