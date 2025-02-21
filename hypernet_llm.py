@@ -525,7 +525,7 @@ class LLM_HyperStructure_v3(nn.Module):
 
         # Layer-wise MoE MLP
         self.moe_mlp_list = nn.ModuleList([
-            MoEMLP(num_experts=num_experts, expert_dim=128, output_dim=self.lw_structure[i], top_k=top_k)
+            MoEMLP(num_experts=num_experts, expert_dim=128, output_dim=sum(self.lw_structure), top_k=top_k)
             for i in range(self.num_layers)
         ])
 
