@@ -592,7 +592,7 @@ def main():
     # Pre-training from scratch probably needs CosWarmRestart() but as we have a inital point from pre-trained, we could go for CosLR directly.
 
     # a) optimizer for Mask HyperNet()
-    hyper_net_ddp   = DDP(hyper_net, device_ids=[device])
+    hyper_net_ddp   = DDP(hyper_net, device_ids=[device], find_unused_parameters=True)
     hyper_params    = hyper_net_ddp.parameters()
     if args.use_8bit_training == True:
         optimizer_hyper = bnb.optim.AdamW8bit(hyper_params,lr  = 1e-4)
