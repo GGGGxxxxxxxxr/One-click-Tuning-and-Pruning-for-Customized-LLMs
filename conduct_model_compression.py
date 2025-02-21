@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
-from custom_llms.llama_disp import LlamaForCausalLM  # Import custom LLaMA class
+from custom_llms.llama_disp import LlamaForCausalLM # Import custom LLaMA class
+from custom_llms.pruned_llama_disp import PrunedLlamaForCausalLM, model_replace
 import os
 from util_llm import customized_lora_substitution, LoRALinear
 
@@ -177,6 +178,30 @@ def prune_llama(
 
     print(f"\n[INFO]: Compressed LoRA model saved at: {output_ckpt}")
 
+
+    ### now we save the pruned model as AutoModel for easy access
+    model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    model = PrunedLlamaForCausalLM(model_cfg, masks).to(torch.bfloat16).cuda()
+    model.resize_token_embeddings(len(tokenizer))
+
+    masks = model_replace(model, model_name)
+    
+    customized_lora_substitution(model, rank=32, dropout=0.1)
+    print(model)
+    print("\n[INFO]: Loading pruned state dict from checkpoint.")
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    model.cuda()
+    model.eval()
+
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"[INFO]:Pruned model total parameters: {total_params:,}")
+
+    # register for HF-compatible 
+    model.register_for_auto_class("AutoModelForCausalLM")
+    model.save_pretrained("/orange/sgao1/atp_disp_llm/pruned_llama_checkpoint")
+    print(f"[INFO]: Pruned model for AutoImport saved at: /orange/sgao1/atp_disp_llm/pruned_llama_checkpoint")
 
 
 if __name__ == "__main__":
