@@ -58,27 +58,10 @@ def initialize_model_and_tokenizer(pruned_ckpt_path=None, model_name=None):
         model_cfg = AutoConfig.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=api_token)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        model = PrunedLlamaForCausalLM(model_cfg, masks).to(torch.bfloat16).cuda()
+        model = AutoModel.from_pretrained(ckpt_path)
         model.resize_token_embeddings(len(tokenizer))
 
-    masks = model_replace(model, model_name)
-    
-    customized_lora_substitution(model, rank=32, dropout=0.1)
-    print(model)
-    print("\n[INFO]: Loading pruned state dict from checkpoint.")
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
-    model.cuda()
-    model.eval()
-
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"[INFO]:Pruned model total parameters: {total_params:,}")
-
-    # register for HF-compatible 
-    model.register_for_auto_class("AutoModelForCausalLM")
-    model.save_pretrained("/orange/sgao1/atp_disp_dir/pruned_llama_checkpoint")
-
-    
-    return model, tokenizer, masks
+    return model, tokenizer,None
 
 
 def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
