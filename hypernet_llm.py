@@ -539,9 +539,10 @@ class LLM_HyperStructure_v3(nn.Module):
         # Compute change rate
         change_rate = (diff_norm / prev_norm).item()
 
-        # Adaptive momentum: λ_min + (λ_max - λ_min) * exp(-α * change_rate)
-        momentum = self.lambda_min + (self.lambda_max - self.lambda_min) * torch.exp(-self.alpha * change_rate)
-        return momentum.item()
+        # Convert change_rate to a Tensor before passing into torch.exp()
+        momentum = self.lambda_min + (self.lambda_max - self.lambda_min) * torch.exp(-self.alpha * torch.tensor(change_rate, device=new_vec.device))
+
+        return momentum.item()  # Convert back to float for further calculations
 
     def forward(self, dummy=None):
         device = next(self.parameters()).device
