@@ -200,8 +200,8 @@ def prune_llama(
 
     # register for HF-compatible 
     model.register_for_auto_class("AutoModelForCausalLM")
-    model.save_pretrained("/orange/sgao1/atp_disp_llm/pruned_llama_checkpoint")
-    print(f"[INFO]: Pruned model for AutoImport saved at: /orange/sgao1/atp_disp_llm/pruned_llama_checkpoint")
+    model.save_pretrained("/orange/sgao1/atp_llm_dir/pruned_llama_checkpoint")
+    print(f"[INFO]: Pruned model for AutoImport saved at: /orange/sgao1/atp_llm_dir/pruned_llama_checkpoint")
 
 
 if __name__ == "__main__":
