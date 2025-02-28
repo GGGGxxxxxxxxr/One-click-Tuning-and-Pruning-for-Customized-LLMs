@@ -6,7 +6,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define Pruned Model with Correct Gated MLP Structure
 class PrunedModel(torch.nn.Module):
-    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=11008):
+    def __init__(self, hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008):
         super().__init__()
         self.post_attention_layernorm = torch.nn.LayerNorm(hidden_dim)
         
