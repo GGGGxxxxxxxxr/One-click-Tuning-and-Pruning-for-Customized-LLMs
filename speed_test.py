@@ -37,7 +37,7 @@ class PrunedModel(torch.nn.Module):
         return hidden_states
 
 # Create the model and move it to GPU
-model = PrunedModel(hidden_dim=4096, pruned_dim=2048, intermediate_dim=11008).to(device)
+model = PrunedModel(hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008).to(device)
 model.eval()
 
 # Generate random input tensor
