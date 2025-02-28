@@ -12,6 +12,8 @@ seq_len = 128
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device, dtype=torch.bfloat16)
 index_tensor = torch.randint(0, hidden_dim, (hidden_dim,), device=device)
 
+result = input_tensor.index_add(-1, index_tensor, input_tensor)
+
 # Profile `index_add`
 with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
     with record_function("BF16 index_add"):
