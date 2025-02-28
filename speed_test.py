@@ -1,6 +1,7 @@
 import torch
 import time
 from torch.profiler import profile, record_function, ProfilerActivity
+import torch.profiler as profiler
 
 # Ensure CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,7 +114,7 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
 print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=1000))
 
 print("\nProfiling Baseline Model...\n")
-with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], schedule=profiler.schedule(wait=5, warmup=10, active=20), record_shapes=True) as prof:
     baseline_model(input_tensor)
 print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=1000))
 
