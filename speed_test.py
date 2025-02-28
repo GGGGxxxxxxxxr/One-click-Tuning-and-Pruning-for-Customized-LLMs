@@ -77,7 +77,7 @@ hidden_dim = 4096
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device, dtype=torch.bfloat16)
 
 # Function to measure inference time
-def measure_latency(model, input_tensor, num_runs=1000):
+def measure_latency(model, input_tensor, num_runs=10000):
     with torch.no_grad():
         for _ in range(10):  # Warm-up
             _ = model(input_tensor)
