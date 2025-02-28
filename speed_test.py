@@ -4,41 +4,73 @@ import time
 # Ensure CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Define Pruned Model with Correct Gated MLP Structure
+# Define Pruned Model with Index Selection and Addition
 class PrunedModel(torch.nn.Module):
     def __init__(self, hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008):
         super().__init__()
         self.post_attention_layernorm = torch.nn.LayerNorm(hidden_dim)
         
         # Gated MLP components
-        self.gate = torch.nn.Linear(pruned_dim, intermediate_dim)  # Gate projection
-        self.up = torch.nn.Linear(pruned_dim, intermediate_dim)  # Up projection (4096 -> 11008)
-        self.down = torch.nn.Linear(intermediate_dim, pruned_dim)  # Down projection (11008 -> 4096)
+        self.gate = torch.nn.Linear(pruned_dim, intermediate_dim)
+        self.up = torch.nn.Linear(pruned_dim, intermediate_dim)
+        self.down = torch.nn.Linear(intermediate_dim, pruned_dim)
 
-        # Simulated pruning indices (random for benchmarking)
+        # Simulated pruning indices
         self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
         self.s5_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
 
     def forward(self, hidden_states):
         residual = hidden_states.clone()
 
-        # [ATP_DISP]: Apply s3 pruning before MLP_block
+        # Apply pruning before MLP
         hidden_states = self.post_attention_layernorm(hidden_states)                               
         hidden_states = torch.index_select(hidden_states, -1, self.s3_index)                         
 
-        # [ATP_DISP]: Compute Gated MLP
-        gate_out = torch.sigmoid(self.gate(hidden_states))  # Gate activation (Sigmoid ensures gating values in [0,1])
-        up_out = torch.relu(self.up(hidden_states))         # Expansion layer (4096 -> 11008)
-        mlp_out = self.down(gate_out * up_out)              # Element-wise gated projection -> Down projection (11008 -> 4096)
+        # Compute Gated MLP
+        gate_out = torch.sigmoid(self.gate(hidden_states))  
+        up_out = torch.relu(self.up(hidden_states))         
+        mlp_out = self.down(gate_out * up_out)              
 
-        # [ATP_DISP]: Apply s5 pruning before adding back to residual
+        # Apply pruning before adding back to residual
         hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())            
 
         return hidden_states
 
-# Create the model and move it to GPU
-model = PrunedModel(hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008).to(device)
-model.eval()
+
+# Define Baseline Model (Without Index Selection and Addition)
+class BaselineModel(torch.nn.Module):
+    def __init__(self, hidden_dim=4096, intermediate_dim=11008):
+        super().__init__()
+        self.post_attention_layernorm = torch.nn.LayerNorm(hidden_dim)
+        
+        # Gated MLP components
+        self.gate = torch.nn.Linear(hidden_dim, intermediate_dim)
+        self.up = torch.nn.Linear(hidden_dim, intermediate_dim)
+        self.down = torch.nn.Linear(intermediate_dim, hidden_dim)
+
+    def forward(self, hidden_states):
+        residual = hidden_states.clone()
+
+        # Apply LayerNorm
+        hidden_states = self.post_attention_layernorm(hidden_states)                               
+
+        # Compute Gated MLP
+        gate_out = torch.sigmoid(self.gate(hidden_states))  
+        up_out = torch.relu(self.up(hidden_states))         
+        mlp_out = self.down(gate_out * up_out)              
+
+        # Direct residual connection without pruning operations
+        hidden_states = residual + mlp_out            
+
+        return hidden_states
+
+
+# Initialize models
+pruned_model = PrunedModel(hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008).to(device)
+baseline_model = BaselineModel(hidden_dim=4096, intermediate_dim=11008).to(device)
+
+pruned_model.eval()
+baseline_model.eval()
 
 # Generate random input tensor
 batch_size = 1
@@ -46,23 +78,30 @@ seq_len = 128
 hidden_dim = 4096
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device)
 
-# Warm-up CUDA (avoid cold-start delays)
-with torch.no_grad():
-    for _ in range(10):
-        _ = model(input_tensor)
+# Function to measure inference time
+def measure_latency(model, input_tensor, num_runs=100):
+    with torch.no_grad():
+        for _ in range(10):  # Warm-up
+            _ = model(input_tensor)
 
-# Measure inference time
-num_runs = 100
-torch.cuda.synchronize()
-start_time = time.perf_counter()
+    torch.cuda.synchronize()
+    start_time = time.perf_counter()
 
-with torch.no_grad():
-    for _ in range(num_runs):
-        _ = model(input_tensor)
+    with torch.no_grad():
+        for _ in range(num_runs):
+            _ = model(input_tensor)
 
-torch.cuda.synchronize()
-end_time = time.perf_counter()
+    torch.cuda.synchronize()
+    end_time = time.perf_counter()
 
-# Compute average latency
-avg_latency = (end_time - start_time) / num_runs * 1000  # Convert to milliseconds
-print(f"Average Inference Time: {avg_latency:.2f} ms per forward pass")
+    return (end_time - start_time) / num_runs * 1000  # Convert to ms
+
+
+# Measure latency for both models
+pruned_latency = measure_latency(pruned_model, input_tensor)
+baseline_latency = measure_latency(baseline_model, input_tensor)
+
+# Print results
+print(f"Pruned Model Average Inference Time: {pruned_latency:.2f} ms per forward pass")
+print(f"Baseline Model Average Inference Time: {baseline_latency:.2f} ms per forward pass")
+print(f"Overhead due to index operations: {pruned_latency - baseline_latency:.2f} ms")
