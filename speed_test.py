@@ -110,12 +110,12 @@ baseline_latency = measure_latency(baseline_model, input_tensor)
 print("\nProfiling Pruned Model...\n")
 with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
     pruned_model(input_tensor)
-print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=1000))
 
 print("\nProfiling Baseline Model...\n")
 with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
     baseline_model(input_tensor)
-print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=1000))
 
 # Print results
 print(f"\nPruned Model Average Inference Time: {pruned_latency:.6f} ms per forward pass")
