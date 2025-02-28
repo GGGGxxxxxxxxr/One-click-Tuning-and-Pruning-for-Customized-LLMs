@@ -105,3 +105,31 @@ baseline_latency = measure_latency(baseline_model, input_tensor)
 print(f"Pruned Model Average Inference Time: {pruned_latency:.2f} ms per forward pass")
 print(f"Baseline Model Average Inference Time: {baseline_latency:.2f} ms per forward pass")
 print(f"Overhead due to index operations: {pruned_latency - baseline_latency:.2f} ms")
+
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Dummy input
+hidden_dim = 4096
+pruned_dim = 4096
+batch_size = 1
+seq_len = 128
+
+input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device)
+s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
+
+# CUDA Event Timing
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
+
+torch.cuda.synchronize()
+start_event.record()
+
+selected_tensor = torch.index_select(input_tensor, -1, s3_index)
+
+end_event.record()
+torch.cuda.synchronize()
+
+elapsed_time = start_event.elapsed_time(end_event)  # Time in milliseconds
+print(f"index_select execution time: {elapsed_time:.3f} ms")
