@@ -115,7 +115,7 @@ hidden_dim = 4096
 pruned_dim = 4096
 batch_size = 1
 seq_len = 128
-
+num_runs = 10000
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device)
 s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
 
@@ -123,13 +123,24 @@ s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
 start_event = torch.cuda.Event(enable_timing=True)
 end_event = torch.cuda.Event(enable_timing=True)
 
-torch.cuda.synchronize()
-start_event.record()
+# Warm-up (avoid cold-start effects)
+for _ in range(10):
+    _ = torch.index_select(input_tensor, -1, s3_index)
 
-selected_tensor = torch.index_select(input_tensor, -1, s3_index)
-
-end_event.record()
 torch.cuda.synchronize()
 
-elapsed_time = start_event.elapsed_time(end_event)  # Time in milliseconds
-print(f"index_select execution time: {elapsed_time:.3f} ms")
+# Measure execution time multiple times
+elapsed_times = []
+for _ in range(num_runs):
+    start_event.record()
+    selected_tensor = torch.index_select(input_tensor, -1, s3_index)
+    end_event.record()
+
+    torch.cuda.synchronize()  # Ensure all operations are completed
+    elapsed_times.append(start_event.elapsed_time(end_event))
+
+# Compute average and standard deviation
+avg_time = sum(elapsed_times) / num_runs
+std_dev = (sum([(t - avg_time) ** 2 for t in elapsed_times]) / num_runs) ** 0.5
+
+print(f"index_select execution time: {avg_time:.3f} ms ± {std_dev:.3f} ms over {num_runs} runs")
