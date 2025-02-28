@@ -99,6 +99,6 @@ pruned_latency = measure_latency(pruned_model, input_tensor)
 baseline_latency = measure_latency(baseline_model, input_tensor)
 
 # Print results
-print(f"Pruned Model Average Inference Time: {pruned_latency:.2f} ms per forward pass")
-print(f"Baseline Model Average Inference Time: {baseline_latency:.2f} ms per forward pass")
-print(f"Overhead due to index operations: {pruned_latency - baseline_latency:.2f} ms")
+print(f"Pruned Model Average Inference Time: {pruned_latency:.6f} ms per forward pass")
+print(f"Baseline Model Average Inference Time: {baseline_latency:.6f} ms per forward pass")
+print(f"Overhead due to index operations: {pruned_latency - baseline_latency:.6f} ms")
