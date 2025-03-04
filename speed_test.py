@@ -40,7 +40,7 @@ class PrunedModel(torch.nn.Module):
 
         # Apply index selection (simulated pruning)
         hidden_states = self.layernorm(hidden_states)                               
-        hidden_states = torch.index_select(hidden_states, -1, self.s3_index)                         
+        hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)                         
 
         # Compute Gated MLP
         gate_out = torch.sigmoid(self.gate(hidden_states))  
