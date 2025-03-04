@@ -33,6 +33,7 @@ class PrunedModel(torch.nn.Module):
 
         # Simulated pruning indices (GPU)
         self.s3_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
+        print(self.s3_index)
         self.s5_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
 
     def forward(self, hidden_states):
