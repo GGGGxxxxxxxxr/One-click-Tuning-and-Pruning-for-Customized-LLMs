@@ -51,7 +51,7 @@ class PrunedModel(torch.nn.Module):
         # Apply index addition before adding back to residual
         #hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())   
         print(mlp_out.shape)   
-        residual[:,:,:2048] = residual[:,:,2048] + mlp_out      
+        residual[:,:,:2048] = residual[:,:,:2048] + mlp_out      
 
         return hidden_states.to(dtype=torch.bfloat16)
 
