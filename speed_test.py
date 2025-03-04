@@ -52,7 +52,7 @@ class PrunedModel(torch.nn.Module):
         #hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())     
         residual[:,:,:2048] = residual[:,:,:2048] + mlp_out      
 
-        return hidden_states.to(dtype=torch.bfloat16)
+        return residual.to(dtype=torch.bfloat16)
 
 # ---------------------- 🎯 Initialize Models ---------------------- #
 baseline_model = BaselineModel(hidden_dim=4096, intermediate_dim=11008).to(device)
