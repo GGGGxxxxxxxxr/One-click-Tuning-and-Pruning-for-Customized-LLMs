@@ -40,7 +40,7 @@ class PrunedModel(torch.nn.Module):
 
         # Apply index selection (simulated pruning)
         hidden_states = self.layernorm(hidden_states)                               
-        #hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)                         
+        hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)                         
 
         # Compute Gated MLP
         gate_out = torch.sigmoid(self.gate(hidden_states))  
@@ -48,7 +48,7 @@ class PrunedModel(torch.nn.Module):
         mlp_out = self.down(gate_out * up_out)              
 
         # Apply index addition before adding back to residual
-        #hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())            
+        hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())            
 
         return hidden_states.to(dtype=torch.bfloat16)
 
