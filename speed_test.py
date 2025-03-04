@@ -77,7 +77,7 @@ def profile_model(model, model_name):
     print(f"\n📊 Profiling {model_name}...\n")
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
-        schedule=profiler.schedule(wait=5, warmup=10, active=20), 
+        schedule=profiler.schedule(wait=0, warmup=10, active=20), 
         record_shapes=True, 
         with_stack=True
     ) as prof:
