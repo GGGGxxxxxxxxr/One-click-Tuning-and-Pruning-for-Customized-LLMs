@@ -32,8 +32,8 @@ class PrunedModel(torch.nn.Module):
         self.down = torch.nn.Linear(intermediate_dim, pruned_dim, device=device, dtype=torch.bfloat16)
 
         # Simulated pruning indices (GPU)
-        self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
-        self.s5_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
+        self.s3_index = torch.randperm(hidden_dim, device=device)[:pruned_dim]
+        self.s5_index = torch.randperm(hidden_dim, device=device)[:pruned_dim]
 
     def forward(self, hidden_states):
         residual = hidden_states.clone()
