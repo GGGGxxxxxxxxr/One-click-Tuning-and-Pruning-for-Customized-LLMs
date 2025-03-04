@@ -24,7 +24,7 @@ class BaselineModel(torch.nn.Module):
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
-    def __init__(self, hidden_dim=4096, pruned_dim=4096, intermediate_dim=11008):
+    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004):
         super().__init__()
         self.layernorm = torch.nn.LayerNorm(hidden_dim, dtype=torch.bfloat16, device=device)
         self.gate = torch.nn.Linear(pruned_dim, intermediate_dim, device=device, dtype=torch.bfloat16)
@@ -72,18 +72,16 @@ for _ in range(20):
     _ = pruned_model(input_tensor)
 torch.cuda.synchronize()
 
-# 🚀 Profiling Function
+# 🚀 Profiling Function (NO schedule)
 def profile_model(model, model_name):
     print(f"\n📊 Profiling {model_name}...\n")
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
-        schedule=profiler.schedule(wait=0, warmup=10, active=20), 
         record_shapes=True, 
         with_stack=True
     ) as prof:
-        for _ in range(50):  # Run enough iterations for schedule() to activate
+        for _ in range(50):  # Run enough iterations to collect meaningful data
             _ = model(input_tensor)
-            prof.step()  # ✅ Ensure profiler progresses
 
     # 📊 Print Results
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
