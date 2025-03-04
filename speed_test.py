@@ -77,8 +77,6 @@ def profile_model(model, model_name):
     print(f"\n📊 Profiling {model_name}...\n")
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
-        record_shapes=True, 
-        with_stack=True
     ) as prof:
         for _ in range(50):  # Run enough iterations to collect meaningful data
             _ = model(input_tensor)
