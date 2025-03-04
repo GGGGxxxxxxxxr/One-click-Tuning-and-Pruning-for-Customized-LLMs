@@ -1,5 +1,6 @@
 import torch
-import time
+import torch.profiler as profiler
+from torch.profiler import profile, ProfilerActivity
 
 # Ensure CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -14,20 +15,12 @@ class BaselineModel(torch.nn.Module):
         self.down = torch.nn.Linear(intermediate_dim, hidden_dim, device=device, dtype=torch.bfloat16)
 
     def forward(self, hidden_states):
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-
-        start_event.record()
         residual = hidden_states.clone()
         hidden_states = self.layernorm(hidden_states)
         gate_out = torch.sigmoid(self.gate(hidden_states))  
         up_out = torch.relu(self.up(hidden_states))         
         mlp_out = self.down(gate_out * up_out)              
-        hidden_states = residual + mlp_out
-        end_event.record()
-
-        torch.cuda.synchronize()
-        return hidden_states, start_event.elapsed_time(end_event)
+        return residual + mlp_out
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
@@ -45,43 +38,19 @@ class PrunedModel(torch.nn.Module):
     def forward(self, hidden_states):
         residual = hidden_states.clone().contiguous()
 
-        # 🚀 Start CUDA event for full forward pass
-        start_forward = torch.cuda.Event(enable_timing=True)
-        end_forward = torch.cuda.Event(enable_timing=True)
-
-        # 🚀 Start CUDA event for `index_select`
-        start_select = torch.cuda.Event(enable_timing=True)
-        end_select = torch.cuda.Event(enable_timing=True)
-
-        # 🚀 Start CUDA event for `index_add`
-        start_add = torch.cuda.Event(enable_timing=True)
-        end_add = torch.cuda.Event(enable_timing=True)
-
-        start_forward.record()  # Start total forward timing
-
-        start_select.record()
-        hidden_states = self.layernorm(hidden_states)
-        hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)
-        end_select.record()  # End `index_select` timing
+        # Apply index selection (simulated pruning)
+        hidden_states = self.layernorm(hidden_states)                               
+        hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)                         
 
         # Compute Gated MLP
-        gate_out = torch.sigmoid(self.gate(hidden_states))
-        up_out = torch.relu(self.up(hidden_states))
-        mlp_out = self.down(gate_out * up_out)
+        gate_out = torch.sigmoid(self.gate(hidden_states))  
+        up_out = torch.relu(self.up(hidden_states))         
+        mlp_out = self.down(gate_out * up_out)              
 
-        start_add.record()
-        hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())
-        end_add.record()  # End `index_add` timing
+        # Apply index addition before adding back to residual
+        hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())            
 
-        end_forward.record()  # End total forward timing
-
-        # Synchronize for accurate measurement
-        torch.cuda.synchronize()
-        forward_time = start_forward.elapsed_time(end_forward)
-        index_select_time = start_select.elapsed_time(end_select)
-        index_add_time = start_add.elapsed_time(end_add)
-
-        return hidden_states.to(dtype=torch.bfloat16), forward_time, index_select_time, index_add_time
+        return hidden_states.to(dtype=torch.bfloat16)
 
 # ---------------------- 🎯 Initialize Models ---------------------- #
 baseline_model = BaselineModel(hidden_dim=4096, intermediate_dim=11008).to(device)
@@ -90,62 +59,31 @@ pruned_model = PrunedModel(hidden_dim=4096, pruned_dim=2048, intermediate_dim=50
 baseline_model.eval()
 pruned_model.eval()
 
-# Dummy Input (Both FP32 and BF16)
+# Dummy Input
 batch_size = 1
 seq_len = 1
 hidden_dim = 4096
-input_tensor_fp32 = torch.randn(batch_size, seq_len, hidden_dim, device=device, dtype=torch.float32)
-input_tensor_bf16 = input_tensor_fp32.to(dtype=torch.bfloat16)
+input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device, dtype=torch.bfloat16)
 
 # 🔥 Warm-up Phase (Avoid Cold Start Effects)
 print("🔥 Running warm-up iterations...")
 for _ in range(20):
-    _, _ = baseline_model(input_tensor_bf16)
-    _, _, _, _ = pruned_model(input_tensor_bf16)
+    _ = baseline_model(input_tensor)
+    _ = pruned_model(input_tensor)
 torch.cuda.synchronize()
 
-# 🚀 Measure Execution Time
-def benchmark_model(model, input_tensor, model_name, num_runs=100):
-    total_forward_time = 0
-    total_index_select_time = 0
-    total_index_add_time = 0
+# 🚀 Profiling Function (NO schedule)
+def profile_model(model, model_name):
+    print(f"\n📊 Profiling {model_name}...\n")
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
+    ) as prof:
+        for _ in range(50):  # Run enough iterations to collect meaningful data
+            _ = model(input_tensor)
 
-    print(f"\n⏳ Benchmarking {model_name}...\n")
-    torch.cuda.synchronize()
-    start_time = time.perf_counter()
+    # 📊 Print Results
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
 
-    for _ in range(num_runs):
-        if model_name == "Baseline Model":
-            _, forward_time = model(input_tensor)
-            total_forward_time += forward_time
-        else:
-            _, forward_time, select_time, add_time = model(input_tensor)
-            total_forward_time += forward_time
-            total_index_select_time += select_time
-            total_index_add_time += add_time
-
-    torch.cuda.synchronize()
-    end_time = time.perf_counter()
-
-    # 📊 Compute Averages
-    avg_forward_time = total_forward_time / num_runs
-    avg_index_select_time = total_index_select_time / num_runs if model_name == "Pruned Model" else 0
-    avg_index_add_time = total_index_add_time / num_runs if model_name == "Pruned Model" else 0
-    total_runtime = (end_time - start_time) * 1000 / num_runs  # Convert to ms
-
-    # 📢 Print Results
-    print(f"\n🚀 Benchmark Results for {model_name} over {num_runs} runs:")
-    print(f"🔥 Full Forward Pass: {avg_forward_time:.3f} ms")
-    if model_name == "Pruned Model":
-        print(f"🟢 index_select Time: {avg_index_select_time:.3f} ms")
-        print(f"🔴 index_add Time: {avg_index_add_time:.3f} ms")
-    print(f"⏱️  Total Runtime (Including Python Overhead): {total_runtime:.3f} ms\n")
-
-# ---------------------- 🏎️ Run Benchmarks ---------------------- #
-print("\n📌 Benchmarking with BF16:")
-benchmark_model(baseline_model, input_tensor_bf16, "Baseline Model")
-benchmark_model(pruned_model, input_tensor_bf16, "Pruned Model")
-
-print("\n📌 Benchmarking with FP32:")
-benchmark_model(baseline_model, input_tensor_fp32, "Baseline Model")
-benchmark_model(pruned_model, input_tensor_fp32, "Pruned Model")
+# ---------------------- 🏎️ Run Profiling ---------------------- #
+profile_model(baseline_model, "Baseline Model")
+profile_model(pruned_model, "Pruned Model")
