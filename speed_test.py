@@ -32,7 +32,7 @@ class PrunedModel(torch.nn.Module):
         self.down = torch.nn.Linear(intermediate_dim, pruned_dim, device=device, dtype=torch.bfloat16)
 
         # Simulated pruning indices (GPU)
-        self.s3_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
+        self.s3_index = torch.randperm(hidden_dim, device=device)[:pruned_dim]
         print(self.s3_index)
         self.s5_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
 
