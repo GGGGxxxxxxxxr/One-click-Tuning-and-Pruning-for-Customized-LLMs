@@ -36,7 +36,7 @@ class PrunedModel(torch.nn.Module):
         self.s5_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
 
     def forward(self, hidden_states):
-        residual = hidden_states.clone()
+        residual = hidden_states.clone().contiguous()
 
         # Apply index selection (simulated pruning)
         hidden_states = self.layernorm(hidden_states)                               
