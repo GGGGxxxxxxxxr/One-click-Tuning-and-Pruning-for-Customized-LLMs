@@ -64,7 +64,7 @@ baseline_model.eval()
 pruned_model.eval()
 
 baseline_model = torch.compile(baseline_model)
-pruned_model = torch.compile(pruned_model)
+#pruned_model = torch.compile(pruned_model)
 
 # Dummy Input
 batch_size = 1
