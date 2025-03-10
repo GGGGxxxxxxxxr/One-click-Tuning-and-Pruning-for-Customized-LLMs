@@ -25,7 +25,7 @@ class BaselineModel(torch.nn.Module):
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
-    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004, group_size=64):
+    def __init__(self, hidden_dim=22016, pruned_dim=4096, intermediate_dim=5004, group_size=64):
         super().__init__()
         self.layernorm = torch.nn.LayerNorm(hidden_dim, dtype=torch.bfloat16, device=device)
         self.gate = torch.nn.Linear(pruned_dim, intermediate_dim, device=device, dtype=torch.bfloat16)
