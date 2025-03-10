@@ -20,7 +20,8 @@ class BaselineModel(torch.nn.Module):
         gate_out = torch.sigmoid(self.gate(hidden_states))  
         up_out = torch.relu(self.up(hidden_states))         
         mlp_out = self.down(gate_out * up_out)              
-        return residual + mlp_out
+        residual = residual + mlp_out
+        return residual
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
