@@ -1,7 +1,7 @@
 import torch
 import torch.profiler as profiler
 from torch.profiler import profile, ProfilerActivity
-
+import time
 # Ensure CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -79,6 +79,7 @@ for _ in range(20):
     _ = pruned_model(input_tensor)
 torch.cuda.synchronize()
 
+
 # 🚀 Profiling Function (NO schedule)
 def profile_model(model, model_name):
     print(f"\n📊 Profiling {model_name}...\n")
@@ -92,5 +93,14 @@ def profile_model(model, model_name):
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
 
 # ---------------------- 🏎️ Run Profiling ---------------------- #
+start_time = time.time()
 profile_model(baseline_model, "Baseline Model")
+end_time = time.time()
+duration = end_time - start_time
+print(duration)
+
+start_time = time.time()
 profile_model(pruned_model, "Pruned Model")
+end_time = time.time()
+duration = end_time - start_time
+print(duration)
