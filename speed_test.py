@@ -25,33 +25,38 @@ class BaselineModel(torch.nn.Module):
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
-    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004):
+    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004, group_size=8):
         super().__init__()
         self.layernorm = torch.nn.LayerNorm(hidden_dim, dtype=torch.bfloat16, device=device)
         self.gate = torch.nn.Linear(pruned_dim, intermediate_dim, device=device, dtype=torch.bfloat16)
         self.up = torch.nn.Linear(pruned_dim, intermediate_dim, device=device, dtype=torch.bfloat16)
         self.down = torch.nn.Linear(intermediate_dim, pruned_dim, device=device, dtype=torch.bfloat16)
 
-        # Simulated pruning indices (GPU)
-        self.s3_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
-        self.s5_index = torch.sort(torch.randperm(hidden_dim, device=device)[:pruned_dim])[0]
+        # --- 🚀 Group-wise structured index selection ---
+        def generate_groupwise_indices(hidden_dim, pruned_dim, group_size):
+            indices = torch.cat([
+                torch.arange(i, i + group_size, device=device)
+                for i in range(0, hidden_dim, 2 * group_size)  # 选 group_size，跳过 group_size
+            ])
+            return indices[:pruned_dim]  # 截断到 pruned_dim
+
+        self.s3_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
+        self.s5_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
 
     def forward(self, hidden_states):
         residual = hidden_states.clone().contiguous()
 
-        # Apply index selection (simulated pruning)
+        # --- 🏆 Apply group-wise index selection ---
         hidden_states = self.layernorm(hidden_states)                               
         hidden_states = torch.index_select(hidden_states.contiguous(), -1, self.s3_index)    
-        #hidden_states = hidden_states[:,:,:2048]                     
 
         # Compute Gated MLP
         gate_out = torch.sigmoid(self.gate(hidden_states))  
         up_out = torch.relu(self.up(hidden_states))         
         mlp_out = self.down(gate_out * up_out)              
 
-        # Apply index addition before adding back to residual
+        # --- 🏆 Apply group-wise index addition ---
         hidden_states = residual.index_add(-1, self.s5_index, mlp_out.contiguous())     
-        #residual[:,:,:2048] = residual[:,:,:2048] + mlp_out      
 
         return hidden_states.to(dtype=torch.bfloat16)
 
