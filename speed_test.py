@@ -59,8 +59,12 @@ class PrunedModel(torch.nn.Module):
 baseline_model = BaselineModel(hidden_dim=4096, intermediate_dim=11008).to(device)
 pruned_model = PrunedModel(hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004).to(device)
 
+
 baseline_model.eval()
 pruned_model.eval()
+
+baseline_model = torch.compile(baseline_model)
+pruned_model = torch.compile(pruned_model)
 
 # Dummy Input
 batch_size = 32
