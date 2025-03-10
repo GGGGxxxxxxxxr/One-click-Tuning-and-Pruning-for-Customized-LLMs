@@ -25,7 +25,7 @@ class BaselineModel(torch.nn.Module):
 
 # ---------------------- ✂️ Define Pruned Model ---------------------- #
 class PrunedModel(torch.nn.Module):
-    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004, group_size=32):
+    def __init__(self, hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004, group_size=128):
         super().__init__()
         self.layernorm = torch.nn.LayerNorm(hidden_dim, dtype=torch.bfloat16, device=device)
         self.gate = torch.nn.Linear(pruned_dim, intermediate_dim, device=device, dtype=torch.bfloat16)
@@ -40,8 +40,8 @@ class PrunedModel(torch.nn.Module):
             ])
             return indices[:pruned_dim]  # 截断到 pruned_dim
 
-        self.s3_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
-        self.s5_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
+        self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
+        self.s5_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
 
     def forward(self, hidden_states):
         residual = hidden_states.clone().contiguous()
