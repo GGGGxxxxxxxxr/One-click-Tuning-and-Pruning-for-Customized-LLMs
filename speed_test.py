@@ -74,7 +74,7 @@ pruned_model.eval()
 # Dummy Input
 batch_size = 128
 seq_len = 1
-hidden_dim = 4096
+hidden_dim = 22016
 input_tensor = torch.randn(batch_size, seq_len, hidden_dim, device=device, dtype=torch.bfloat16)
 
 # 🔥 Warm-up Phase (Avoid Cold Start Effects)
