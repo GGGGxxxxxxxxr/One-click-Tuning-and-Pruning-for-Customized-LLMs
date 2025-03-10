@@ -40,8 +40,8 @@ class PrunedModel(torch.nn.Module):
             ])
             return indices[:pruned_dim]  # 截断到 pruned_dim
 
-        self.s3_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
-        self.s5_index = torch.randint(0, hidden_dim, (pruned_dim,), device=device)
+        self.s3_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
+        self.s5_index = generate_groupwise_indices(hidden_dim, pruned_dim, group_size)
 
     def forward(self, hidden_states):
         residual = hidden_states.clone().contiguous()
