@@ -61,8 +61,8 @@ class PrunedModel(torch.nn.Module):
         return hidden_states.to(dtype=torch.bfloat16)
 
 # ---------------------- 🎯 Initialize Models ---------------------- #
-baseline_model = BaselineModel(hidden_dim=4096, intermediate_dim=11008).to(device)
-pruned_model = PrunedModel(hidden_dim=4096, pruned_dim=2048, intermediate_dim=5004).to(device)
+baseline_model = BaselineModel(hidden_dim=22016, intermediate_dim=11008).to(device)
+pruned_model = PrunedModel(hidden_dim=22016, pruned_dim=2048, intermediate_dim=11008).to(device)
 
 
 baseline_model.eval()
