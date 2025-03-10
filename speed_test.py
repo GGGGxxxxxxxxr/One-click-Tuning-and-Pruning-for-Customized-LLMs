@@ -62,7 +62,7 @@ class PrunedModel(torch.nn.Module):
 
 # ---------------------- 🎯 Initialize Models ---------------------- #
 baseline_model = BaselineModel(hidden_dim=22016, intermediate_dim=11008).to(device)
-pruned_model = PrunedModel(hidden_dim=22016, pruned_dim=2048, intermediate_dim=11008).to(device)
+pruned_model = PrunedModel(hidden_dim=11008, pruned_dim=2048, intermediate_dim=11008).to(device)
 
 
 baseline_model.eval()
