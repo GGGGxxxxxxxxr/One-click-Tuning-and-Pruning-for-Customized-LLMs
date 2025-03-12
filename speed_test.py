@@ -5,7 +5,7 @@ import time
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 矩阵大小
-N = 4096  # 4096 x 4096 矩阵
+N = 16  # 4096 x 4096 矩阵
 
 # ------------------- 1️⃣ 生成 2:4 稀疏性掩码 ------------------- #
 def generate_2_4_sparsity_mask(rows, cols):
@@ -18,6 +18,7 @@ def generate_2_4_sparsity_mask(rows, cols):
 
 # 生成 2:4 掩码
 sparsity_mask = generate_2_4_sparsity_mask(N, N)
+print(sparsity_mask)
 
 # 创建密集矩阵并应用 2:4 掩码（数据类型为 `bfloat16`）
 dense_matrix = torch.randn(N, N, device=device)
