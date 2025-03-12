@@ -9,11 +9,15 @@ N = 16  # 4096 x 4096 矩阵
 
 # ------------------- 1️⃣ 生成 2:4 稀疏性掩码 ------------------- #
 def generate_2_4_sparsity_mask(rows, cols):
-    """生成符合 2:4 稀疏性结构的掩码"""
-    mask = torch.zeros(rows, cols, device=device)
+    """生成严格符合 2:4 结构化稀疏性的掩码"""
+    assert cols % 4 == 0, "列数必须是 4 的倍数！"
+    
+    mask = torch.ones(rows, cols, device=device)  # 先全部设为 1
     for row in range(rows):
-        nonzero_cols = torch.randperm(cols, device=device)[:cols // 2]  # 每 4 选 2
-        mask[row, nonzero_cols] = 1
+        for col in range(0, cols, 4):  # 每 4 个一组
+            zero_indices = torch.randperm(4, device=device)[:2]  # 在 4 个中随机选 2 个作为 0
+            mask[row, col + zero_indices] = 0  # 设为 0，确保 2:4 稀疏性
+
     return mask
 
 # 生成 2:4 掩码
