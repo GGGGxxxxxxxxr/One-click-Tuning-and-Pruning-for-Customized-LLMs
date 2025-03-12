@@ -12,7 +12,7 @@ def generate_2_4_sparsity_mask(rows, cols):
     """生成符合 2:4 稀疏性结构的掩码"""
     mask = torch.zeros(rows, cols, device=device, dtype=torch.bfloat16)
     for row in range(rows):
-        nonzero_cols = torch.randperm(cols, device=device)[:cols // 2]  # 每 4 选 2
+        nonzero_cols = torch.randperm(cols, device=device, dtype=torch.bfloat16)[:cols // 2]  # 每 4 选 2
         mask[row, nonzero_cols] = 1
     return mask
 
