@@ -4,7 +4,7 @@ from torch.utils.benchmark import Timer
 SparseSemiStructuredTensor._FORCE_CUTLASS = True
 
 # mask Linear weight to be 2:4 sparse
-mask = torch.Tensor([0, 0, 1, 1]).tile((4096, 1028)).cuda().bool()
+mask = torch.Tensor([0, 0, 1, 1]).tile((4096, 1024)).cuda().bool()
 linear = torch.nn.Linear(4096, 4096).half().cuda().eval()
 linear.weight = torch.nn.Parameter(mask * linear.weight)
 
