@@ -10,7 +10,7 @@ N = 4096  # 4096 x 4096 矩阵
 # ------------------- 1️⃣ 生成 2:4 稀疏性掩码 ------------------- #
 def generate_2_4_sparsity_mask(rows, cols):
     """生成符合 2:4 稀疏性结构的掩码"""
-    mask = torch.zeros(rows, cols, device=device)
+    mask = torch.zeros(rows, cols, device=device, dtype=torch.bfloat16)
     for row in range(rows):
         nonzero_cols = torch.randperm(cols, device=device)[:cols // 2]  # 每 4 选 2
         mask[row, nonzero_cols] = 1
@@ -20,7 +20,7 @@ def generate_2_4_sparsity_mask(rows, cols):
 sparsity_mask = generate_2_4_sparsity_mask(N, N)
 
 # 创建密集矩阵并应用 2:4 掩码
-dense_matrix = torch.randn(N, N, device=device, dtype=torch.float16)
+dense_matrix = torch.randn(N, N, device=device, dtype=torch.bfloat16)
 sparse_matrix = dense_matrix * sparsity_mask
 
 # ------------------- 2️⃣ 转换为 PyTorch 稀疏格式 ------------------- #
@@ -31,7 +31,7 @@ print(f"✅ COO 格式: {sparse_coo}")
 print(f"✅ CSR 格式: {sparse_csr}")
 
 # ------------------- 3️⃣ 生成随机输入向量 ------------------- #
-input_vector = torch.randn(N, 4, device=device, dtype=torch.float16)
+input_vector = torch.randn(N, 4, device=device, dtype=torch.bfloat16)
 
 # ------------------- 4️⃣ 预热（Warm-up） ------------------- #
 print("🔥 预热中...")
