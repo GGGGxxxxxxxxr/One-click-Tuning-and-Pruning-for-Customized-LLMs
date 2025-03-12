@@ -20,8 +20,8 @@ def generate_2_4_sparsity_mask(rows, cols):
 sparsity_mask = generate_2_4_sparsity_mask(N, N)
 
 # 创建密集矩阵并应用 2:4 掩码（数据类型为 `bfloat16`）
-dense_matrix = torch.randn(N, N, device=device, dtype=torch.bfloat16)
-sparse_matrix = (dense_matrix * sparsity_mask).to(torch.bfloat16)  # 确保 `bf16` 计算
+dense_matrix = torch.randn(N, N, device=device)
+sparse_matrix = (dense_matrix * sparsity_mask)  # 确保 `bf16` 计算
 
 # ------------------- 2️⃣ 转换为 PyTorch 稀疏格式 ------------------- #
 sparse_coo = sparse_matrix.to_sparse()
@@ -31,7 +31,7 @@ print(f"✅ COO 格式: {sparse_coo}")
 print(f"✅ CSR 格式: {sparse_csr}")
 
 # ------------------- 3️⃣ 生成随机输入向量 ------------------- #
-input_vector = torch.randn(N, 4, device=device, dtype=torch.bfloat16)
+input_vector = torch.randn(N, 4, device=device)
 
 # ------------------- 4️⃣ 预热（Warm-up） ------------------- #
 print("🔥 预热中...")
