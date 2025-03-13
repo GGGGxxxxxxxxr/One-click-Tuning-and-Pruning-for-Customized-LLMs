@@ -1,14 +1,14 @@
 import torch
 from torch.sparse import to_sparse_semi_structured, SparseSemiStructuredTensor
 from torch.utils.benchmark import Timer
-SparseSemiStructuredTensor._FORCE_CUTLASS = True # Flase will use CUSPARSELt which is faster than CUTLASS
+SparseSemiStructuredTensor._FORCE_CUTLASS = False # Flase will use CUSPARSELt which is faster than CUTLASS
 
 # mask Linear weight to be 2:4 sparse
 mask = torch.Tensor([0, 0, 1, 1]).tile((4096, 1024)).cuda().bool().to(torch.bfloat16)
 linear = torch.nn.Linear(4096, 4096).bfloat16().cuda().eval()
 linear.weight = torch.nn.Parameter(mask * linear.weight)
 
-x = torch.rand(1, 4096).bfloat16().cuda()
+x = torch.rand(1280, 4096).bfloat16().cuda()
 
 with torch.inference_mode():
     with torch.profiler.profile(
