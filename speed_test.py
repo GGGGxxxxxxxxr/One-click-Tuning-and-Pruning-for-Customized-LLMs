@@ -22,7 +22,7 @@ with torch.inference_mode():
 
     # 🔍 打印 Profiling 结果
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-    
+
     dense_output = linear(x)
     dense_t = Timer(stmt="linear(x)",
                     globals={"linear": linear,
@@ -30,6 +30,18 @@ with torch.inference_mode():
 
     # accelerate via SparseSemiStructuredTensor
     linear.weight = torch.nn.Parameter(to_sparse_semi_structured(linear.weight))
+
+    with torch.profiler.profile(
+    activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+    record_shapes=True,  # 记录 Tensor 形状
+    profile_memory=True,  # 记录显存使用情况
+    with_stack=True  # 记录调用栈
+    ) as prof:
+        for _ in range(10):  # 运行多次以获取稳定数据
+            sparse_output = linear(x)
+    # 🔍 打印 Profiling 结果
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
 
     sparse_output = linear(x)
     sparse_t = Timer(stmt="linear(x)",
