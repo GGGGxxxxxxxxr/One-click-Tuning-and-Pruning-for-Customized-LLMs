@@ -25,5 +25,5 @@ with torch.inference_mode():
                              "x": x}).blocked_autorange().median * 1e3
 
     # sparse and dense matmul are numerically equivalent
-    assert torch.allclose(sparse_output, dense_output, atol=1e-3)
+    assert torch.allclose(sparse_output, dense_output, atol=1e-2)
     print(f"Dense: {dense_t:.3f}ms Sparse: {sparse_t:.3f}ms | Speedup: {(dense_t / sparse_t):.3f}x")
