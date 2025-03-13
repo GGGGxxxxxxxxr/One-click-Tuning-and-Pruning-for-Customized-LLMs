@@ -8,7 +8,7 @@ mask = torch.Tensor([0, 0, 1, 1]).tile((4096, 1024)).cuda().bool().to(torch.bflo
 linear = torch.nn.Linear(4096, 4096).bfloat16().cuda().eval()
 linear.weight = torch.nn.Parameter(mask * linear.weight)
 
-x = torch.rand(128, 4096).bfloat16().cuda()
+x = torch.rand(320, 4096).bfloat16().cuda()
 
 with torch.inference_mode():
     with torch.profiler.profile(
