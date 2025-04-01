@@ -114,7 +114,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     elif model_name == 'sheared':
         print("initializing sheared llama2-2.7b-raw.")
         tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
-        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned").to(device)
+        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned").cuda()
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
 
