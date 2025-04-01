@@ -234,7 +234,7 @@ def main():
     # counting prunable structures for LLMs
     if args.pruning_method != 'head':
         print("=====> Fine-grained pruning is ENABLED. Pruning would be conducted within MHA. <=====\n")
-        p_structures = count_llm_p_structures(model = model, model_config = model_cfg, head_wise = False)
+        p_structures = count_llm_p_structures(model = model, model_config = model_cfg)
     else:
         print("=====> AttentionHead pruning is ENABLED. Pruning would be conducted head-wisely on Query. <=====")
     #-----------------------------------------------------------------#
