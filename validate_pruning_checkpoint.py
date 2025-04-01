@@ -118,6 +118,12 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
 
+    elif model_name == 'opt':
+        tokenizer = AutoTokenizer.from_pretrained("facebook/opt-2.7b")
+        model = AutoModelForCausalLM.from_pretrained("facebook/opt-2.7b").cuda()
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
+
     if lora == True:
         print("intialize LoRA insertions.")
         if base == True:
@@ -837,9 +843,9 @@ def evaluate_instruction(model, tokenizer, masks):
 if __name__ == "__main__":
     import argparse
     
-    base = False
+    base = True
     lora = True
-    model_name = 'llama2-7b'
+    model_name = 'opt'
     raw  = False
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
