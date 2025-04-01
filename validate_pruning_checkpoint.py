@@ -143,7 +143,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             customized_lora_substitution(model, rank=8, dropout=0.1, model_name=model_name)
 
     print("Loading state dict from checkpoint.")
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    model.model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
     if not base:
@@ -851,7 +851,7 @@ if __name__ == "__main__":
     if base != True:
         print(f"Using checkpoint path: {ckpt_path}")
     else:
-        ckpt_path = "/home/002792721.neu/base_lora.pth.tar"
+        ckpt_path = "/orange/sgao1/base_lora.pth.tar"
 
     model, tokenizer, masks = initialize_model_and_tokenizer(base=base, lora=lora, input_ckpt_path=ckpt_path, model_name=model_name)
 
