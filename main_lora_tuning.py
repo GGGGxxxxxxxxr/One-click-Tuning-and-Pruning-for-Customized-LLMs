@@ -330,7 +330,11 @@ def main():
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
     elif args.model == 'opt':
-        
+        tokenizer = AutoTokenizer.from_pretrained("facebook/opt-2.7b")
+        model = AutoModelForCausalLM.from_pretrained("facebook/opt-2.7b").to(device)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
+
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
