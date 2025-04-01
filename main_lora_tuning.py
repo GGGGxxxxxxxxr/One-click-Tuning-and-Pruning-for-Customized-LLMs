@@ -324,6 +324,11 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = 32
 
+    elif args.model == 'sheared':
+        tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
+        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
     else:
         print("=====> Model not implemented yet! System Exit. <=====\n")
         sys.exit()
@@ -336,7 +341,7 @@ def main():
         print("=====> LoRA Tuning Initialization, pre-trained weights would be frozen during the following stages. <=====\n")
         lora_config = LoraConfig(
                         r=8,
-                        lora_alpha=8,
+                        lora_alpha=1,
                         target_modules="all-linear",
                         lora_dropout=0.1,
                         bias="none"
