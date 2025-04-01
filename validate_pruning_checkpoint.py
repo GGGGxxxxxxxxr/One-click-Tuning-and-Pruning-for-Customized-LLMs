@@ -11,7 +11,7 @@ import math
 import os
 from peft import LoftQConfig, LoraConfig, get_peft_model
 from util_llm import LoRALinear, customized_lora_substitution
-from custom_llms.phi2  import PhiForCausalLM
+#from custom_llms.phi2  import PhiForCausalLM
 
 def transform_output(inputs):
     lw_structure = [128] * 64 + [4096] + [11008]
