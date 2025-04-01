@@ -287,7 +287,8 @@ def main():
         nlp_dataset, val_dataset = formatted_wikitext_dataset()
     elif args.dataset == 'MedNLI':
         nlp_dataset, val_dataset = formatted_MedNLI_dataset()
-
+    elif args.dataset == 'medical':
+        nlp_dataset, val_dataset =
     print("=====> Dataset Config & Sample Check: <=====\n")
     print(nlp_dataset)
     print(val_dataset)

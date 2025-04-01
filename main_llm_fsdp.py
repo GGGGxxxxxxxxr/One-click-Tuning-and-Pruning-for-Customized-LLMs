@@ -255,6 +255,9 @@ def training_cleanup():
 
 def main():
     #-----------------------------------------------------------------#
+    from PyInstaller.utils.hooks import collect_dynamic_libs
+    binaries = collect_dynamic_libs('nvidia.cuda_nvrtc', search_patterns=['lib*.so.*'])
+    
     # init DistributedDataParallel
     training_setup()
     rank = dist.get_rank()
