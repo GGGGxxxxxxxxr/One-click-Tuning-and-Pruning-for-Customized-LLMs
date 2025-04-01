@@ -829,7 +829,7 @@ def evaluate_instruction(model, tokenizer, masks):
 if __name__ == "__main__":
     import argparse
     
-    base = True
+    base = False
     lora = True
     model_name = 'llama2-7b'
     raw  = False
