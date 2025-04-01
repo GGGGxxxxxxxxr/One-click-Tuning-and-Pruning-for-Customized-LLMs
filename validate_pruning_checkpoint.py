@@ -56,6 +56,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
     print(f"Loading checkpoint from {ckpt_path}.")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
     print(checkpoint["model_state_dict"])
+
     if model_name == 'llama2-7b':
         print("Initializing LLaMA 2-7B model.")
         api_token = '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'

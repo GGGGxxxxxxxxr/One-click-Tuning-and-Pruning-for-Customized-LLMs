@@ -174,7 +174,7 @@ def setup_for_distributed(is_master):
 def save_checkpoint(
     epoch, 
     model=None, 
-    filename="/home/002792721.neu/base_lora.pth.tar"
+    filename="/home/002792721.neu/ATO_llm/base_lora.pth.tar"
 ):
     """
     Save the training checkpoint including model, hyper_net weights, optimizers, and current mask vector.
@@ -194,7 +194,7 @@ def save_checkpoint(
     # Store state_dicts only if the corresponding component is not None
     if model is not None:
         state['model_state_dict'] = (
-            model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+            model.module.base_model.model.state_dict() if hasattr(model, "module") else model.state_dict()
         )
 
     # Save only on the main process to avoid multiple processes writing the file
