@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, AutoConfig
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from datasets import load_dataset
 from custom_llms.qwen2 import Qwen2ForCausalLM  # Ensure this import is correct
 from custom_llms.llama import LlamaForCausalLM
@@ -109,6 +109,13 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         model.resize_token_embeddings(len(tokenizer))
         args.num_key_values = model_cfg.num_key_value_heads
         print(model)
+        
+    elif model_name == 'sheared':
+        print("initializing sheared llama2-2.7b-raw.")
+        tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
+        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned").to(device)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
 
     if lora == True:
         print("intialize LoRA insertions.")
@@ -116,7 +123,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             print("intialize LoRA insertions.")
             lora_config = LoraConfig(
                                 r=8,
-                                lora_alpha=8,
+                                lora_alpha=1,
                                 target_modules="all-linear",
                                 lora_dropout=0.1,
                                 bias="none"
@@ -829,9 +836,9 @@ def evaluate_instruction(model, tokenizer, masks):
 if __name__ == "__main__":
     import argparse
     
-    base = False
+    base = True
     lora = True
-    model_name = 'llama2-7b'
+    model_name = 'sheared'
     raw  = False
     parser = argparse.ArgumentParser(description="Run the model with user-defined checkpoint path")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
