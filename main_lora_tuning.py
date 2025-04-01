@@ -194,7 +194,7 @@ def save_checkpoint(
     # Store state_dicts only if the corresponding component is not None
     if model is not None:
         state['model_state_dict'] = (
-            model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+            model.model.module.state_dict() if hasattr(model, "module") else model.state_dict()
         )
 
     # Save only on the main process to avoid multiple processes writing the file
@@ -329,7 +329,7 @@ def main():
         model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned").to(device)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
-        
+
     elif args.model == 'opt':
         tokenizer = AutoTokenizer.from_pretrained("facebook/opt-2.7b")
         model = AutoModelForCausalLM.from_pretrained("facebook/opt-2.7b").to(device)
