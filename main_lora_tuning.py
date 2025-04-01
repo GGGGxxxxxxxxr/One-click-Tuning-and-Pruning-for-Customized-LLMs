@@ -326,7 +326,7 @@ def main():
 
     elif args.model == 'sheared':
         tokenizer = AutoTokenizer.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
-        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned")
+        model = AutoModelForCausalLM.from_pretrained("princeton-nlp/Sheared-LLaMA-2.7B-Pruned").to(device)
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         model.resize_token_embeddings(len(tokenizer))
     else:
