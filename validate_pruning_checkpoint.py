@@ -143,7 +143,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
             customized_lora_substitution(model, rank=8, dropout=0.1, model_name=model_name)
 
     print("Loading state dict from checkpoint.")
-    model.model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     model.eval()
 
     if not base:
