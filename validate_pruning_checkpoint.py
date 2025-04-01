@@ -119,6 +119,7 @@ def initialize_model_and_tokenizer(base=False, lora=False, input_ckpt_path=None,
         model.resize_token_embeddings(len(tokenizer))
 
     elif model_name == 'opt':
+        print("initializing sheared opt-2.7b.")
         tokenizer = AutoTokenizer.from_pretrained("facebook/opt-2.7b")
         model = AutoModelForCausalLM.from_pretrained("facebook/opt-2.7b").cuda()
         tokenizer.add_special_tokens({'pad_token': '[PAD]'})
