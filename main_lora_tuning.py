@@ -194,7 +194,7 @@ def save_checkpoint(
     # Store state_dicts only if the corresponding component is not None
     if model is not None:
         state['model_state_dict'] = (
-            model.model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+            model.model.model.state_dict() if hasattr(model, "module") else model.state_dict()
         )
 
     # Save only on the main process to avoid multiple processes writing the file
