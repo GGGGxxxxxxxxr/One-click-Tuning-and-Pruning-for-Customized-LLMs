@@ -109,7 +109,6 @@ def caculate_remaining_parmams(pruning_masks, args):
         return total_remaining_params
     
     else:
-
         raise NotImplementedError
 
 #-----------------------------------------------------------------#
