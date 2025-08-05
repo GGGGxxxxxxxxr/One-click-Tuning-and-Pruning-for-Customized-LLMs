@@ -76,7 +76,6 @@ def format_mednli_example_raw(example):
     sentence2 = example['sentence2']
     gold_label = example['gold_label']
     
-    # 根据 gold_label 确定 trailing 文本
     if gold_label == "entailment":
         trailing = "the hypothesis is true given the premise."
     elif gold_label == "contradiction":
@@ -86,17 +85,14 @@ def format_mednli_example_raw(example):
     else:
         trailing = "the relationship is unknown."
     
-    # 构建 input_text，使用他人的模板，不包含 gold_label
     input_text = (
         f"Premise is '{sentence1}' and hypothesis is '{sentence2}'."
     )
     
-    # 构建答案，包括 gold_label 和 trailing
     response = (
         f"Their relationship is '{gold_label}', which indicates {trailing}"
     )
     
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def formatted_MedNLI_dataset(
@@ -151,45 +147,33 @@ def formatted_MedNLI_dataset(
 #-----------------------------------------------------------------#
 # HealthQuestionSum [HQS Dataset]
 def extract_question(text):
-    """
-    从文本中提取问题，处理不同的格式。
-    如果文本包含 'SUBJECT:' 和 'MESSAGE:'，则提取 'MESSAGE:' 后的内容。
-    否则，将整个文本视为问题。
-    """
-    # 检查文本是否包含 'SUBJECT:' 或 'MESSAGE:'
-    # 1. 检查是否以 'Q. ' 开头
     if text.startswith('Q. '):
         question = text[3:].strip()
         return question
     
     if 'SUBJECT:' in text or 'MESSAGE:' in text:
-        # 使用正则表达式提取 'MESSAGE:' 后的内容
+        
         match = re.search(r'MESSAGE:\s*(.*)', text, re.DOTALL)
         if match:
             question = match.group(1).strip()
         else:
-            # 如果无法提取，返回原始文本
+            
             question = text.strip()
     else:
-        # 将整个文本视为问题
+        
         question = text.strip()
     return question
 
 def format_hqs_example_qa(example):
-    # 提取必要的信息
     question = extract_question(example['CHQ'])
     summary = extract_question(example['Summary'])
 
-    # 定义 instruction
     instruction = "Summarize the following question from a patient."
 
-    # 构建 optional_input
     optional_input = f"Patient's question: '{question}'"
 
-    # 生成 response
     response = f"The summary of the patient's question is: '{summary}'."
 
-    # 按照 Alpaca 模板格式化输入文本
     input_text = (
         f"Below is an instruction that describes a task, paired with an input that provides further context. "
         f"Write a response that appropriately completes the request.\n\n"
@@ -198,23 +182,18 @@ def format_hqs_example_qa(example):
         f"### Response:\n"
     )
 
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def format_hqs_example_raw(example):
-    # 提取必要的信息
     question = extract_question(example['CHQ'])
     summary = extract_question(example['Summary'])
 
-    # 构建 input_text 使用新的模板
     input_text = (
         f"A question posted by a patient is '{question }'."
     )
 
-    # 生成 response，假设模型需要输出摘要，这里可以调整根据需要
     response = f"The summary of the patient's question is: '{summary}'."
 
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 
@@ -224,7 +203,7 @@ def formatted_HQS_dataset(num_samples=None,
 
     #training_dataset   = load_dataset("bigbio/meqsum", "meqsum_source")["train"].remove_columns(["File"])
     training_dataset   = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_train.jsonl")['train']
-    validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_test.jsonl")['train'].remove_columns("q_id")
+    validation_dataset = load_dataset("json", data_files="nlp_dataset_collections/HQS/HQS_train.jsonl")['train'].remove_columns("q_id")
 
     '''
     ** DEPRACIATED IN 0.2 version update, we find the online dataset requires cleaning, so we use the official HQS dataset only
@@ -244,7 +223,6 @@ def formatted_HQS_dataset(num_samples=None,
     training_dataset = concatenate_datasets([training_dataset, extra_train_1, extra_train_2])
     '''
 
-    # 如果指定了 num_samples，选择前 num_samples 条数据
     if num_samples is not None:
         assert len(training_dataset) == num_samples == 1000, "we only use the official 1000 HQS instances for medical domain training, please check your implementation."
         num_samples = min(num_samples, len(training_dataset))
@@ -274,20 +252,15 @@ def formatted_HQS_dataset(num_samples=None,
 
 #-----------------------------------------------------------------#
 # PubMedQA
-# ** 构建具有指定文本模板和采样的 PubMedQA 数据集
 def format_pubmedqa_example_qa(example):
-    # 提取必要的信息
     context = example['context']['contexts']
     question = example['question']
     final_decision = example['final_decision']
 
-    # 定义 instruction
     instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
 
-    # 构建 optional_input
     optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
 
-    # 根据 final_decision 确定 trailing 文本
     if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
     elif final_decision.lower() == "no":
@@ -297,10 +270,8 @@ def format_pubmedqa_example_qa(example):
     else:
         trailing = "the answer is unknown."
 
-    # 生成 response
     response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
 
-    # 按照 Alpaca 模板格式化输入文本
     input_text = (
         f"Below is an instruction that describes a task, paired with an input that provides further context. "
         f"Write a response that appropriately completes the request.\n\n"
@@ -309,7 +280,6 @@ def format_pubmedqa_example_qa(example):
         f"### Response:\n"
     )
 
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def format_pubmedqa_example_raw(example):
@@ -317,7 +287,6 @@ def format_pubmedqa_example_raw(example):
     question = example['question']
     final_decision = example['final_decision']
 
-    # 根据 final_decision 确定 trailing 文本
     if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
     elif final_decision.lower() == "no":
@@ -327,31 +296,24 @@ def format_pubmedqa_example_raw(example):
     else:
         trailing = "the answer is unknown."
 
-    # 构建 input_text 使用新的模板
     input_text = (
         f"The abstract of a biomedical research article is '{context}'. "
         f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
     )
 
-    # 生成 response（可以根据需要调整）
     response = f"The answer is '{final_decision}', which indicates {trailing}"
 
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def format_pubmedqa_example_ori_qa(example):
-    # 提取必要字段
     context = example['CONTEXTS']
     question = example['QUESTION']
     final_decision = example['final_decision']
     
-    # 定义 instruction
     instruction = "Choose the answer for the following medical Question based on the provided Abstract from 'yes', 'no', 'maybe'."
     
-    # 构建 optional_input
     optional_input = f"Abstract: '{context}'\nQuestion: '{question}'"
     
-    # 根据 final_decision 确定 trailing 文本
     if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
     elif final_decision.lower() == "no":
@@ -361,10 +323,8 @@ def format_pubmedqa_example_ori_qa(example):
     else:
         trailing = "the answer is unknown."
     
-    # 生成 response
     response = f"The answer to the question is '{final_decision}', which indicates that {trailing}"
     
-    # 按照 Alpaca 模板格式化输入文本
     input_text = (
         f"Below is an instruction that describes a task, paired with an input that provides further context. "
         f"Write a response that appropriately completes the request.\n\n"
@@ -373,7 +333,6 @@ def format_pubmedqa_example_ori_qa(example):
         f"### Response:\n"
     )
     
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def format_pubmedqa_example_ori_raw(example):
@@ -381,7 +340,6 @@ def format_pubmedqa_example_ori_raw(example):
     question = example['QUESTION']
     final_decision = example['final_decision']
 
-    # 根据 final_decision 确定 trailing 文本
     if final_decision.lower() == "yes":
         trailing = "the phenomenon mentioned by the question is confirmed by the abstract."
     elif final_decision.lower() == "no":
@@ -391,16 +349,13 @@ def format_pubmedqa_example_ori_raw(example):
     else:
         trailing = "the answer is unknown."
 
-    # 构建 input_text 使用新的模板
     input_text = (
         f"The abstract of a biomedical research article is '{context}'. "
         f"Here comes a question '{question}', and please answer the question with 'yes', 'no', or 'maybe'. "
     )
 
-    # 生成 response（可以根据需要调整）
     response = f"The answer is '{final_decision}', which indicates {trailing}"
 
-    # 返回包含格式化文本和答案的字典
     return {'text': input_text, 'answer': response}
 
 def formatted_PubMedQA_dataset(num_samples=None, 
@@ -435,13 +390,11 @@ def formatted_PubMedQA_dataset(num_samples=None,
             remove_columns=["QUESTION", "CONTEXTS", "final_decision"]
         )
     else:
-        # 对训练集应用格式化函数并移除原始列
         training_dataset = training_dataset.map(
             format_pubmedqa_example_qa,
             remove_columns=["context", "question", "final_decision"]
         )
 
-        # 对验证集应用格式化函数并移除原始列
         validation_dataset = validation_dataset.map(
             format_pubmedqa_example_qa,
             remove_columns=["context", "question", "final_decision"]
@@ -460,10 +413,10 @@ def formatted_PubMedQA_dataset(num_samples=None,
 
 
 def formatted_intermedMed_dataset(num_samples=None):
-    train_data_file='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
-    val_data_file='nlp_dataset_collections/internalMed/internalMed_test.jsonl'
-    train_dataset = load_dataset('json', data_files=train_data_file, split='train')
-    val_dataset = load_dataset('json', data_files=val_data_file, split='train')
+    train_data_file ='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
+    val_data_file   ='nlp_dataset_collections/internalMed/internalMed_train.jsonl'
+    train_dataset   = load_dataset('json', data_files=train_data_file, split='train')
+    val_dataset     = load_dataset('json', data_files=val_data_file, split='train')
 
     num_random_val_samples = 1000
     indices = random.sample(range(len(train_dataset)), num_random_val_samples)
@@ -473,11 +426,9 @@ def formatted_intermedMed_dataset(num_samples=None):
         num_samples = min(num_samples, len(train_dataset))
         train_dataset = train_dataset.select(range(num_samples))
 
-    # for convincing results, we no longer use testing data for validation
     train_dataset      = train_dataset.map(lambda x: {'answer': ""})
     validation_dataset = val_dataset.map(lambda x: {'answer': ""})
     
-    #
     validation_dataset = validation_dataset.select(range(200))
 
     return train_dataset, validation_dataset         #extra_validation_dataset
@@ -492,15 +443,12 @@ def formatted_c4_dataset(num_samples=1000, min_length=200, max_length=500):
     for example in en["train"]:
         text = example["text"].strip()
 
-        # 计算文本长度
         text_length = len(text)
 
-        # 判断是否符合长度要求
         if min_length <= text_length <= max_length:
             selected_samples.append(text)
             count += 1
 
-            # 达到所需数量，退出循环
             if count >= num_samples:
                 break
 
@@ -508,9 +456,8 @@ def formatted_c4_dataset(num_samples=1000, min_length=200, max_length=500):
     validation_dataset = validation_dataset.map(lambda x: {'answer': ""})
     return validation_dataset
 
-#-------------------- 合并数据集 --------------------#
 def create_medical_dataset(args=None, open_domain=False):
-    # 获取各个数据集的训练集和验证集
+
     mednli_train, mednli_val = formatted_MedNLI_dataset(num_samples=7000)
     pubmedqa_train, pubmedqa_val = formatted_PubMedQA_dataset(num_samples=6500)
     hqs_train, hqs_val = formatted_HQS_dataset(num_samples=1000)
